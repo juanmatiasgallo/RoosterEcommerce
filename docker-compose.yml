@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tienda3d}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ${POSTGRES_DB:-tienda3d}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tienda3d} -d ${POSTGRES_DB:-tienda3d}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Solo se usa para levantar la app dockerizada (ej. en el VPS).
+  # En desarrollo local corre `npm run dev` contra el `db` de arriba.
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-tienda3d}:${POSTGRES_PASSWORD:-change-me}@db:5432/${POSTGRES_DB:-tienda3d}
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET}
+    volumes:
+      - uploads_data:/app/public/uploads
+    ports:
+      - "${APP_PORT:-3000}:3000"
+
+volumes:
+  db_data:
+  uploads_data:
