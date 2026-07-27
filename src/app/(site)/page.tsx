@@ -3,6 +3,8 @@ import { products } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 /**
  * Pagina principal publica: TODOS los articulos activos del catalogo.
  * Server Component, sin cache manual (Next cachea el fetch de datos via

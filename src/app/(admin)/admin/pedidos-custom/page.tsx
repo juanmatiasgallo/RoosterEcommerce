@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { customOrders } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export default async function PedidosCustomAdminPage() {
   const pendientes = await db
     .select()
