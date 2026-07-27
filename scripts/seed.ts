@@ -1,12 +1,27 @@
 import "dotenv/config";
 import { db } from "@/lib/db";
-import { stores, products, productVariants } from "@/lib/db/schema";
+import { stores, categories, products, productVariants } from "@/lib/db/schema";
 
 async function main() {
   let [store] = await db.select().from(stores).limit(1);
   if (!store) {
     [store] = await db.insert(stores).values({ name: "Tienda 3D", slug: "tienda-3d" }).returning();
   }
+
+  const [categoriaPadre] = await db
+    .insert(categories)
+    .values({ storeId: store.id, name: "Figuras y decoracion", slug: "figuras-y-decoracion" })
+    .returning();
+
+  const [categoriaHija] = await db
+    .insert(categories)
+    .values({
+      storeId: store.id,
+      parentId: categoriaPadre.id,
+      name: "Fantasia",
+      slug: "fantasia",
+    })
+    .returning();
 
   const [product] = await db
     .insert(products)
@@ -15,7 +30,7 @@ async function main() {
       slug: "figura-articulada-dragon",
       name: "Figura articulada dragon",
       description: "Dragon articulado impreso en una sola pieza, sin ensamblaje.",
-      category: "Figuras y decoracion",
+      categoryId: categoriaHija.id,
       basePrice: "890.00",
     })
     .returning();

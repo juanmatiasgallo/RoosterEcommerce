@@ -9,6 +9,7 @@ import {
   timestamp,
   jsonb,
   pgEnum,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 // ---------------------------------------------------------------------------
@@ -43,13 +44,23 @@ export const users = pgTable("users", {
 
 // --- Catalogo -----------------------------------------------------------
 
+// Arbol padre/hijo: parentId nulo = categoria de primer nivel.
+export const categories = pgTable("categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
+  name: varchar("name", { length: 200 }).notNull(),
+  slug: varchar("slug", { length: 220 }).notNull().unique(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(),
   storeId: uuid("store_id").notNull().references(() => stores.id),
   slug: varchar("slug", { length: 220 }).notNull().unique(),
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
-  category: varchar("category", { length: 100 }),
+  categoryId: uuid("category_id").references(() => categories.id),
   basePrice: numeric("base_price", { precision: 12, scale: 2 }).notNull(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
