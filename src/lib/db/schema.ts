@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -9,6 +10,7 @@ import {
   timestamp,
   jsonb,
   pgEnum,
+  check,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
@@ -25,6 +27,17 @@ export const stores = pgTable("stores", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: varchar("name", { length: 200 }).notNull(),
   slug: varchar("slug", { length: 200 }).notNull().unique(),
+  // Config SMTP, 1:1 con la tienda (por eso vive aca y no en tabla aparte).
+  // smtpPasswordEncrypted es el resultado de encrypt() (src/lib/crypto.ts),
+  // nunca texto plano. Todos nullable: la tienda puede no tener SMTP
+  // configurado todavia.
+  smtpHost: varchar("smtp_host", { length: 255 }),
+  smtpPort: integer("smtp_port"),
+  smtpUser: varchar("smtp_user", { length: 255 }),
+  smtpPasswordEncrypted: text("smtp_password_encrypted"),
+  smtpFromEmail: varchar("smtp_from_email", { length: 255 }),
+  smtpFromName: varchar("smtp_from_name", { length: 200 }),
+  smtpSecure: boolean("smtp_secure").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -88,15 +101,45 @@ export const productVariants = pgTable("product_variants", {
   active: boolean("active").notNull().default(true),
 });
 
+// Solo la tabla por ahora (spec-homepage-ux.md): sin query, action ni UI
+// todavia. Se implementa completo cuando haya compradores reales.
+export const productReviews = pgTable(
+  "product_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeId: uuid("store_id").notNull().references(() => stores.id),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    rating: integer("rating").notNull(),
+    comment: text("comment"),
+    verifiedPurchase: boolean("verified_purchase").notNull().default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [check("product_reviews_rating_range", sql`${table.rating} >= 1 AND ${table.rating} <= 5`)],
+);
+
 // --- Carrito --------------------------------------------------------------
 
-export const cartItems = pgTable("cart_items", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  variantId: uuid("variant_id").notNull().references(() => productVariants.id),
-  quantity: integer("quantity").notNull().default(1),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+// Un carrito pertenece a userId O a guestId (invitado sin login, ver
+// src/lib/cart/actions.ts), nunca a ninguno o a los dos — el CHECK de abajo
+// hace cumplir esa regla a nivel DB, no solo en el codigo de la action.
+export const cartItems = pgTable(
+  "cart_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    guestId: uuid("guest_id"),
+    variantId: uuid("variant_id").notNull().references(() => productVariants.id),
+    quantity: integer("quantity").notNull().default(1),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      "cart_items_owner_xor",
+      sql`(${table.userId} IS NOT NULL AND ${table.guestId} IS NULL) OR (${table.userId} IS NULL AND ${table.guestId} IS NOT NULL)`,
+    ),
+  ],
+);
 
 // --- Pedidos a medida (cotizacion) ----------------------------------------
 

@@ -29,6 +29,27 @@
       "when": 1785176202930,
       "tag": "0003_pretty_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785214242891,
+      "tag": "0004_swift_multiple_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785252799715,
+      "tag": "0005_tranquil_johnny_blaze",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1785257622147,
+      "tag": "0006_high_imperial_guard",
+      "breakpoints": true
     }
   ]
 }

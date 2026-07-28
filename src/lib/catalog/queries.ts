@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { and, asc, desc, eq, exists, gte, ilike, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, productImages, products, productVariants } from "@/lib/db/schema";
@@ -165,7 +166,9 @@ export async function listAvailableFilters(): Promise<AvailableFilters> {
   };
 }
 
-export async function getProductBySlug(slug: string) {
+// cache() dedupea la query dentro del mismo request: generateMetadata y el
+// propio Server Component de la pagina de producto la llaman las dos.
+export const getProductBySlug = cache(async (slug: string) => {
   const storeId = await getDefaultStoreId();
 
   const [product] = await db
@@ -189,11 +192,14 @@ export async function getProductBySlug(slug: string) {
   ]);
 
   return { ...product, variants, images };
-}
+});
 
 export type CategoryTreeNode = typeof categories.$inferSelect & { children: CategoryTreeNode[] };
 
-export async function listCategoryTree(): Promise<CategoryTreeNode[]> {
+// cache() dedupea la query dentro del mismo request: el layout del sitio
+// (footer) y la propia pagina de home (filtros/categorias destacadas) la
+// llaman las dos, y sin esto pegarian dos veces a la DB por request.
+export const listCategoryTree = cache(async (): Promise<CategoryTreeNode[]> => {
   const storeId = await getDefaultStoreId();
 
   const all = await db
@@ -217,7 +223,7 @@ export async function listCategoryTree(): Promise<CategoryTreeNode[]> {
   }
 
   return roots;
-}
+});
 
 // Camino desde la raiz hasta la categoria buscada (para el breadcrumb
 // "Inicio > Categoria > Subcategoria"). null si no aparece en el arbol.

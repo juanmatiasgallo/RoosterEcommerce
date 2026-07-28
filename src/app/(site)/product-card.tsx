@@ -2,6 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/format";
 import type { ProductListItem } from "@/lib/catalog/queries";
+import { Badge } from "@/components/ui/badge";
+import { ProductPlaceholder } from "@/components/product-placeholder";
 
 export function ProductCard({ product }: { product: ProductListItem }) {
   const price = product.minVariantPrice ?? Number(product.basePrice);
@@ -21,17 +23,20 @@ export function ProductCard({ product }: { product: ProductListItem }) {
             sizes="(max-width: 768px) 50vw, 25vw"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-xs text-neutral-400">Sin imagen</div>
+          <ProductPlaceholder />
         )}
 
         {product.availableVariantCount > 0 ? (
-          <span className="absolute right-2 top-2 rounded-full bg-white/90 px-2 py-0.5 text-xs font-medium text-neutral-700 shadow dark:bg-neutral-800/90 dark:text-neutral-200">
+          <Badge
+            variant="neutral"
+            className="absolute right-2 top-2 bg-white/90 shadow dark:bg-neutral-800/90 dark:text-neutral-200"
+          >
             {product.availableVariantCount} variante{product.availableVariantCount === 1 ? "" : "s"}
-          </span>
+          </Badge>
         ) : (
-          <span className="absolute right-2 top-2 rounded-full bg-neutral-800/90 px-2 py-0.5 text-xs font-medium text-white">
+          <Badge variant="neutral" className="absolute right-2 top-2 bg-neutral-800/90 text-white dark:bg-neutral-800/90">
             Sin stock
-          </span>
+          </Badge>
         )}
       </div>
 

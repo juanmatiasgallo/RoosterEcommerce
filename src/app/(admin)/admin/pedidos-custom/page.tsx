@@ -1,26 +1,23 @@
-import { db } from "@/lib/db";
-import { customOrders } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { listCustomOrdersForAdmin } from "@/lib/custom-orders/actions";
+import { PedidosCustomClient } from "./pedidos-custom-client";
 
+// Consulta la DB: sin esto, el build de Docker en EasyPanel la pre-renderiza
+// en build time y falla (no tiene red hacia la base ahi).
 export const dynamic = "force-dynamic";
 
+/**
+ * Proteccion de rol: src/proxy.ts ya redirige a no-staff lejos de /admin/*,
+ * y listCustomOrdersForAdmin/quoteCustomOrder vuelven a chequear el rol
+ * (defensa en profundidad, mismo patron que el resto de /admin).
+ */
 export default async function PedidosCustomAdminPage() {
-  const pendientes = await db
-    .select()
-    .from(customOrders)
-    .where(eq(customOrders.status, "pendiente"));
+  const orders = await listCustomOrdersForAdmin();
+  const pendientes = orders.filter((order) => order.status === "pendiente");
+  const cotizados = orders.filter((order) => order.status === "cotizado");
 
   return (
-    <main style={{ padding: "2rem" }}>
-      <h1>Pedidos a medida por cotizar</h1>
-      <ul>
-        {pendientes.map((o) => (
-          <li key={o.id}>
-            {o.fileName} — cantidad: {o.quantity} — {o.material ?? "sin especificar"}
-          </li>
-        ))}
-      </ul>
-      {/* TODO: modal/form para poner quotedPrice y pasar status a "cotizado" */}
+    <main className="mx-auto max-w-3xl px-4 py-8">
+      <PedidosCustomClient pendientes={pendientes} cotizados={cotizados} />
     </main>
   );
 }

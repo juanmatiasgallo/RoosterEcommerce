@@ -1,6 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { listAvailableFilters, listCategoryTree, listProducts, type ProductSort } from "@/lib/catalog/queries";
+import {
+  findCategoryPath,
+  listAvailableFilters,
+  listCategoryTree,
+  listProducts,
+  type ProductSort,
+} from "@/lib/catalog/queries";
 import { CatalogClient } from "./catalog-client";
+import { FeaturedCategories } from "./featured-categories";
+import { Hero } from "./hero";
+import { HowItWorks } from "./how-it-works";
 import { ProductCard } from "./product-card";
 
 // Esta pagina consulta la DB en cada request: si se deja como estatica por
@@ -27,6 +37,29 @@ function parseNumberParam(value: string | string[] | undefined): number | undefi
   if (!raw) return undefined;
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+// listCategoryTree esta cacheada (cache() de React), asi que llamarla aca y
+// de nuevo en el componente de la pagina no duplica la query real.
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const categoryId = firstValue(sp.categoryId);
+  if (!categoryId) return {};
+
+  const categoryTree = await listCategoryTree();
+  const path = findCategoryPath(categoryTree, categoryId);
+  if (!path) return {};
+
+  const categoryName = path[path.length - 1].name;
+
+  return {
+    title: `${categoryName} | Tienda 3D`,
+    description: `Catalogo de ${categoryName.toLowerCase()} para impresion 3D — Tienda 3D.`,
+  };
 }
 
 /**
@@ -66,8 +99,14 @@ export default async function HomePage({
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      <h1 className="text-2xl font-semibold">Catalogo</h1>
-      <p className="mt-1 text-neutral-500">Todos nuestros articulos disponibles para impresion 3D.</p>
+      <Hero />
+      <HowItWorks />
+      <FeaturedCategories categoryTree={categoryTree} />
+
+      <div id="catalogo" className="scroll-mt-6 pt-10">
+        <h2 className="text-2xl font-semibold">Catalogo</h2>
+        <p className="mt-1 text-neutral-500">Todos nuestros articulos disponibles para impresion 3D.</p>
+      </div>
 
       <div className="mt-6">
         <CatalogClient categoryTree={categoryTree} availableFilters={availableFilters}>

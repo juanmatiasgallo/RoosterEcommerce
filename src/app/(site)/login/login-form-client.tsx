@@ -5,8 +5,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { z } from "zod";
 import { loginSchema } from "@/lib/auth/schema";
+import { mergeGuestCartIntoUser } from "@/lib/cart/actions";
 
 type FormValues = z.infer<typeof loginSchema>;
 
@@ -40,6 +42,11 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
         setFormError("Email o contrasena incorrectos.");
         return;
       }
+
+      // Fusiona el carrito de invitado (si existia cookie cart_guest_id) con
+      // el usuario recien logueado, antes de navegar. Se llama siempre; la
+      // action misma no hace nada si no hay cookie de invitado.
+      await mergeGuestCartIntoUser();
 
       // router.refresh() fuerza a los Server Components de la ruta destino a
       // re-renderizar leyendo la sesion recien creada (la cookie ya esta
@@ -95,6 +102,13 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
       >
         {isSubmitting ? "Ingresando..." : "Ingresar"}
       </button>
+
+      <p className="text-sm text-neutral-500">
+        ¿No tenes cuenta?{" "}
+        <Link href="/crear-cuenta" className="underline">
+          Crea una
+        </Link>
+      </p>
     </form>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { ProductPlaceholder } from "@/components/product-placeholder";
 
 type GalleryImage = { id: string; url: string };
 
@@ -17,8 +18,8 @@ export function ProductGalleryClient({
 
   if (!active) {
     return (
-      <div className="flex aspect-square items-center justify-center rounded-lg bg-neutral-100 text-sm text-neutral-400 dark:bg-neutral-900">
-        Sin imagenes
+      <div className="aspect-square overflow-hidden rounded-lg">
+        <ProductPlaceholder />
       </div>
     );
   }

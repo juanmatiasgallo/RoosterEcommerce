@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { findCategoryPath, getProductBySlug, listCategoryTree, listProducts } from "@/lib/catalog/queries";
 import { Breadcrumb, type BreadcrumbItem } from "../../breadcrumb";
@@ -9,6 +10,41 @@ import { VariantSelectorClient } from "./variant-selector-client";
 // el build de Docker en EasyPanel falla (no tiene red hacia la DB en build
 // time).
 export const dynamic = "force-dynamic";
+
+const DESCRIPTION_MAX_LENGTH = 160;
+const FALLBACK_DESCRIPTION = "Impresion 3D a pedido, catalogo y piezas a medida — Tienda 3D.";
+
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+// getProductBySlug esta cacheada (cache() de React) asi que llamarla aca y
+// de nuevo en el componente de la pagina no duplica la query real.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProductBySlug(slug);
+  if (!product) return {};
+
+  const description = product.description
+    ? truncate(product.description, DESCRIPTION_MAX_LENGTH)
+    : FALLBACK_DESCRIPTION;
+  const firstImage = product.images[0];
+
+  return {
+    title: `${product.name} | Tienda 3D`,
+    description,
+    openGraph: {
+      title: product.name,
+      description,
+      images: firstImage ? [{ url: firstImage.url }] : undefined,
+    },
+  };
+}
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

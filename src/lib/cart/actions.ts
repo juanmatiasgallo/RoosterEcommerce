@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+import { cookies } from "next/headers";
 import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
@@ -7,15 +9,47 @@ import { db } from "@/lib/db";
 import { cartItems, productVariants, products } from "@/lib/db/schema";
 import { addToCartSchema, updateCartItemSchema } from "./schema";
 
-async function requireUser() {
+const GUEST_COOKIE_NAME = "cart_guest_id";
+const GUEST_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 dias
+
+// Discriminante explicito por "type" (no por nullability de userId/guestId):
+// asi TypeScript narrowea de verdad cada rama sin quejarse de null.
+type CartOwner = { type: "user"; userId: string } | { type: "guest"; guestId: string };
+
+// Si hay sesion, el carrito SIEMPRE se resuelve por userId (se ignora
+// cualquier cookie de invitado vieja que pudiera haber quedado de antes de
+// loguearse). Sin sesion, se identifica al invitado por una cookie httpOnly,
+// creandola la primera vez que hace falta.
+async function resolveCartOwner(): Promise<CartOwner> {
   const session = await auth();
-  if (!session) throw new Error("Debes iniciar sesion para usar el carrito.");
-  return session;
+  if (session) {
+    return { type: "user", userId: session.user.id };
+  }
+
+  const cookieStore = await cookies();
+  const existing = cookieStore.get(GUEST_COOKIE_NAME)?.value;
+  if (existing) {
+    return { type: "guest", guestId: existing };
+  }
+
+  const guestId = randomUUID();
+  cookieStore.set(GUEST_COOKIE_NAME, guestId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: GUEST_COOKIE_MAX_AGE_SECONDS,
+  });
+  return { type: "guest", guestId };
+}
+
+function ownerCondition(owner: CartOwner) {
+  return owner.type === "user" ? eq(cartItems.userId, owner.userId) : eq(cartItems.guestId, owner.guestId);
 }
 
 // Unica fuente de verdad de "esta variante se puede comprar ahora mismo":
-// variante activa, producto activo. addToCart/updateCartItem recalculan el
-// stock disponible acá mismo, nunca confiando en lo que muestra el cliente.
+// variante activa, producto activo. Las actions de abajo recalculan el
+// stock disponible aca mismo, nunca confiando en lo que muestra el cliente.
 async function getPurchasableVariant(variantId: string) {
   const [row] = await db
     .select({ variant: productVariants, product: products })
@@ -27,7 +61,7 @@ async function getPurchasableVariant(variantId: string) {
 }
 
 export async function addToCart(variantId: string, quantity: number) {
-  const session = await requireUser();
+  const owner = await resolveCartOwner();
   const data = addToCartSchema.parse({ variantId, quantity });
 
   const purchasable = await getPurchasableVariant(data.variantId);
@@ -36,7 +70,7 @@ export async function addToCart(variantId: string, quantity: number) {
   const [existing] = await db
     .select()
     .from(cartItems)
-    .where(and(eq(cartItems.userId, session.user.id), eq(cartItems.variantId, data.variantId)))
+    .where(and(ownerCondition(owner), eq(cartItems.variantId, data.variantId)))
     .limit(1);
 
   // Si ya habia una fila para esta variante, se suma en vez de duplicar.
@@ -49,7 +83,12 @@ export async function addToCart(variantId: string, quantity: number) {
     ? await db.update(cartItems).set({ quantity: nextQuantity }).where(eq(cartItems.id, existing.id)).returning()
     : await db
         .insert(cartItems)
-        .values({ userId: session.user.id, variantId: data.variantId, quantity: data.quantity })
+        .values({
+          userId: owner.type === "user" ? owner.userId : null,
+          guestId: owner.type === "guest" ? owner.guestId : null,
+          variantId: data.variantId,
+          quantity: data.quantity,
+        })
         .returning();
 
   revalidatePath("/carrito");
@@ -57,13 +96,13 @@ export async function addToCart(variantId: string, quantity: number) {
 }
 
 export async function updateCartItem(cartItemId: string, quantity: number) {
-  const session = await requireUser();
+  const owner = await resolveCartOwner();
   const data = updateCartItemSchema.parse({ quantity });
 
   const [existing] = await db
     .select()
     .from(cartItems)
-    .where(and(eq(cartItems.id, cartItemId), eq(cartItems.userId, session.user.id)))
+    .where(and(eq(cartItems.id, cartItemId), ownerCondition(owner)))
     .limit(1);
   if (!existing) throw new Error("Item de carrito no encontrado.");
 
@@ -84,12 +123,12 @@ export async function updateCartItem(cartItemId: string, quantity: number) {
 }
 
 export async function removeFromCart(cartItemId: string) {
-  const session = await requireUser();
+  const owner = await resolveCartOwner();
 
   const [existing] = await db
     .select()
     .from(cartItems)
-    .where(and(eq(cartItems.id, cartItemId), eq(cartItems.userId, session.user.id)))
+    .where(and(eq(cartItems.id, cartItemId), ownerCondition(owner)))
     .limit(1);
   if (!existing) throw new Error("Item de carrito no encontrado.");
 
@@ -99,18 +138,17 @@ export async function removeFromCart(cartItemId: string) {
   return { id: cartItemId };
 }
 
-// Lectura scoped al usuario logueado (no hay catalogo publico involucrado
-// aca, por eso vive junto a las mutaciones guardadas y no en un queries.ts
-// separado sin auth).
+// Lectura scoped al dueno del carrito (usuario logueado o invitado por
+// cookie) — no requiere sesion, a diferencia de como era antes.
 export async function getCartItems() {
-  const session = await requireUser();
+  const owner = await resolveCartOwner();
 
   const rows = await db
     .select({ item: cartItems, variant: productVariants, product: products })
     .from(cartItems)
     .innerJoin(productVariants, eq(productVariants.id, cartItems.variantId))
     .innerJoin(products, eq(products.id, productVariants.productId))
-    .where(eq(cartItems.userId, session.user.id))
+    .where(ownerCondition(owner))
     .orderBy(asc(cartItems.createdAt));
 
   // Total recalculado en el server a partir del precio real de cada
@@ -121,3 +159,49 @@ export async function getCartItems() {
 }
 
 export type CartRow = Awaited<ReturnType<typeof getCartItems>>["items"][number];
+
+// Se llama explicitamente desde login-form-client.tsx justo despues de un
+// signIn() exitoso — no un callback/evento de NextAuth. Se eligio asi para
+// mantener la logica de fusion del carrito en el dominio "cart" (no
+// mezclada en la config de auth.ts) y porque corre de forma determinista,
+// garantizada, en el mismo request donde ya sabemos que el login funciono
+// (un callback de NextAuth exigiria confirmar que cookies().set/delete
+// tiene la misma garantia de escritura ahi, que no hacia falta arriesgar).
+export async function mergeGuestCartIntoUser() {
+  const session = await auth();
+  if (!session) return;
+
+  const cookieStore = await cookies();
+  const guestId = cookieStore.get(GUEST_COOKIE_NAME)?.value;
+  if (!guestId) return;
+
+  const guestItems = await db.select().from(cartItems).where(eq(cartItems.guestId, guestId));
+
+  for (const guestItem of guestItems) {
+    const [existing] = await db
+      .select()
+      .from(cartItems)
+      .where(and(eq(cartItems.userId, session.user.id), eq(cartItems.variantId, guestItem.variantId)))
+      .limit(1);
+
+    if (existing) {
+      const purchasable = await getPurchasableVariant(guestItem.variantId);
+      const combinedQuantity = existing.quantity + guestItem.quantity;
+      // Se respeta el stock disponible: en vez de rechazar (no hay forma
+      // razonable de mostrarle un error de validacion al usuario en medio
+      // del login), se capea la cantidad combinada al stock real.
+      const finalQuantity = purchasable ? Math.min(combinedQuantity, purchasable.variant.stock) : combinedQuantity;
+
+      await db.update(cartItems).set({ quantity: finalQuantity }).where(eq(cartItems.id, existing.id));
+      await db.delete(cartItems).where(eq(cartItems.id, guestItem.id));
+    } else {
+      await db
+        .update(cartItems)
+        .set({ userId: session.user.id, guestId: null })
+        .where(eq(cartItems.id, guestItem.id));
+    }
+  }
+
+  cookieStore.delete(GUEST_COOKIE_NAME);
+  revalidatePath("/carrito");
+}

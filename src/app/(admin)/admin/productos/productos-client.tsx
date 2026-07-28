@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { archiveProduct, type AdminProductListItem } from "@/lib/catalog/actions";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
+import { Badge } from "@/components/ui/badge";
 import { ProductoFormDialog } from "./producto-form-dialog";
 
 type DialogState = { mode: "create" } | { mode: "edit"; product: AdminProductListItem } | null;
@@ -108,13 +109,9 @@ export function ProductosClient({
                   <td className="py-2 pr-4">{product.variants.length}</td>
                   <td className="py-2 pr-4">
                     {product.active ? (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900 dark:text-green-300">
-                        Activo
-                      </span>
+                      <Badge variant="success">Activo</Badge>
                     ) : (
-                      <span className="rounded-full bg-neutral-200 px-2 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
-                        Archivado
-                      </span>
+                      <Badge variant="neutral">Archivado</Badge>
                     )}
                   </td>
                   <td className="py-2 pr-4">
