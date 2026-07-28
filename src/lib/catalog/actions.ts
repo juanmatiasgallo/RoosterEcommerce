@@ -1,0 +1,430 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { and, eq, inArray } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import type { z } from "zod";
+import { auth } from "@/auth";
+import type { Role } from "@/lib/auth/schema";
+import { db } from "@/lib/db";
+import { auditLogs, categories, productImages, products, productVariants } from "@/lib/db/schema";
+import {
+  createCategorySchema,
+  createProductSchema,
+  createVariantSchema,
+  reorderCategoriesSchema,
+  updateCategorySchema,
+  updateProductSchema,
+  updateVariantSchema,
+  uploadProductImageSchema,
+  UPLOAD_IMAGE_ALLOWED_EXTENSIONS,
+} from "./schema";
+
+const STAFF_ROLES: Role[] = ["admin", "empleado"];
+
+async function requireStaff() {
+  const session = await auth();
+  if (!session || !STAFF_ROLES.includes(session.user.role)) {
+    throw new Error("No autorizado.");
+  }
+  return session;
+}
+
+async function logAudit(params: {
+  userId: string;
+  storeId: string;
+  action: string;
+  entityType: string;
+  entityId?: string;
+  before?: unknown;
+  after?: unknown;
+}) {
+  await db.insert(auditLogs).values({
+    storeId: params.storeId,
+    userId: params.userId,
+    action: params.action,
+    entityType: params.entityType,
+    entityId: params.entityId,
+    before: params.before ?? null,
+    after: params.after ?? null,
+  });
+}
+
+async function getOwnedProduct(productId: string, storeId: string) {
+  const [product] = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.id, productId), eq(products.storeId, storeId)))
+    .limit(1);
+  return product;
+}
+
+// --- Productos --------------------------------------------------------
+
+export async function createProduct(input: z.infer<typeof createProductSchema>) {
+  const session = await requireStaff();
+  const data = createProductSchema.parse(input);
+
+  const [created] = await db
+    .insert(products)
+    .values({
+      storeId: session.user.storeId,
+      slug: data.slug,
+      name: data.name,
+      description: data.description,
+      categoryId: data.categoryId,
+      basePrice: data.basePrice.toFixed(2),
+    })
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "create",
+    entityType: "product",
+    entityId: created.id,
+    after: created,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/admin/productos");
+  return created;
+}
+
+export async function updateProduct(id: string, input: z.infer<typeof updateProductSchema>) {
+  const session = await requireStaff();
+  const data = updateProductSchema.parse(input);
+
+  const existing = await getOwnedProduct(id, session.user.storeId);
+  if (!existing) throw new Error("Producto no encontrado.");
+
+  const [updated] = await db
+    .update(products)
+    .set({
+      ...(data.slug !== undefined && { slug: data.slug }),
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.description !== undefined && { description: data.description }),
+      ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
+      ...(data.basePrice !== undefined && { basePrice: data.basePrice.toFixed(2) }),
+    })
+    .where(eq(products.id, id))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "product",
+    entityId: id,
+    before: existing,
+    after: updated,
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/producto/${existing.slug}`);
+  revalidatePath("/admin/productos");
+  return updated;
+}
+
+export async function archiveProduct(id: string) {
+  const session = await requireStaff();
+
+  const existing = await getOwnedProduct(id, session.user.storeId);
+  if (!existing) throw new Error("Producto no encontrado.");
+
+  const [updated] = await db
+    .update(products)
+    .set({ active: false })
+    .where(eq(products.id, id))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "archive",
+    entityType: "product",
+    entityId: id,
+    before: existing,
+    after: updated,
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/producto/${existing.slug}`);
+  revalidatePath("/admin/productos");
+  return updated;
+}
+
+// --- Variantes ----------------------------------------------------------
+
+export async function createVariant(input: z.infer<typeof createVariantSchema>) {
+  const session = await requireStaff();
+  const data = createVariantSchema.parse(input);
+
+  const product = await getOwnedProduct(data.productId, session.user.storeId);
+  if (!product) throw new Error("Producto no encontrado.");
+
+  const [created] = await db
+    .insert(productVariants)
+    .values({
+      productId: data.productId,
+      material: data.material,
+      color: data.color,
+      size: data.size,
+      price: data.price.toFixed(2),
+      stock: data.stock,
+      sku: data.sku,
+    })
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "create",
+    entityType: "product_variant",
+    entityId: created.id,
+    after: created,
+  });
+
+  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath("/admin/productos");
+  return created;
+}
+
+export async function updateVariant(id: string, input: z.infer<typeof updateVariantSchema>) {
+  const session = await requireStaff();
+  const data = updateVariantSchema.parse(input);
+
+  const [existing] = await db.select().from(productVariants).where(eq(productVariants.id, id)).limit(1);
+  if (!existing) throw new Error("Variante no encontrada.");
+
+  const product = await getOwnedProduct(existing.productId, session.user.storeId);
+  if (!product) throw new Error("Variante no encontrada.");
+
+  const [updated] = await db
+    .update(productVariants)
+    .set({
+      ...(data.material !== undefined && { material: data.material }),
+      ...(data.color !== undefined && { color: data.color }),
+      ...(data.size !== undefined && { size: data.size }),
+      ...(data.price !== undefined && { price: data.price.toFixed(2) }),
+      ...(data.stock !== undefined && { stock: data.stock }),
+      ...(data.sku !== undefined && { sku: data.sku }),
+    })
+    .where(eq(productVariants.id, id))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "product_variant",
+    entityId: id,
+    before: existing,
+    after: updated,
+  });
+
+  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath("/admin/productos");
+  return updated;
+}
+
+export async function archiveVariant(id: string) {
+  const session = await requireStaff();
+
+  const [existing] = await db.select().from(productVariants).where(eq(productVariants.id, id)).limit(1);
+  if (!existing) throw new Error("Variante no encontrada.");
+
+  const product = await getOwnedProduct(existing.productId, session.user.storeId);
+  if (!product) throw new Error("Variante no encontrada.");
+
+  const [updated] = await db
+    .update(productVariants)
+    .set({ active: false })
+    .where(eq(productVariants.id, id))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "archive",
+    entityType: "product_variant",
+    entityId: id,
+    before: existing,
+    after: updated,
+  });
+
+  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath("/admin/productos");
+  return updated;
+}
+
+// --- Categorias -----------------------------------------------------------
+
+async function getOwnedCategory(id: string, storeId: string) {
+  const [category] = await db
+    .select()
+    .from(categories)
+    .where(and(eq(categories.id, id), eq(categories.storeId, storeId)))
+    .limit(1);
+  return category;
+}
+
+export async function createCategory(input: z.infer<typeof createCategorySchema>) {
+  const session = await requireStaff();
+  const data = createCategorySchema.parse(input);
+
+  if (data.parentId) {
+    const parent = await getOwnedCategory(data.parentId, session.user.storeId);
+    if (!parent) throw new Error("Categoria padre no encontrada.");
+  }
+
+  const [created] = await db
+    .insert(categories)
+    .values({
+      storeId: session.user.storeId,
+      name: data.name,
+      slug: data.slug,
+      parentId: data.parentId,
+    })
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "create",
+    entityType: "category",
+    entityId: created.id,
+    after: created,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/admin/categorias");
+  return created;
+}
+
+export async function updateCategory(id: string, input: z.infer<typeof updateCategorySchema>) {
+  const session = await requireStaff();
+  const data = updateCategorySchema.parse(input);
+
+  const existing = await getOwnedCategory(id, session.user.storeId);
+  if (!existing) throw new Error("Categoria no encontrada.");
+
+  if (data.parentId) {
+    if (data.parentId === id) throw new Error("Una categoria no puede ser su propia padre.");
+    const parent = await getOwnedCategory(data.parentId, session.user.storeId);
+    if (!parent) throw new Error("Categoria padre no encontrada.");
+  }
+
+  const [updated] = await db
+    .update(categories)
+    .set({
+      ...(data.name !== undefined && { name: data.name }),
+      ...(data.slug !== undefined && { slug: data.slug }),
+      ...(data.parentId !== undefined && { parentId: data.parentId }),
+    })
+    .where(eq(categories.id, id))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "category",
+    entityId: id,
+    before: existing,
+    after: updated,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/admin/categorias");
+  return updated;
+}
+
+export async function reorderCategories(input: z.infer<typeof reorderCategoriesSchema>) {
+  const session = await requireStaff();
+  const items = reorderCategoriesSchema.parse(input);
+
+  const ids = items.map((item) => item.id);
+  const owned = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(inArray(categories.id, ids), eq(categories.storeId, session.user.storeId)));
+  if (owned.length !== ids.length) {
+    throw new Error("Alguna categoria no pertenece a la tienda.");
+  }
+
+  for (const item of items) {
+    await db.update(categories).set({ position: item.position }).where(eq(categories.id, item.id));
+  }
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "reorder",
+    entityType: "category",
+    after: items,
+  });
+
+  revalidatePath("/");
+  revalidatePath("/admin/categorias");
+  return items;
+}
+
+// --- Imagenes de producto ---------------------------------------------
+
+export async function uploadProductImage(productId: string, file: File, position?: number) {
+  const session = await requireStaff();
+  uploadProductImageSchema.parse({ productId });
+
+  const product = await getOwnedProduct(productId, session.user.storeId);
+  if (!product) throw new Error("Producto no encontrado.");
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (!UPLOAD_IMAGE_ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error(`Extension no permitida. Usa: ${UPLOAD_IMAGE_ALLOWED_EXTENSIONS.join(", ")}.`);
+  }
+
+  const maxSizeMb = Number(process.env.UPLOADS_MAX_SIZE_MB ?? 20);
+  if (file.size > maxSizeMb * 1024 * 1024) {
+    throw new Error(`El archivo supera el tamano maximo permitido (${maxSizeMb} MB).`);
+  }
+
+  const uploadsDir = process.env.UPLOADS_DIR ?? "./public/uploads";
+  const productsDir = path.resolve(uploadsDir, "products");
+  await mkdir(productsDir, { recursive: true });
+
+  // Nombre generado server-side (nunca el original del cliente) para evitar
+  // path traversal y colisiones entre imagenes de distintos productos.
+  const filename = `${randomUUID()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(path.join(productsDir, filename), buffer);
+
+  const existingImages = await db
+    .select({ id: productImages.id })
+    .from(productImages)
+    .where(eq(productImages.productId, productId));
+
+  const [created] = await db
+    .insert(productImages)
+    .values({
+      productId,
+      url: `/uploads/products/${filename}`,
+      position: position ?? existingImages.length,
+    })
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "upload_image",
+    entityType: "product_image",
+    entityId: created.id,
+    after: created,
+  });
+
+  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath("/admin/productos");
+  return created;
+}

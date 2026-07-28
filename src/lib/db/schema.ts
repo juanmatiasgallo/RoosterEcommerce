@@ -51,6 +51,7 @@ export const categories = pgTable("categories", {
   parentId: uuid("parent_id").references((): AnyPgColumn => categories.id),
   name: varchar("name", { length: 200 }).notNull(),
   slug: varchar("slug", { length: 220 }).notNull().unique(),
+  position: integer("position").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
