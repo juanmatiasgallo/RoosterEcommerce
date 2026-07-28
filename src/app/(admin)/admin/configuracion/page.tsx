@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getSmtpSettings } from "@/lib/settings/actions";
+import { getMercadoPagoSettings, getSmtpSettings } from "@/lib/settings/actions";
 import { ConfiguracionClient } from "./configuracion-client";
 
 // Consulta la DB: sin esto, el build de Docker en EasyPanel la
@@ -22,19 +22,18 @@ export default async function ConfiguracionAdminPage() {
     redirect("/");
   }
 
-  const settings = await getSmtpSettings();
+  const [smtpSettings, mpSettings] = await Promise.all([getSmtpSettings(), getMercadoPagoSettings()]);
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-8">
-      <h1 className="text-2xl font-semibold">Configuracion SMTP</h1>
+    <div className="mx-auto max-w-xl">
+      <h1 className="text-2xl font-semibold">Configuracion</h1>
       <p className="mt-1 text-neutral-500">
-        Se usa para enviar notificaciones por email. La contrasena queda encriptada en la base, nunca en texto
-        plano.
+        Credenciales de la tienda. Todo lo sensible queda encriptado en la base, nunca en texto plano.
       </p>
 
       <div className="mt-6">
-        <ConfiguracionClient initial={settings} />
+        <ConfiguracionClient initialSmtp={smtpSettings} initialMp={mpSettings} />
       </div>
-    </main>
+    </div>
   );
 }

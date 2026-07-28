@@ -16,8 +16,8 @@ export default async function PedidosCustomAdminPage() {
   const cotizados = orders.filter((order) => order.status === "cotizado");
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-3xl">
       <PedidosCustomClient pendientes={pendientes} cotizados={cotizados} />
-    </main>
+    </div>
   );
 }

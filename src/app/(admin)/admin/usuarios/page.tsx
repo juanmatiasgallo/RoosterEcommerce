@@ -22,8 +22,8 @@ export default async function UsuariosAdminPage() {
   const userList = await listUsers();
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-3xl">
       <UsuariosClient users={userList} />
-    </main>
+    </div>
   );
 }

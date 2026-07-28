@@ -14,8 +14,8 @@ export default async function CategoriasAdminPage() {
   const categoryTree = await listCategoryTree();
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <div className="mx-auto max-w-3xl">
       <CategoriasClient categoryTree={categoryTree} />
-    </main>
+    </div>
   );
 }

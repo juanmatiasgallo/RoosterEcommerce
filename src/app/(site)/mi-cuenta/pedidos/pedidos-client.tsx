@@ -29,12 +29,12 @@ export function PedidosClient({ orders }: { orders: CustomOrderRow[] }) {
     setPayingId(id);
     startTransition(async () => {
       try {
-        await initiateCustomOrderPayment(id);
+        const { initPoint } = await initiateCustomOrderPayment(id);
+        // Recarga completa hacia el Checkout Pro de Mercado Pago, mismo
+        // criterio que checkoutCart en /carrito.
+        window.location.assign(initPoint);
       } catch (error) {
-        // El stub siempre tira "Pago no disponible todavia." — se muestra
-        // como toast, no como un error roto de la UI.
         toast.error(error instanceof Error ? error.message : "No se pudo iniciar el pago.");
-      } finally {
         setPayingId(null);
       }
     });

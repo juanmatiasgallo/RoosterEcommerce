@@ -44,7 +44,7 @@ export default async function AdminDashboardPage() {
   );
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-semibold">Panel admin</h1>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -122,6 +122,6 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
       </section>
-    </main>
+    </div>
   );
 }

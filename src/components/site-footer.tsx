@@ -35,8 +35,6 @@ export function SiteFooter({ categoryTree }: { categoryTree: CategoryTreeNode[] 
             <li>hola@tutienda.example</li>
             <li>+598 00 000 000</li>
             <li>
-              {/* TODO: /quienes-somos todavia no existe (pagina aparte del
-                  backlog) — el link queda armado igual para no perderlo. */}
               <Link href="/quienes-somos" className="hover:text-accent">
                 Quienes somos
               </Link>

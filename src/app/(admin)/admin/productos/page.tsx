@@ -27,8 +27,8 @@ export default async function ProductosAdminPage({
   const [productList, categoryTree] = await Promise.all([listProductsForAdmin(search), listCategoryTree()]);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-5xl">
       <ProductosClient products={productList} categoryTree={categoryTree} initialSearch={search ?? ""} />
-    </main>
+    </div>
   );
 }

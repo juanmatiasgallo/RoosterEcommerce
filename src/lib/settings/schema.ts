@@ -10,3 +10,11 @@ export const updateSmtpSettingsSchema = z.object({
   smtpFromName: z.string().max(200).optional(),
   smtpSecure: z.boolean().optional(),
 });
+
+export const updateMercadoPagoSettingsSchema = z.object({
+  mpPublicKey: z.string().max(200).optional(),
+  // Vacio/ausente = no tocar el valor ya guardado (mismo criterio que
+  // smtpPassword arriba).
+  mpAccessToken: z.string().max(500).optional(),
+  mpWebhookSecret: z.string().max(500).optional(),
+});

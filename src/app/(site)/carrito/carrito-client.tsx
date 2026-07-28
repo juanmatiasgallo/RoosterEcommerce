@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { removeFromCart, updateCartItem, type CartRow } from "@/lib/cart/actions";
+import { checkoutCart } from "@/lib/orders/actions";
 
 function CartItemRow({ row }: { row: CartRow }) {
   const [quantity, setQuantity] = useState(row.item.quantity);
@@ -80,6 +81,27 @@ function CartItemRow({ row }: { row: CartRow }) {
 }
 
 export function CarritoClient({ items, total }: { items: CartRow[]; total: number }) {
+  const [isCheckingOut, startCheckout] = useTransition();
+
+  function handleCheckout() {
+    startCheckout(async () => {
+      try {
+        const { initPoint } = await checkoutCart();
+        // Recarga completa (no router.push): sale del SPA hacia el
+        // Checkout Pro de Mercado Pago, no hay nada que preservar del
+        // cache de Next del lado de aca.
+        window.location.assign(initPoint);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "No se pudo iniciar el pago.";
+        if (message.includes("iniciar sesion")) {
+          window.location.assign(`/login?callbackUrl=${encodeURIComponent("/carrito")}`);
+          return;
+        }
+        toast.error(message);
+      }
+    });
+  }
+
   return (
     <div className="mt-6 flex flex-col gap-4">
       {items.map((row) => (
@@ -91,9 +113,14 @@ export function CarritoClient({ items, total }: { items: CartRow[]; total: numbe
         <span className="text-lg font-semibold">{formatCurrency(total)}</span>
       </div>
 
-      {/* TODO: boton "Ir a pagar" -> Server Action que crea la orden +
-          createPreference (Mercado Pago). Paso 3 de docs/spec-ecommerce-base.md,
-          todavia no implementado. */}
+      <button
+        type="button"
+        onClick={handleCheckout}
+        disabled={isCheckingOut}
+        className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+      >
+        {isCheckingOut ? "Redirigiendo a Mercado Pago..." : "Ir a pagar"}
+      </button>
     </div>
   );
 }

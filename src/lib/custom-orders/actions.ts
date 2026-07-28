@@ -9,9 +9,10 @@ import type { z } from "zod";
 import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
-import { auditLogs, customOrders, users } from "@/lib/db/schema";
+import { auditLogs, customOrders, orderItems, orders, users } from "@/lib/db/schema";
 import { formatCurrency } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
+import { createPreference } from "@/lib/mercadopago/client";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS, createCustomOrderSchema, quoteCustomOrderSchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -210,10 +211,10 @@ export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCu
   return { ...updated, emailSent };
 }
 
-// Mercado Pago queda afuera por ahora (decision del owner). Esta funcion ya
-// deja la validacion real hecha (ownership + estado "cotizado") para que el
-// frontend del boton "Pagar" tenga contra que conectar sin bloquear en que
-// el pago todavia no esta disponible.
+// Paso 4 de docs/spec-ecommerce-base.md: crea (o reutiliza) la orden
+// source="pedido_custom" ligada a esta cotizacion, genera la preferencia de
+// Mercado Pago y devuelve el link de pago. Mismo patron que checkoutCart en
+// src/lib/orders/actions.ts: el pago en si se confirma solo por webhook.
 export async function initiateCustomOrderPayment(id: string) {
   const session = await requireUser();
 
@@ -227,9 +228,72 @@ export async function initiateCustomOrderPayment(id: string) {
   if (existing.status !== "cotizado") {
     throw new Error("Este pedido todavia no tiene una cotizacion lista para pagar.");
   }
+  if (!existing.quotedPrice) {
+    throw new Error("Este pedido no tiene un precio cotizado valido.");
+  }
 
-  // TODO: conectar Mercado Pago cuando se retome esa integracion — crear
-  // "orders" + "order_items" con source "pedido_custom" (customOrderId =
-  // existing.id) y llamar createPreference, igual que el Paso 3 del catalogo.
-  throw new Error("Pago no disponible todavia.");
+  // Si el cliente ya habia clickeado "Pagar" antes sin completar el pago,
+  // reutiliza esa misma orden "pendiente_pago" en vez de crear una nueva
+  // cada vez (evita acumular ordenes duplicadas por el mismo pedido).
+  const [existingOrder] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.customOrderId, existing.id), eq(orders.status, "pendiente_pago")))
+    .limit(1);
+
+  const itemTitle = `Pedido a medida: ${existing.fileName}`;
+
+  const order =
+    existingOrder ??
+    (
+      await db
+        .insert(orders)
+        .values({
+          storeId: session.user.storeId,
+          userId: session.user.id,
+          source: "pedido_custom",
+          customOrderId: existing.id,
+          status: "pendiente_pago",
+          total: existing.quotedPrice,
+        })
+        .returning()
+    )[0];
+
+  if (!existingOrder) {
+    // quotedPrice es el precio total ya cotizado por el admin para todo el
+    // pedido (no un precio unitario) — por eso quantity: 1 aca, aunque
+    // existing.quantity sea otro numero (esa es la cantidad de piezas que
+    // ya quedo reflejada en el precio cotizado).
+    await db.insert(orderItems).values({
+      orderId: order.id,
+      variantId: null,
+      productName: itemTitle,
+      variantLabel: [existing.material, existing.color, existing.approxSize].filter(Boolean).join(" ") || null,
+      unitPrice: existing.quotedPrice,
+      quantity: 1,
+    });
+
+    await logAudit({
+      userId: session.user.id,
+      storeId: session.user.storeId,
+      action: "create",
+      entityType: "order",
+      entityId: order.id,
+      after: order,
+    });
+  }
+
+  const preference = await createPreference({
+    orderId: order.id,
+    storeId: session.user.storeId,
+    items: [{ title: itemTitle, quantity: 1, unitPrice: Number(existing.quotedPrice) }],
+    payerEmail: session.user.email ?? undefined,
+  });
+
+  const initPoint = preference.init_point ?? preference.sandbox_init_point;
+  if (!initPoint) throw new Error("No se pudo generar el link de pago.");
+
+  await db.update(orders).set({ mpPreferenceId: preference.id }).where(eq(orders.id, order.id));
+
+  return { initPoint };
 }

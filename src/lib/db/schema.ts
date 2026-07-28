@@ -38,6 +38,14 @@ export const stores = pgTable("stores", {
   smtpFromEmail: varchar("smtp_from_email", { length: 255 }),
   smtpFromName: varchar("smtp_from_name", { length: 200 }),
   smtpSecure: boolean("smtp_secure").notNull().default(false),
+  // Mercado Pago, mismo patron que SMTP arriba: access token y webhook
+  // secret encriptados (nunca en texto plano), la public key no es sensible
+  // (se usa del lado del cliente) asi que va directo. Todos nullable: si no
+  // estan seteados, src/lib/mercadopago/client.ts cae a las env vars
+  // MP_ACCESS_TOKEN / MP_WEBHOOK_SECRET (no rompe el deploy que ya las usa).
+  mpAccessTokenEncrypted: text("mp_access_token_encrypted"),
+  mpPublicKey: varchar("mp_public_key", { length: 200 }),
+  mpWebhookSecretEncrypted: text("mp_webhook_secret_encrypted"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

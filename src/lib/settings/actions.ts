@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { auditLogs, stores } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
-import { updateSmtpSettingsSchema } from "./schema";
+import { updateMercadoPagoSettingsSchema, updateSmtpSettingsSchema } from "./schema";
 
 // A diferencia del molde CRUD habitual (admin + empleado), la config SMTP
 // son credenciales reales de un proveedor de correo para toda la tienda —
@@ -105,6 +105,63 @@ export async function updateSmtpSettings(input: z.infer<typeof updateSmtpSetting
   revalidatePath("/admin/configuracion");
 
   return toPublicSettings(updated);
+}
+
+// Nunca se expone el access token ni el webhook secret reales (ni
+// encriptados) al frontend ni a audit_logs — solo si estan seteados o no,
+// mismo criterio que toPublicSettings de arriba para SMTP.
+function toPublicMpSettings(store: typeof stores.$inferSelect) {
+  return {
+    mpPublicKey: store.mpPublicKey,
+    mpAccessTokenSet: Boolean(store.mpAccessTokenEncrypted),
+    mpWebhookSecretSet: Boolean(store.mpWebhookSecretEncrypted),
+  };
+}
+
+export async function getMercadoPagoSettings() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return toPublicMpSettings(store);
+}
+
+export type MercadoPagoSettings = Awaited<ReturnType<typeof getMercadoPagoSettings>>;
+
+export async function updateMercadoPagoSettings(input: z.infer<typeof updateMercadoPagoSettingsSchema>) {
+  const session = await requireAdmin();
+  const data = updateMercadoPagoSettingsSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      ...(data.mpPublicKey !== undefined && { mpPublicKey: data.mpPublicKey }),
+      // Si el campo vino vacio/ausente en el form, se mantiene el valor que
+      // ya habia guardado — nunca se pisa con nada (mismo criterio que
+      // smtpPassword en updateSmtpSettings).
+      ...(data.mpAccessToken && { mpAccessTokenEncrypted: encrypt(data.mpAccessToken) }),
+      ...(data.mpWebhookSecret && { mpWebhookSecretEncrypted: encrypt(data.mpWebhookSecret) }),
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "mercadopago_settings",
+    entityId: session.user.storeId,
+    before: toPublicMpSettings(existing),
+    after: toPublicMpSettings(updated),
+  });
+
+  revalidatePath("/admin/configuracion");
+
+  return toPublicMpSettings(updated);
 }
 
 export async function sendTestEmail() {
