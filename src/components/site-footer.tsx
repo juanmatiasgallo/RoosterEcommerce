@@ -1,19 +1,7 @@
 import Link from "next/link";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
-import { LogoutButton } from "@/components/logout-button";
 
-type SessionUser = {
-  name?: string | null;
-  email?: string | null;
-} | null;
-
-export function SiteFooter({
-  categoryTree,
-  user,
-}: {
-  categoryTree: CategoryTreeNode[];
-  user: SessionUser;
-}) {
+export function SiteFooter({ categoryTree }: { categoryTree: CategoryTreeNode[] }) {
   return (
     <footer className="mt-16 border-t border-neutral-200 py-10 dark:border-neutral-800">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-3">
@@ -37,18 +25,6 @@ export function SiteFooter({
                 Pedido a medida
               </Link>
             </li>
-            <li>
-              {user ? (
-                <span className="flex items-center gap-2 text-sm text-neutral-500">
-                  {user.name ?? user.email}
-                  <LogoutButton />
-                </span>
-              ) : (
-                <Link href="/login" className="text-sm text-neutral-500 hover:text-accent">
-                  Iniciar sesion
-                </Link>
-              )}
-            </li>
           </ul>
         </div>
 
@@ -58,6 +34,13 @@ export function SiteFooter({
           <ul className="mt-2 flex flex-col gap-1 text-sm text-neutral-500">
             <li>hola@tutienda.example</li>
             <li>+598 00 000 000</li>
+            <li>
+              {/* TODO: /quienes-somos todavia no existe (pagina aparte del
+                  backlog) — el link queda armado igual para no perderlo. */}
+              <Link href="/quienes-somos" className="hover:text-accent">
+                Quienes somos
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

@@ -1,5 +1,7 @@
 import { auth } from "@/auth";
 import { listCategoryTree } from "@/lib/catalog/queries";
+import { getCartItemCount } from "@/lib/cart/actions";
+import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 
 // listCategoryTree consulta la DB: sin esto, el build de Docker en
@@ -8,12 +10,17 @@ import { SiteFooter } from "@/components/site-footer";
 export const dynamic = "force-dynamic";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [categoryTree, session] = await Promise.all([listCategoryTree(), auth()]);
+  const [categoryTree, session, cartItemCount] = await Promise.all([
+    listCategoryTree(),
+    auth(),
+    getCartItemCount(),
+  ]);
 
   return (
     <>
+      <SiteHeader categoryTree={categoryTree} user={session?.user ?? null} cartItemCount={cartItemCount} />
       {children}
-      <SiteFooter categoryTree={categoryTree} user={session?.user ?? null} />
+      <SiteFooter categoryTree={categoryTree} />
     </>
   );
 }

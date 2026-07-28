@@ -6,10 +6,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import type { z } from "zod";
 import { registerSchema } from "@/lib/auth/schema";
 import { registerUser } from "@/lib/auth/actions";
 import { mergeGuestCartIntoUser } from "@/lib/cart/actions";
+
+// Le da tiempo al toast de exito a alcanzar a pintarse antes de que
+// window.location.assign corte el documento actual (un reload inmediato
+// no garantiza que el usuario llegue a verlo).
+const REDIRECT_DELAY_MS = 600;
 
 type FormValues = z.infer<typeof registerSchema>;
 
@@ -56,8 +62,16 @@ export function CrearCuentaFormClient() {
       // con la cuenta recien creada.
       await mergeGuestCartIntoUser();
 
-      router.push("/");
-      router.refresh();
+      toast.success("Cuenta creada correctamente");
+
+      // window.location.assign (recarga completa) en vez de
+      // router.push+refresh: mismo fix que login-form-client.tsx, evita
+      // depender del cache de Server Components de Next despues de un
+      // signIn con redirect:false. El registro siempre crea "cliente", asi
+      // que el destino es fijo ("/"), sin logica de rol.
+      // El pequeno delay le da tiempo al toast de arriba a alcanzar a
+      // pintarse antes de que el reload corte el documento actual.
+      setTimeout(() => window.location.assign("/"), REDIRECT_DELAY_MS);
     } catch {
       router.push("/login");
     }

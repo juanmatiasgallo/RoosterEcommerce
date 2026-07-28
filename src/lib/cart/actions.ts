@@ -33,13 +33,28 @@ async function resolveCartOwner(): Promise<CartOwner> {
   }
 
   const guestId = randomUUID();
-  cookieStore.set(GUEST_COOKIE_NAME, guestId, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: GUEST_COOKIE_MAX_AGE_SECONDS,
-  });
+  try {
+    // Next.js solo permite escribir cookies desde una Server Action o un
+    // Route Handler. resolveCartOwner() tambien se llama desde el render
+    // de Server Components normales (ej. getCartItemCount() en el layout,
+    // en cada pagina) — ahi cookies().set() tira "Cookies can only be
+    // modified in a Server Action or Route Handler". En ese caso seguimos
+    // con el guestId recien generado en memoria (el carrito de este
+    // render queda vacio, que es correcto: sin cookie no hay items
+    // guardados) y la cookie recien se persiste la proxima vez que
+    // resolveCartOwner() corra dentro de una Server Action real (ej.
+    // addToCart), que es cuando de verdad hace falta que sobreviva.
+    // https://nextjs.org/docs/app/api-reference/functions/cookies#options
+    cookieStore.set(GUEST_COOKIE_NAME, guestId, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: GUEST_COOKIE_MAX_AGE_SECONDS,
+    });
+  } catch {
+    // Render-only: no-op, ver comentario arriba.
+  }
   return { type: "guest", guestId };
 }
 
@@ -159,6 +174,16 @@ export async function getCartItems() {
 }
 
 export type CartRow = Awaited<ReturnType<typeof getCartItems>>["items"][number];
+
+// Para el contador del header: suma de cantidades sin los joins a variantes
+// ni productos que hace getCartItems (no hace falta precio/stock aca).
+export async function getCartItemCount() {
+  const owner = await resolveCartOwner();
+
+  const rows = await db.select({ quantity: cartItems.quantity }).from(cartItems).where(ownerCondition(owner));
+
+  return rows.reduce((sum, row) => sum + row.quantity, 0);
+}
 
 // Se llama explicitamente desde login-form-client.tsx justo despues de un
 // signIn() exitoso — no un callback/evento de NextAuth. Se eligio asi para

@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { getSession, signIn } from "next-auth/react";
 import Link from "next/link";
 import type { z } from "zod";
 import { loginSchema } from "@/lib/auth/schema";
@@ -13,7 +12,6 @@ import { mergeGuestCartIntoUser } from "@/lib/cart/actions";
 type FormValues = z.infer<typeof loginSchema>;
 
 export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
-  const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
@@ -48,12 +46,22 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
       // action misma no hace nada si no hay cookie de invitado.
       await mergeGuestCartIntoUser();
 
-      // router.refresh() fuerza a los Server Components de la ruta destino a
-      // re-renderizar leyendo la sesion recien creada (la cookie ya esta
-      // seteada por el fetch de signIn, pero el router cache de Next podria
-      // no saberlo todavia).
-      router.push(callbackUrl);
-      router.refresh();
+      // El resultado de signIn no trae el rol: se pide la sesion recien
+      // creada para decidir el destino. admin/empleado van siempre a su
+      // panel (ignorando el callbackUrl de un cliente que hubiera estado
+      // navegando antes de loguearse); cliente respeta el callbackUrl ya
+      // sanitizado en page.tsx.
+      const session = await getSession();
+      const role = session?.user.role;
+      const target = role === "admin" || role === "empleado" ? "/admin/dashboard" : callbackUrl;
+
+      // window.location.assign (recarga completa) en vez de
+      // router.push+refresh: en el VPS se confirmo que router.push despues
+      // de un signIn con redirect:false a veces no navega aunque la sesion
+      // ya haya quedado creada (problema conocido de next-auth + cache de
+      // Server Components en algunos entornos) — un reload completo evita
+      // depender de ese cache.
+      window.location.assign(target);
     } catch {
       setFormError("Email o contrasena incorrectos.");
     }
