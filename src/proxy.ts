@@ -33,7 +33,11 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/mi-cuenta") || pathname.startsWith("/pedido-a-medida")) {
+  if (
+    pathname.startsWith("/mi-cuenta") ||
+    pathname.startsWith("/pedido-a-medida") ||
+    pathname.startsWith("/carrito")
+  ) {
     if (!isLoggedIn) {
       const loginUrl = new URL("/login", nextUrl);
       loginUrl.searchParams.set("callbackUrl", pathname);

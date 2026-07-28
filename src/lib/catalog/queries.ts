@@ -84,11 +84,85 @@ export async function listProducts(params: ListProductsParams = {}) {
     }
   })();
 
-  return db
+  const matched = await db
     .select()
     .from(products)
     .where(and(...conditions))
     .orderBy(orderBy);
+
+  if (matched.length === 0) return [];
+
+  // Se enriquece con lo que necesita la tarjeta de la grilla (imagen,
+  // "desde $X", cantidad de variantes con stock): dos queries batched por
+  // product id en vez de una por producto, para no hacer N+1.
+  const productIds = matched.map((product) => product.id);
+
+  const [images, variants] = await Promise.all([
+    db
+      .select()
+      .from(productImages)
+      .where(inArray(productImages.productId, productIds))
+      .orderBy(asc(productImages.position)),
+    db
+      .select()
+      .from(productVariants)
+      .where(and(inArray(productVariants.productId, productIds), eq(productVariants.active, true))),
+  ]);
+
+  const thumbnailByProduct = new Map<string, string>();
+  for (const image of images) {
+    if (!thumbnailByProduct.has(image.productId)) {
+      thumbnailByProduct.set(image.productId, image.url);
+    }
+  }
+
+  const variantsByProduct = new Map<string, typeof variants>();
+  for (const variant of variants) {
+    const list = variantsByProduct.get(variant.productId) ?? [];
+    list.push(variant);
+    variantsByProduct.set(variant.productId, list);
+  }
+
+  return matched.map((product) => {
+    const productVariantsList = variantsByProduct.get(product.id) ?? [];
+    const prices = productVariantsList.map((variant) => Number(variant.price));
+
+    return {
+      ...product,
+      thumbnailUrl: thumbnailByProduct.get(product.id) ?? null,
+      minVariantPrice: prices.length > 0 ? Math.min(...prices) : null,
+      availableVariantCount: productVariantsList.filter((variant) => variant.stock > 0).length,
+    };
+  });
+}
+
+export type ProductListItem = Awaited<ReturnType<typeof listProducts>>[number];
+
+export type AvailableFilters = { materials: string[]; colors: string[] };
+
+// Poblar los checkboxes de material/color con los valores que existen de
+// verdad en variantes activas de productos activos, en vez de una lista
+// hardcodeada que se desactualiza.
+export async function listAvailableFilters(): Promise<AvailableFilters> {
+  const storeId = await getDefaultStoreId();
+
+  const rows = await db
+    .selectDistinct({ material: productVariants.material, color: productVariants.color })
+    .from(productVariants)
+    .innerJoin(products, eq(products.id, productVariants.productId))
+    .where(and(eq(products.storeId, storeId), eq(products.active, true), eq(productVariants.active, true)));
+
+  const materials = new Set<string>();
+  const colors = new Set<string>();
+  for (const row of rows) {
+    materials.add(row.material);
+    if (row.color) colors.add(row.color);
+  }
+
+  return {
+    materials: [...materials].sort(),
+    colors: [...colors].sort(),
+  };
 }
 
 export async function getProductBySlug(slug: string) {
@@ -143,4 +217,20 @@ export async function listCategoryTree(): Promise<CategoryTreeNode[]> {
   }
 
   return roots;
+}
+
+// Camino desde la raiz hasta la categoria buscada (para el breadcrumb
+// "Inicio > Categoria > Subcategoria"). null si no aparece en el arbol.
+export function findCategoryPath(
+  tree: CategoryTreeNode[],
+  categoryId: string,
+): CategoryTreeNode[] | null {
+  for (const node of tree) {
+    if (node.id === categoryId) return [node];
+
+    const childPath = findCategoryPath(node.children, categoryId);
+    if (childPath) return [node, ...childPath];
+  }
+
+  return null;
 }

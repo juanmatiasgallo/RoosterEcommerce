@@ -1,9 +1,9 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { auth } from "@/auth";
@@ -14,7 +14,9 @@ import {
   createCategorySchema,
   createProductSchema,
   createVariantSchema,
+  deleteProductImageSchema,
   reorderCategoriesSchema,
+  reorderProductImagesSchema,
   updateCategorySchema,
   updateProductSchema,
   updateVariantSchema,
@@ -62,6 +64,61 @@ async function getOwnedProduct(productId: string, storeId: string) {
 }
 
 // --- Productos --------------------------------------------------------
+
+// queries.ts (listProducts) es de lectura publica y siempre filtra
+// products.active = true, pensada para el catalogo; el panel admin necesita
+// ver tambien los productos archivados para poder gestionarlos, asi que esta
+// query vive aca (guardada con requireStaff) en vez de forzar ese caso dentro
+// de listProducts.
+export async function listProductsForAdmin(search?: string) {
+  const session = await requireStaff();
+
+  const conditions = [eq(products.storeId, session.user.storeId)];
+  if (search) {
+    conditions.push(ilike(products.name, `%${search}%`));
+  }
+
+  const matched = await db
+    .select()
+    .from(products)
+    .where(and(...conditions))
+    .orderBy(desc(products.createdAt));
+
+  if (matched.length === 0) return [];
+
+  const productIds = matched.map((product) => product.id);
+
+  const [variants, images] = await Promise.all([
+    db.select().from(productVariants).where(inArray(productVariants.productId, productIds)),
+    db
+      .select()
+      .from(productImages)
+      .where(inArray(productImages.productId, productIds))
+      .orderBy(asc(productImages.position)),
+  ]);
+
+  const variantsByProduct = new Map<string, typeof variants>();
+  for (const variant of variants) {
+    const list = variantsByProduct.get(variant.productId) ?? [];
+    list.push(variant);
+    variantsByProduct.set(variant.productId, list);
+  }
+
+  const imagesByProduct = new Map<string, typeof images>();
+  for (const image of images) {
+    const list = imagesByProduct.get(image.productId) ?? [];
+    list.push(image);
+    imagesByProduct.set(image.productId, list);
+  }
+
+  return matched.map((product) => ({
+    ...product,
+    variants: variantsByProduct.get(product.id) ?? [],
+    images: imagesByProduct.get(product.id) ?? [],
+  }));
+}
+
+export type AdminProductListItem = Awaited<ReturnType<typeof listProductsForAdmin>>[number];
 
 export async function createProduct(input: z.infer<typeof createProductSchema>) {
   const session = await requireStaff();
@@ -271,6 +328,32 @@ async function getOwnedCategory(id: string, storeId: string) {
   return category;
 }
 
+// Sube por la cadena de parentId desde candidateParentId: si en algun punto
+// llega a categoryId, es que candidateParentId es descendiente de categoryId,
+// y asignarlo como padre cerraria un ciclo (listCategoryTree quedaria en
+// recursion infinita armando el arbol).
+async function wouldCreateCycle(
+  categoryId: string,
+  candidateParentId: string,
+  storeId: string,
+): Promise<boolean> {
+  let currentId: string | null = candidateParentId;
+
+  while (currentId) {
+    if (currentId === categoryId) return true;
+
+    const [current] = await db
+      .select({ parentId: categories.parentId })
+      .from(categories)
+      .where(and(eq(categories.id, currentId), eq(categories.storeId, storeId)))
+      .limit(1);
+
+    currentId = current?.parentId ?? null;
+  }
+
+  return false;
+}
+
 export async function createCategory(input: z.infer<typeof createCategorySchema>) {
   const session = await requireStaff();
   const data = createCategorySchema.parse(input);
@@ -315,6 +398,9 @@ export async function updateCategory(id: string, input: z.infer<typeof updateCat
     if (data.parentId === id) throw new Error("Una categoria no puede ser su propia padre.");
     const parent = await getOwnedCategory(data.parentId, session.user.storeId);
     if (!parent) throw new Error("Categoria padre no encontrada.");
+    if (await wouldCreateCycle(id, data.parentId, session.user.storeId)) {
+      throw new Error("No se puede asignar como padre a una subcategoria de si misma: crearia un ciclo.");
+    }
   }
 
   const [updated] = await db
@@ -427,4 +513,79 @@ export async function uploadProductImage(productId: string, file: File, position
   revalidatePath(`/producto/${product.slug}`);
   revalidatePath("/admin/productos");
   return created;
+}
+
+async function getOwnedProductImage(imageId: string, storeId: string) {
+  const [row] = await db
+    .select({ image: productImages, product: products })
+    .from(productImages)
+    .innerJoin(products, eq(products.id, productImages.productId))
+    .where(and(eq(productImages.id, imageId), eq(products.storeId, storeId)))
+    .limit(1);
+  return row;
+}
+
+export async function deleteProductImage(id: string) {
+  const session = await requireStaff();
+  deleteProductImageSchema.parse({ id });
+
+  const owned = await getOwnedProductImage(id, session.user.storeId);
+  if (!owned) throw new Error("Imagen no encontrada.");
+
+  await db.delete(productImages).where(eq(productImages.id, id));
+
+  // Best-effort: si el archivo ya no esta en disco (o el path cambio a
+  // mano), no bloqueamos el borrado del registro por eso.
+  const uploadsDir = process.env.UPLOADS_DIR ?? "./public/uploads";
+  const filename = owned.image.url.split("/").pop();
+  if (filename) {
+    try {
+      await unlink(path.resolve(uploadsDir, "products", filename));
+    } catch {
+      // Ignorado a proposito.
+    }
+  }
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "delete_image",
+    entityType: "product_image",
+    entityId: id,
+    before: owned.image,
+  });
+
+  revalidatePath(`/producto/${owned.product.slug}`);
+  revalidatePath("/admin/productos");
+  return { id };
+}
+
+export async function reorderProductImages(input: z.infer<typeof reorderProductImagesSchema>) {
+  const session = await requireStaff();
+  const items = reorderProductImagesSchema.parse(input);
+
+  const ids = items.map((item) => item.id);
+  const owned = await db
+    .select({ id: productImages.id })
+    .from(productImages)
+    .innerJoin(products, eq(products.id, productImages.productId))
+    .where(and(inArray(productImages.id, ids), eq(products.storeId, session.user.storeId)));
+  if (owned.length !== ids.length) {
+    throw new Error("Alguna imagen no pertenece a la tienda.");
+  }
+
+  for (const item of items) {
+    await db.update(productImages).set({ position: item.position }).where(eq(productImages.id, item.id));
+  }
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "reorder",
+    entityType: "product_image",
+    after: items,
+  });
+
+  revalidatePath("/admin/productos");
+  return items;
 }

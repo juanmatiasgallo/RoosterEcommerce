@@ -5,3 +5,7 @@ node_modules
 *.log
 .DS_Store
 /public/uploads
+
+next-env.d.ts
+tsconfig.tsbuildinfo
+.claude/

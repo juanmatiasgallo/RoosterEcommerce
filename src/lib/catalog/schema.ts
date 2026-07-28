@@ -39,3 +39,11 @@ export const UPLOAD_IMAGE_ALLOWED_EXTENSIONS: string[] = ["jpg", "jpeg", "png", 
 export const uploadProductImageSchema = z.object({
   productId: z.uuid(),
 });
+
+export const reorderProductImagesSchema = z
+  .array(z.object({ id: z.uuid(), position: z.number().int().min(0) }))
+  .min(1);
+
+export const deleteProductImageSchema = z.object({
+  id: z.uuid(),
+});
