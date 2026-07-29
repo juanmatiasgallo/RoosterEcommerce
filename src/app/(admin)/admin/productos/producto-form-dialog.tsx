@@ -6,7 +6,7 @@ import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog } from "@base-ui/react/dialog";
 import { Select } from "@base-ui/react/select";
-import { ChevronDown, ChevronsUpDown, ChevronUp, Trash2, Upload, X } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, ChevronUp, Trash2, Upload, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import {
@@ -55,6 +55,7 @@ const productFormSchema = z.object({
   basePrice: z.coerce.number().positive("Debe ser mayor a 0"),
   variants: z.array(variantRowSchema),
   specs: z.array(specRowSchema),
+  technicalSpecs: z.array(specRowSchema),
 });
 
 // z.coerce.number() en basePrice/price/stock hace que el tipo de "entrada"
@@ -102,6 +103,7 @@ export function ProductoFormDialog(props: Props) {
               sku: variant.sku ?? "",
             })),
             specs: props.product.specs ?? [],
+            technicalSpecs: props.product.technicalSpecs ?? [],
           }
         : {
             name: "",
@@ -111,11 +113,17 @@ export function ProductoFormDialog(props: Props) {
             basePrice: 0,
             variants: [],
             specs: [],
+            technicalSpecs: [],
           },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "variants" });
   const { fields: specFields, append: appendSpec, remove: removeSpec } = useFieldArray({ control, name: "specs" });
+  const {
+    fields: technicalSpecFields,
+    append: appendTechnicalSpec,
+    remove: removeTechnicalSpec,
+  } = useFieldArray({ control, name: "technicalSpecs" });
 
   function removeVariantRow(index: number) {
     const row = fields[index];
@@ -135,6 +143,7 @@ export function ProductoFormDialog(props: Props) {
         categoryId: values.categoryId || undefined,
         basePrice: values.basePrice,
         specs: values.specs,
+        technicalSpecs: values.technicalSpecs,
       };
 
       const product = mode === "edit" ? await updateProduct(props.product.id, productPayload) : await createProduct(productPayload);
@@ -469,16 +478,71 @@ export function ProductoFormDialog(props: Props) {
               )}
             </div>
 
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-sm font-medium">Caracteristicas tecnicas</h2>
+                <button
+                  type="button"
+                  onClick={() => appendTechnicalSpec({ label: "", value: "" })}
+                  className="rounded border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 active:scale-[0.98] dark:border-neutral-700 dark:hover:bg-neutral-800"
+                >
+                  + Agregar fila
+                </button>
+              </div>
+              <p className="mb-2 text-xs text-neutral-500">
+                Filas libres (ej. "Tolerancia" / "±0.2mm") para la pestana aparte "Caracteristicas tecnicas" de la
+                ficha publica — mas tecnico que "Detalles del producto".
+              </p>
+
+              {technicalSpecFields.length === 0 ? (
+                <p className="text-xs text-neutral-500">Todavia no hay filas tecnicas.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {technicalSpecFields.map((field, index) => (
+                    <div key={field.id} className="flex items-end gap-2">
+                      <div className="w-2/5">
+                        <label className="mb-0.5 block text-xs text-neutral-500">Etiqueta</label>
+                        <input
+                          placeholder="Tolerancia"
+                          {...register(`technicalSpecs.${index}.label`)}
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="mb-0.5 block text-xs text-neutral-500">Valor</label>
+                        <input
+                          placeholder="±0.2mm"
+                          {...register(`technicalSpecs.${index}.value`)}
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeTechnicalSpec(index)}
+                        aria-label="Quitar fila"
+                        className="rounded p-1.5 text-neutral-500 hover:bg-neutral-100 active:scale-[0.98] dark:hover:bg-neutral-800"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      {errors.technicalSpecs?.[index] && (
+                        <p className="text-xs text-red-600">Completa etiqueta y valor.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {mode === "edit" ? (
               <div>
                 <div className="mb-2 flex items-center justify-between">
-                  <h2 className="text-sm font-medium">Imagenes</h2>
+                  <h2 className="text-sm font-medium">Imagenes y videos</h2>
                   <label className="flex cursor-pointer items-center gap-1 rounded border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800">
                     <Upload size={12} />
-                    {isUploading ? "Subiendo..." : "Subir imagen"}
+                    {isUploading ? "Subiendo..." : "Subir imagen o video"}
                     <input
                       type="file"
-                      accept="image/jpeg,image/png,image/webp"
+                      accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
                       className="hidden"
                       onChange={handleUpload}
                       disabled={isUploading}
@@ -487,7 +551,7 @@ export function ProductoFormDialog(props: Props) {
                 </div>
 
                 {images.length === 0 ? (
-                  <p className="text-xs text-neutral-500">Todavia no hay imagenes.</p>
+                  <p className="text-xs text-neutral-500">Todavia no hay imagenes ni videos.</p>
                 ) : (
                   <div className="flex flex-wrap gap-3">
                     {images.map((image, index) => (
@@ -495,7 +559,13 @@ export function ProductoFormDialog(props: Props) {
                         key={image.id}
                         className="relative h-20 w-20 overflow-hidden rounded border border-neutral-200 dark:border-neutral-800"
                       >
-                        <Image src={image.url} alt="" fill sizes="80px" className="object-cover" />
+                        {image.mediaType === "video" ? (
+                          <div className="flex h-full w-full items-center justify-center bg-neutral-900">
+                            <Video size={20} className="text-white" />
+                          </div>
+                        ) : (
+                          <Image src={image.url} alt="" fill sizes="80px" className="object-cover" />
+                        )}
                         <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-black/60 px-1 py-0.5">
                           <button
                             type="button"

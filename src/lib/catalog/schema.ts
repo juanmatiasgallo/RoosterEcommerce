@@ -15,6 +15,9 @@ export const createProductSchema = z.object({
   categoryId: z.uuid().optional(),
   basePrice: z.number().positive(),
   specs: z.array(productSpecSchema).max(30).optional(),
+  // Misma forma que `specs`, pero para la solapa aparte "Caracteristicas
+  // tecnicas" (tolerancias, compatibilidad, resistencia, etc).
+  technicalSpecs: z.array(productSpecSchema).max(30).optional(),
 });
 
 export const updateProductSchema = createProductSchema.partial();
@@ -44,6 +47,7 @@ export const reorderCategoriesSchema = z
   .min(1);
 
 export const UPLOAD_IMAGE_ALLOWED_EXTENSIONS: string[] = ["jpg", "jpeg", "png", "webp"];
+export const UPLOAD_VIDEO_ALLOWED_EXTENSIONS: string[] = ["mp4", "webm"];
 
 export const uploadProductImageSchema = z.object({
   productId: z.uuid(),

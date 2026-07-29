@@ -176,15 +176,26 @@ export const products = pgTable("products", {
   // `description` (que sigue siendo el texto libre de la pestana
   // "Descripcion"). Nulo/vacio = esa pestana no se muestra.
   specs: jsonb("specs").$type<{ label: string; value: string }[]>(),
+  // Separado de `specs` (que es descripcion "humana": material, cuidados,
+  // etc.) — esta es la solapa "Caracteristicas tecnicas" de la ficha
+  // publica: tolerancias, compatibilidad, resistencia, y similares. Mismo
+  // formato label/value para reusar el mismo componente de edicion.
+  technicalSpecs: jsonb("technical_specs").$type<{ label: string; value: string }[]>(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+export const productMediaTypeEnum = pgEnum("product_media_type", ["image", "video"]);
 
 export const productImages = pgTable("product_images", {
   id: uuid("id").primaryKey().defaultRandom(),
   productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
   position: integer("position").notNull().default(0),
+  // "video" = mp4/webm subido por el admin (mismo volumen persistente que
+  // el resto de los uploads). El default "image" cubre todas las filas
+  // viejas sin tener que migrarlas a mano.
+  mediaType: productMediaTypeEnum("media_type").notNull().default("image"),
 });
 
 // Variante concreta comprable: material + color + tamano, con su propio

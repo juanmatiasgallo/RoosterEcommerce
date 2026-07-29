@@ -23,6 +23,7 @@ import {
   updateVariantSchema,
   uploadProductImageSchema,
   UPLOAD_IMAGE_ALLOWED_EXTENSIONS,
+  UPLOAD_VIDEO_ALLOWED_EXTENSIONS,
 } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -135,6 +136,7 @@ export async function createProduct(input: z.infer<typeof createProductSchema>) 
       categoryId: data.categoryId,
       basePrice: data.basePrice.toFixed(2),
       specs: data.specs,
+      technicalSpecs: data.technicalSpecs,
     })
     .returning();
 
@@ -168,6 +170,7 @@ export async function updateProduct(id: string, input: z.infer<typeof updateProd
       ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
       ...(data.basePrice !== undefined && { basePrice: data.basePrice.toFixed(2) }),
       ...(data.specs !== undefined && { specs: data.specs }),
+      ...(data.technicalSpecs !== undefined && { technicalSpecs: data.technicalSpecs }),
     })
     .where(eq(products.id, id))
     .returning();
@@ -499,11 +502,17 @@ export async function uploadProductImage(productId: string, file: File, position
   if (!product) throw new Error("Producto no encontrado.");
 
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (!UPLOAD_IMAGE_ALLOWED_EXTENSIONS.includes(ext)) {
-    throw new Error(`Extension no permitida. Usa: ${UPLOAD_IMAGE_ALLOWED_EXTENSIONS.join(", ")}.`);
+  const isVideo = UPLOAD_VIDEO_ALLOWED_EXTENSIONS.includes(ext);
+  if (!isVideo && !UPLOAD_IMAGE_ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error(
+      `Extension no permitida. Usa: ${[...UPLOAD_IMAGE_ALLOWED_EXTENSIONS, ...UPLOAD_VIDEO_ALLOWED_EXTENSIONS].join(", ")}.`,
+    );
   }
 
-  const maxSizeMb = Number(process.env.UPLOADS_MAX_SIZE_MB ?? 20);
+  // Los videos pesan mucho mas que una foto — limite propio y mas alto
+  // (env aparte, no reusa UPLOADS_MAX_SIZE_MB) para no tener que subir el
+  // limite de imagenes solo por permitir video.
+  const maxSizeMb = Number(process.env[isVideo ? "UPLOADS_MAX_VIDEO_SIZE_MB" : "UPLOADS_MAX_SIZE_MB"] ?? (isVideo ? 100 : 20));
   if (file.size > maxSizeMb * 1024 * 1024) {
     throw new Error(`El archivo supera el tamano maximo permitido (${maxSizeMb} MB).`);
   }
@@ -529,13 +538,14 @@ export async function uploadProductImage(productId: string, file: File, position
       productId,
       url: `/uploads/products/${filename}`,
       position: position ?? existingImages.length,
+      mediaType: isVideo ? "video" : "image",
     })
     .returning();
 
   await logAudit({
     userId: session.user.id,
     storeId: session.user.storeId,
-    action: "upload_image",
+    action: isVideo ? "upload_video" : "upload_image",
     entityType: "product_image",
     entityId: created.id,
     after: created,

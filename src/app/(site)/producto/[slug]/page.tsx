@@ -93,7 +93,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
       </div>
 
-      <ProductDetailsTabs description={product.description} specs={product.specs} />
+      <ProductDetailsTabs description={product.description} specs={product.specs} technicalSpecs={product.technicalSpecs} />
 
       {related.length > 0 && (
         <section className="mt-14">
