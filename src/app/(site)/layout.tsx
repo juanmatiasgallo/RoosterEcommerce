@@ -40,7 +40,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         notificationUnreadCount={notifications.unreadCount}
       />
       {children}
-      <SiteFooter categoryTree={categoryTree} contactEmail={contact.contactEmail} contactPhone={contact.contactPhone} />
+      <SiteFooter
+        categoryTree={categoryTree}
+        contactEmail={contact.contactEmail}
+        contactPhone={contact.contactPhone}
+        instagramUrl={contact.instagramUrl}
+        facebookUrl={contact.facebookUrl}
+      />
       <WhatsAppFloatButton phone={contact.contactPhone} />
     </>
   );

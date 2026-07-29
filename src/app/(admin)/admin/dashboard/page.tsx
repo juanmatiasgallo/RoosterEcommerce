@@ -64,26 +64,32 @@ export default async function AdminDashboardPage() {
           </Card>
         </Link>
 
-        <Card>
-          <CardContent>
-            <p className="text-3xl font-semibold">{activeProducts.length}</p>
-            <p className="mt-1 text-sm text-neutral-500">Productos activos</p>
-          </CardContent>
-        </Card>
+        <Link href="/admin/productos">
+          <Card className="h-full transition hover:border-accent hover:shadow-md">
+            <CardContent>
+              <p className="text-3xl font-semibold">{activeProducts.length}</p>
+              <p className="mt-1 text-sm text-neutral-500">Productos activos</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardContent>
-            <p className="text-3xl font-semibold">{totalCategorias}</p>
-            <p className="mt-1 text-sm text-neutral-500">Categorias</p>
-          </CardContent>
-        </Card>
+        <Link href="/admin/categorias">
+          <Card className="h-full transition hover:border-accent hover:shadow-md">
+            <CardContent>
+              <p className="text-3xl font-semibold">{totalCategorias}</p>
+              <p className="mt-1 text-sm text-neutral-500">Categorias</p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardContent>
-            <p className="text-3xl font-semibold">{cotizadosEsperandoPago.length}</p>
-            <p className="mt-1 text-sm text-neutral-500">Cotizados esperando pago</p>
-          </CardContent>
-        </Card>
+        <Link href="/admin/pedidos-custom">
+          <Card className="h-full transition hover:border-accent hover:shadow-md">
+            <CardContent>
+              <p className="text-3xl font-semibold">{cotizadosEsperandoPago.length}</p>
+              <p className="mt-1 text-sm text-neutral-500">Cotizados esperando pago</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <section className="mt-10">
@@ -102,7 +108,10 @@ export default async function AdminDashboardPage() {
           <Card className="mt-4">
             <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
               {lowStockRows.map(({ product, variant }) => (
-                <li key={variant.id} className="flex items-center justify-between gap-2 p-4">
+                <li
+                  key={variant.id}
+                  className="flex items-center justify-between gap-2 p-4 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                >
                   <div>
                     <CardTitle className="text-sm">{product.name}</CardTitle>
                     <p className="text-xs text-neutral-500">
@@ -137,7 +146,10 @@ export default async function AdminDashboardPage() {
           <Card className="mt-4">
             <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
               {orders.slice(0, 5).map((row) => (
-                <li key={row.order.id} className="flex items-center justify-between gap-2 p-4">
+                <li
+                  key={row.order.id}
+                  className="flex items-center justify-between gap-2 p-4 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+                >
                   <div>
                     <CardTitle className="text-sm">{row.customerName ?? row.customerEmail}</CardTitle>
                     <p className="text-xs text-neutral-500">{formatDate(row.order.createdAt)}</p>

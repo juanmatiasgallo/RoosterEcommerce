@@ -70,6 +70,12 @@ export const stores = pgTable("stores", {
   department: varchar("department", { length: 100 }),
   contactPhone: varchar("contact_phone", { length: 50 }),
   contactEmail: varchar("contact_email", { length: 255 }),
+  // Redes sociales para los iconos del footer (site-footer.tsx). URL
+  // completa (ej. "https://instagram.com/tutienda"), nulo = no se muestra
+  // ese icono. El de WhatsApp reutiliza contactPhone, no necesita campo
+  // aparte.
+  instagramUrl: varchar("instagram_url", { length: 300 }),
+  facebookUrl: varchar("facebook_url", { length: 300 }),
   invoicePrefix: varchar("invoice_prefix", { length: 20 }),
   nextInvoiceNumber: integer("next_invoice_number").notNull().default(1),
   // Modo vacaciones: si esta prendido, checkoutCart e
@@ -133,6 +139,13 @@ export const products = pgTable("products", {
   description: text("description"),
   categoryId: uuid("category_id").references(() => categories.id),
   basePrice: numeric("base_price", { precision: 12, scale: 2 }).notNull(),
+  // Especificaciones estructuradas (material, dimensiones, peso, cuidados,
+  // etc.), lista libre de filas {label, value} en vez de columnas fijas —
+  // no todos los productos comparten los mismos atributos. Se muestran en
+  // la pestana "Detalles del producto" de la ficha publica, separado de
+  // `description` (que sigue siendo el texto libre de la pestana
+  // "Descripcion"). Nulo/vacio = esa pestana no se muestra.
+  specs: jsonb("specs").$type<{ label: string; value: string }[]>(),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

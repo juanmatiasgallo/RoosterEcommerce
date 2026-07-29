@@ -1,11 +1,20 @@
 import { z } from "zod";
 
+// Fila libre de especificacion ("Material" / "PLA biodegradable", etc.) —
+// se muestran en la pestana "Detalles del producto" de la ficha publica,
+// separadas de `description` (texto libre de la pestana "Descripcion").
+export const productSpecSchema = z.object({
+  label: z.string().min(1).max(80),
+  value: z.string().min(1).max(300),
+});
+
 export const createProductSchema = z.object({
   slug: z.string().min(1).max(220),
   name: z.string().min(1).max(200),
   description: z.string().max(5000).optional(),
   categoryId: z.uuid().optional(),
   basePrice: z.number().positive(),
+  specs: z.array(productSpecSchema).max(30).optional(),
 });
 
 export const updateProductSchema = createProductSchema.partial();

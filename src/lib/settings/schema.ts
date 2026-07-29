@@ -41,6 +41,8 @@ export const updateStoreInfoSchema = z.object({
   department: z.string().max(100).optional(),
   contactPhone: z.string().max(50).optional(),
   contactEmail: z.union([z.email(), z.literal("")]).optional(),
+  instagramUrl: z.union([z.url(), z.literal("")]).optional(),
+  facebookUrl: z.union([z.url(), z.literal("")]).optional(),
   invoicePrefix: z.string().max(20).optional(),
   nextInvoiceNumber: z.number().int().positive().optional(),
 });

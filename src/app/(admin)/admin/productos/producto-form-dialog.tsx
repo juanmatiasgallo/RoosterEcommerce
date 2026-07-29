@@ -21,6 +21,7 @@ import {
   type AdminProductListItem,
 } from "@/lib/catalog/actions";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
+import { Spinner } from "@/components/ui/spinner";
 
 type ProductImage = AdminProductListItem["images"][number];
 
@@ -41,6 +42,11 @@ const variantRowSchema = z.object({
   sku: z.string().max(100).optional(),
 });
 
+const specRowSchema = z.object({
+  label: z.string().min(1, "Requerido").max(80),
+  value: z.string().min(1, "Requerido").max(300),
+});
+
 const productFormSchema = z.object({
   name: z.string().min(1, "Requerido").max(200),
   slug: z.string().min(1, "Requerido").max(220),
@@ -48,6 +54,7 @@ const productFormSchema = z.object({
   categoryId: z.string().optional(),
   basePrice: z.coerce.number().positive("Debe ser mayor a 0"),
   variants: z.array(variantRowSchema),
+  specs: z.array(specRowSchema),
 });
 
 // z.coerce.number() en basePrice/price/stock hace que el tipo de "entrada"
@@ -94,6 +101,7 @@ export function ProductoFormDialog(props: Props) {
               stock: variant.stock,
               sku: variant.sku ?? "",
             })),
+            specs: props.product.specs ?? [],
           }
         : {
             name: "",
@@ -102,10 +110,12 @@ export function ProductoFormDialog(props: Props) {
             categoryId: undefined,
             basePrice: 0,
             variants: [],
+            specs: [],
           },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "variants" });
+  const { fields: specFields, append: appendSpec, remove: removeSpec } = useFieldArray({ control, name: "specs" });
 
   function removeVariantRow(index: number) {
     const row = fields[index];
@@ -124,6 +134,7 @@ export function ProductoFormDialog(props: Props) {
         description: values.description || undefined,
         categoryId: values.categoryId || undefined,
         basePrice: values.basePrice,
+        specs: values.specs,
       };
 
       const product = mode === "edit" ? await updateProduct(props.product.id, productPayload) : await createProduct(productPayload);
@@ -395,6 +406,61 @@ export function ProductoFormDialog(props: Props) {
               )}
             </div>
 
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-sm font-medium">Detalles del producto</h2>
+                <button
+                  type="button"
+                  onClick={() => appendSpec({ label: "", value: "" })}
+                  className="rounded border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 active:scale-[0.98] dark:border-neutral-700 dark:hover:bg-neutral-800"
+                >
+                  + Agregar fila
+                </button>
+              </div>
+              <p className="mb-2 text-xs text-neutral-500">
+                Filas libres (ej. "Material" / "PLA biodegradable") que se muestran en la pestana "Detalles del
+                producto" de la ficha publica, aparte de la Descripcion.
+              </p>
+
+              {specFields.length === 0 ? (
+                <p className="text-xs text-neutral-500">Todavia no hay filas de detalle.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {specFields.map((field, index) => (
+                    <div key={field.id} className="flex items-end gap-2">
+                      <div className="w-2/5">
+                        <label className="mb-0.5 block text-xs text-neutral-500">Etiqueta</label>
+                        <input
+                          placeholder="Material"
+                          {...register(`specs.${index}.label`)}
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="mb-0.5 block text-xs text-neutral-500">Valor</label>
+                        <input
+                          placeholder="PLA biodegradable"
+                          {...register(`specs.${index}.value`)}
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSpec(index)}
+                        aria-label="Quitar fila"
+                        className="rounded p-1.5 text-neutral-500 hover:bg-neutral-100 active:scale-[0.98] dark:hover:bg-neutral-800"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      {errors.specs?.[index] && (
+                        <p className="text-xs text-red-600">Completa etiqueta y valor.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {mode === "edit" ? (
               <div>
                 <div className="mb-2 flex items-center justify-between">
@@ -471,8 +537,9 @@ export function ProductoFormDialog(props: Props) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="rounded bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+                className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
               >
+                {isSubmitting && <Spinner size={14} />}
                 {isSubmitting ? "Guardando..." : "Guardar"}
               </button>
             </div>

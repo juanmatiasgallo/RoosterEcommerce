@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { findCategoryPath, getProductBySlug, listCategoryTree, listProducts } from "@/lib/catalog/queries";
 import { Breadcrumb, type BreadcrumbItem } from "../../breadcrumb";
 import { ProductCarousel } from "../../product-carousel";
+import { ProductDetailsTabs } from "./product-details-tabs";
 import { ProductGalleryClient } from "./product-gallery-client";
 import { ProductReviews } from "./product-reviews";
 import { RecentlyViewedCarousel } from "./recently-viewed-carousel";
@@ -76,15 +77,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
         <div>
           <h1 className="text-2xl font-semibold">{product.name}</h1>
-          {product.description && (
-            <p className="mt-2 text-neutral-600 dark:text-neutral-400">{product.description}</p>
-          )}
 
           <div className="mt-6">
             <VariantSelectorClient variants={product.variants} basePrice={product.basePrice} />
           </div>
         </div>
       </div>
+
+      <ProductDetailsTabs description={product.description} specs={product.specs} />
 
       {related.length > 0 && (
         <section className="mt-14">

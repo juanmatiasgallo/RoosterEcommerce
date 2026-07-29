@@ -93,7 +93,7 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
         return (
           <div
             key={row.order.id}
-            className={`rounded border p-4 ${
+            className={`rounded border p-4 transition-shadow hover:shadow-sm ${
               isManualPending
                 ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30"
                 : "border-neutral-200 dark:border-neutral-800"

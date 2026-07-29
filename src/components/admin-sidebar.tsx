@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Menu, X } from "lucide-react";
 import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
 import { LogoutButton } from "@/components/logout-button";
@@ -48,7 +49,7 @@ export function AdminSidebar({
 
   function linkClass(href: string) {
     const active = pathname === href || pathname?.startsWith(`${href}/`);
-    return `block rounded px-3 py-2 text-sm ${
+    return `block rounded px-3 py-2 text-sm transition-colors ${
       active
         ? "bg-accent text-accent-foreground"
         : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
@@ -68,14 +69,18 @@ export function AdminSidebar({
             onClick={() => setMenuOpen((open) => !open)}
             aria-expanded={menuOpen}
             aria-label="Abrir menu"
-            className="text-sm text-neutral-600 sm:hidden dark:text-neutral-300"
+            className="text-neutral-600 sm:hidden dark:text-neutral-300"
           >
-            Menu
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
-      <nav className={`flex-col gap-1 px-3 pb-4 sm:flex ${menuOpen ? "flex" : "hidden"}`}>
+      <nav
+        className={`flex-col gap-1 px-3 pb-4 sm:flex ${
+          menuOpen ? "animate-in fade-in-0 slide-in-from-top-2 flex duration-150" : "hidden"
+        }`}
+      >
         {items.map((item) => (
           <Link key={item.href} href={item.href} className={linkClass(item.href)} onClick={() => setMenuOpen(false)}>
             {item.label}

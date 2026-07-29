@@ -252,6 +252,8 @@ function toPublicStoreInfo(store: typeof stores.$inferSelect) {
     department: store.department,
     contactPhone: store.contactPhone,
     contactEmail: store.contactEmail,
+    instagramUrl: store.instagramUrl,
+    facebookUrl: store.facebookUrl,
     invoicePrefix: store.invoicePrefix,
     nextInvoiceNumber: store.nextInvoiceNumber,
   };
@@ -272,11 +274,16 @@ export type StoreInfoSettings = Awaited<ReturnType<typeof getStoreInfo>>;
 // contacto real de la tienda si esta cargado, sin requerir sesion de admin.
 export async function getPublicStoreContact() {
   const [store] = await db
-    .select({ contactEmail: stores.contactEmail, contactPhone: stores.contactPhone })
+    .select({
+      contactEmail: stores.contactEmail,
+      contactPhone: stores.contactPhone,
+      instagramUrl: stores.instagramUrl,
+      facebookUrl: stores.facebookUrl,
+    })
     .from(stores)
     .limit(1);
 
-  return store ?? { contactEmail: null, contactPhone: null };
+  return store ?? { contactEmail: null, contactPhone: null, instagramUrl: null, facebookUrl: null };
 }
 
 export async function updateStoreInfo(input: z.infer<typeof updateStoreInfoSchema>) {
@@ -296,6 +303,8 @@ export async function updateStoreInfo(input: z.infer<typeof updateStoreInfoSchem
       ...(data.department !== undefined && { department: data.department || null }),
       ...(data.contactPhone !== undefined && { contactPhone: data.contactPhone || null }),
       ...(data.contactEmail !== undefined && { contactEmail: data.contactEmail || null }),
+      ...(data.instagramUrl !== undefined && { instagramUrl: data.instagramUrl || null }),
+      ...(data.facebookUrl !== undefined && { facebookUrl: data.facebookUrl || null }),
       ...(data.invoicePrefix !== undefined && { invoicePrefix: data.invoicePrefix || null }),
       ...(data.nextInvoiceNumber !== undefined && { nextInvoiceNumber: data.nextInvoiceNumber }),
     })

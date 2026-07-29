@@ -100,7 +100,10 @@ export function ProductosClient({
             </thead>
             <tbody>
               {products.map((product) => (
-                <tr key={product.id} className="border-b border-neutral-100 dark:border-neutral-900">
+                <tr
+                  key={product.id}
+                  className="border-b border-neutral-100 transition-colors hover:bg-neutral-50 dark:border-neutral-900 dark:hover:bg-neutral-900/50"
+                >
                   <td className="py-2 pr-4">
                     <div className="font-medium">{product.name}</div>
                     <div className="text-xs text-neutral-500">{product.slug}</div>

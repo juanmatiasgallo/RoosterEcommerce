@@ -580,6 +580,8 @@ function StoreInfoForm({ initial }: { initial: StoreInfoSettings }) {
       department: settings.department ?? "",
       contactPhone: settings.contactPhone ?? "",
       contactEmail: settings.contactEmail ?? "",
+      instagramUrl: settings.instagramUrl ?? "",
+      facebookUrl: settings.facebookUrl ?? "",
       invoicePrefix: settings.invoicePrefix ?? "",
       nextInvoiceNumber: settings.nextInvoiceNumber,
     },
@@ -686,6 +688,36 @@ function StoreInfoForm({ initial }: { initial: StoreInfoSettings }) {
               {errors.contactEmail && <p className="mt-1 text-xs text-red-600">{errors.contactEmail.message}</p>}
             </div>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="instagramUrl" className="mb-1 block text-sm font-medium">
+                Instagram
+              </label>
+              <input
+                id="instagramUrl"
+                {...register("instagramUrl")}
+                placeholder="https://instagram.com/tutienda"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.instagramUrl && <p className="mt-1 text-xs text-red-600">{errors.instagramUrl.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="facebookUrl" className="mb-1 block text-sm font-medium">
+                Facebook
+              </label>
+              <input
+                id="facebookUrl"
+                {...register("facebookUrl")}
+                placeholder="https://facebook.com/tutienda"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.facebookUrl && <p className="mt-1 text-xs text-red-600">{errors.facebookUrl.message}</p>}
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-neutral-500">
+            El icono de WhatsApp del footer usa el telefono de contacto de arriba, no hace falta cargarlo aparte.
+          </p>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>

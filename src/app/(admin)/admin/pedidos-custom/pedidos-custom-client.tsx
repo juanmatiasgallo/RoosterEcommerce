@@ -43,7 +43,10 @@ export function PedidosCustomClient({
         ) : (
           <div className="mt-4 flex flex-col gap-3">
             {pendientes.map((order) => (
-              <div key={order.id} className="rounded border border-neutral-200 p-4 dark:border-neutral-800">
+              <div
+                key={order.id}
+                className="rounded border border-neutral-200 p-4 transition-shadow hover:shadow-sm dark:border-neutral-800"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <p className="font-medium">{order.fileName}</p>
@@ -52,7 +55,7 @@ export function PedidosCustomClient({
                   <button
                     type="button"
                     onClick={() => setCotizando(order)}
-                    className="shrink-0 rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+                    className="shrink-0 rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
                   >
                     Cotizar
                   </button>
@@ -82,7 +85,7 @@ export function PedidosCustomClient({
             {cotizados.map((order) => (
               <div
                 key={order.id}
-                className="rounded border border-neutral-200 p-4 dark:border-neutral-800"
+                className="rounded border border-neutral-200 p-4 transition-shadow hover:shadow-sm dark:border-neutral-800"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

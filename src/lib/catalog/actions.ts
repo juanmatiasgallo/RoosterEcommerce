@@ -134,6 +134,7 @@ export async function createProduct(input: z.infer<typeof createProductSchema>) 
       description: data.description,
       categoryId: data.categoryId,
       basePrice: data.basePrice.toFixed(2),
+      specs: data.specs,
     })
     .returning();
 
@@ -166,6 +167,7 @@ export async function updateProduct(id: string, input: z.infer<typeof updateProd
       ...(data.description !== undefined && { description: data.description }),
       ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
       ...(data.basePrice !== undefined && { basePrice: data.basePrice.toFixed(2) }),
+      ...(data.specs !== undefined && { specs: data.specs }),
     })
     .where(eq(products.id, id))
     .returning();

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import { NewsletterForm } from "@/components/newsletter-form";
+import { FacebookIcon, InstagramIcon, WhatsAppIcon } from "@/components/social-icons";
 
 // Placeholders: se usan solo si el admin todavia no cargo datos reales de
 // contacto en /admin/configuracion (ver "Datos de la tienda").
@@ -11,11 +12,17 @@ export function SiteFooter({
   categoryTree,
   contactEmail,
   contactPhone,
+  instagramUrl,
+  facebookUrl,
 }: {
   categoryTree: CategoryTreeNode[];
   contactEmail?: string | null;
   contactPhone?: string | null;
+  instagramUrl?: string | null;
+  facebookUrl?: string | null;
 }) {
+  const whatsappHref = contactPhone ? `https://wa.me/${contactPhone.replace(/\D/g, "")}` : null;
+  const hasSocialLinks = Boolean(instagramUrl || facebookUrl || whatsappHref);
   return (
     <footer className="mt-16 border-t border-neutral-200 dark:border-neutral-800">
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 border-b border-neutral-200 px-4 py-6 sm:flex-row sm:items-center dark:border-neutral-800">
@@ -71,6 +78,44 @@ export function SiteFooter({
               </Link>
             </li>
           </ul>
+
+          {hasSocialLinks && (
+            <div className="mt-3 flex items-center gap-3 text-neutral-400">
+              {instagramUrl && (
+                <a
+                  href={instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="transition-colors hover:text-accent"
+                >
+                  <InstagramIcon size={18} />
+                </a>
+              )}
+              {facebookUrl && (
+                <a
+                  href={facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="transition-colors hover:text-accent"
+                >
+                  <FacebookIcon size={18} />
+                </a>
+              )}
+              {whatsappHref && (
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="WhatsApp"
+                  className="transition-colors hover:text-accent"
+                >
+                  <WhatsAppIcon size={18} />
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </footer>
