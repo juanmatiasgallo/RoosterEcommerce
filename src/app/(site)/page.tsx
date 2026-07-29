@@ -12,6 +12,7 @@ import { FeaturedCategories } from "./featured-categories";
 import { Hero } from "./hero";
 import { HowItWorks } from "./how-it-works";
 import { ProductCard } from "./product-card";
+import { ValueProps } from "./value-props";
 
 // Esta pagina consulta la DB en cada request: si se deja como estatica por
 // defecto, `next build` la pre-renderiza en build time y el build de Docker
@@ -101,10 +102,17 @@ export default async function HomePage({
     <main className="mx-auto max-w-6xl px-4 py-8">
       <Hero />
       <HowItWorks />
+      <ValueProps />
       <FeaturedCategories categoryTree={categoryTree} />
 
-      <div id="catalogo" className="scroll-mt-6 pt-10">
-        <h2 className="text-2xl font-semibold">Catalogo</h2>
+      <div id="catalogo" className="scroll-mt-6 border-t border-neutral-200 pt-10 dark:border-neutral-800">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-2xl font-semibold">Catalogo</h2>
+          <span className="text-sm text-neutral-500">
+            {catalog.length} articulo{catalog.length === 1 ? "" : "s"}
+            {hasActiveFilters ? " con estos filtros" : " disponible" + (catalog.length === 1 ? "" : "s")}
+          </span>
+        </div>
         <p className="mt-1 text-neutral-500">Todos nuestros articulos disponibles para impresion 3D.</p>
       </div>
 

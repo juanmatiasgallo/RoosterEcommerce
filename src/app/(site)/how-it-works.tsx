@@ -20,17 +20,26 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section className="py-10">
+    <section className="py-14">
       <h2 className="text-center text-2xl font-semibold">Como funciona el pedido a medida</h2>
-      <div className="mt-8 grid gap-8 sm:grid-cols-3">
+
+      <div className="relative mt-10 grid gap-10 sm:grid-cols-3 sm:gap-8">
+        {/* Linea conectora entre los 3 pasos: solo en pantallas donde estan
+            en fila (sm+), atras de los circulos (z-0). */}
+        <div className="absolute top-6 right-[16.5%] left-[16.5%] hidden h-px bg-neutral-200 sm:block dark:bg-neutral-800" />
+
         {STEPS.map((step, index) => (
-          <div key={step.title} className="flex flex-col items-center text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <div
+            key={step.title}
+            style={{ animationDelay: `${index * 100}ms` }}
+            className="animate-in fade-in slide-in-from-bottom-2 relative z-10 flex flex-col items-center text-center fill-mode-both duration-500"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent ring-4 ring-white transition-transform duration-300 hover:scale-110 dark:ring-neutral-950">
               <step.icon className="h-6 w-6" strokeWidth={1.75} aria-hidden="true" />
             </div>
             <p className="mt-3 text-xs font-medium text-neutral-400">Paso {index + 1}</p>
             <h3 className="mt-1 font-medium">{step.title}</h3>
-            <p className="mt-1 text-sm text-neutral-500">{step.description}</p>
+            <p className="mt-1 max-w-56 text-sm text-neutral-500">{step.description}</p>
           </div>
         ))}
       </div>
