@@ -2,27 +2,56 @@
 @import "tw-animate-css";
 
 /*
+ * Modo claro/oscuro manual (task #121, next-themes): el toggle setea la
+ * clase .dark en <html> (ver theme-toggle.tsx + ThemeProvider en
+ * layout.tsx). Reemplaza la estrategia de Tailwind por defecto (media query
+ * prefers-color-scheme) por una basada en clase, para que la preferencia
+ * del usuario mande por encima del SO -- sin esto, todas las utilidades
+ * dark: de Tailwind seguirian el modo del sistema operativo en vez del
+ * toggle.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
  * Color de acento unico del sitio (CTAs y estados activos): un naranja
  * "taller/fabricacion" a proposito, no el azul/violeta tipico de SaaS.
  * Se usa via las utilidades de Tailwind bg-accent/text-accent/etc, nunca
  * hardcodeado como hex suelto en un componente.
+ *
+ * Ramp de "neutral" con temperatura calida ("Taller claro", elegida entre 3
+ * propuestas -- ver mockups task #120): Tailwind trae un gris neutro puro
+ * por defecto, que es justo lo que el owner sintio "frio"/poco confiable.
+ * Se pisan los 11 stops con la misma progresion de luminosidad pero con un
+ * leve tinte calido (R > G > B), asi TODAS las utilidades bg-neutral-*,
+ * border-neutral-*, text-neutral-* que ya existen en el resto del codigo
+ * (decenas de archivos) heredan el cambio sin tocarlas una por una.
  */
 @theme {
   --color-accent: #ea580c;
   --color-accent-hover: #c2410c;
   --color-accent-foreground: #ffffff;
+
+  --color-neutral-50: #faf9f6;
+  --color-neutral-100: #f3f1eb;
+  --color-neutral-200: #e7e4dc;
+  --color-neutral-300: #d3cfc3;
+  --color-neutral-400: #a9a399;
+  --color-neutral-500: #857f74;
+  --color-neutral-600: #635e55;
+  --color-neutral-700: #4a453d;
+  --color-neutral-800: #322e28;
+  --color-neutral-900: #211e1a;
+  --color-neutral-950: #171412;
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-neutral-50);
+  --foreground: var(--color-neutral-900);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #14110d;
+  --foreground: var(--color-neutral-100);
 }
 
 html {
@@ -68,6 +97,27 @@ select:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* Task #122: las secciones full-bleed oscuras (Hero, NewsletterSection,
+   banner de /pedido-a-medida, Footer) cortaban en seco contra el fondo
+   claro de la pagina -- se notaba el borde del <div> incluso con las
+   animaciones de blobs. En vez de adivinar un color de transicion (el fondo
+   cambia segun light/dark mode), se le aplica una mascara CSS a la seccion
+   entera: los primeros/ultimos px se van a transparente y dejan ver el
+   fondo real de la pagina de a poco, en vez de un corte recto.
+   fade-edge-y = fade arriba y abajo (secciones "flotantes" en medio del
+   contenido). fade-edge-top = solo arriba (el footer no necesita fade
+   abajo, ahi termina la pagina). */
+@layer utilities {
+  .fade-edge-y {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 56px, black calc(100% - 56px), transparent);
+    mask-image: linear-gradient(to bottom, transparent, black 56px, black calc(100% - 56px), transparent);
+  }
+  .fade-edge-top {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 56px);
+    mask-image: linear-gradient(to bottom, transparent, black 56px);
+  }
 }
 
 /* Usado por la campana de notificaciones cuando hay no-leidas (ver

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Work_Sans } from "next/font/google";
 import { Toaster } from "sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
 // Una sola familia, dos pesos (regular + semibold) — suficiente para todo
@@ -27,8 +28,10 @@ export default function RootLayout({
   return (
     <html lang="es" className={workSans.variable} suppressHydrationWarning>
       <body>
-        {children}
-        <Toaster richColors position="bottom-right" />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+          {children}
+          <Toaster richColors position="bottom-right" />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gift, Heart, Lock, Menu, ShoppingBag, UserCircle, Wand2, X } from "lucide-react";
+import { Gift, Heart, Home, Lock, Menu, ShoppingBag, UserCircle, Wand2, X } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type SessionUser = {
   name?: string | null;
@@ -41,19 +42,36 @@ export function ClienteSidebar({ user }: { user: SessionUser }) {
   return (
     <aside className="border-b border-neutral-200 sm:w-56 sm:shrink-0 sm:border-r sm:border-b-0 dark:border-neutral-800">
       <div className="flex items-center justify-between px-4 py-3 sm:px-3 sm:py-4">
-        <div>
-          <p className="text-sm font-semibold">Mi cuenta</p>
-          <p className="truncate text-xs text-neutral-500">{user.name ?? user.email}</p>
+        <div className="flex items-center gap-2.5">
+          <div>
+            <p className="text-sm font-semibold">Mi cuenta</p>
+            <p className="truncate text-xs text-neutral-500">{user.name ?? user.email}</p>
+          </div>
+          {/* Volver a la tienda / Cerrar sesion (task #125): antes vivian al
+              pie del sidebar, habia que scrollear para llegar. Ahora quedan
+              arriba, junto al logo, siempre visibles. */}
+          <Link
+            href="/"
+            title="Volver a la tienda"
+            aria-label="Volver a la tienda"
+            className="flex items-center text-neutral-500 transition-colors hover:text-accent dark:text-neutral-400"
+          >
+            <Home size={17} strokeWidth={1.75} />
+          </Link>
+          <LogoutButton variant="icon" />
         </div>
-        <button
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-          aria-label="Abrir menu"
-          className="text-neutral-600 sm:hidden dark:text-neutral-300"
-        >
-          {menuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-label="Abrir menu"
+            className="text-neutral-600 sm:hidden dark:text-neutral-300"
+          >
+            {menuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       <nav
@@ -68,17 +86,6 @@ export function ClienteSidebar({ user }: { user: SessionUser }) {
           </Link>
         ))}
       </nav>
-
-      <div
-        className={`flex-col gap-2 border-t border-neutral-200 px-3 py-4 text-sm sm:flex dark:border-neutral-800 ${
-          menuOpen ? "flex" : "hidden"
-        }`}
-      >
-        <LogoutButton />
-        <Link href="/" className="text-neutral-500 underline hover:text-accent">
-          Volver a la tienda
-        </Link>
-      </div>
     </aside>
   );
 }

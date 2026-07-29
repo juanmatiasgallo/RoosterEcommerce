@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
-import { FacebookIcon, InstagramIcon, WhatsAppIcon } from "@/components/social-icons";
+import { FacebookIcon, InstagramIcon } from "@/components/social-icons";
 
 // Placeholders: se usan solo si el admin todavia no cargo datos reales de
 // contacto en /admin/configuracion (ver "Datos de la tienda").
@@ -15,21 +15,23 @@ const FALLBACK_EMAIL = "hola@tutienda.example";
 // SiteLayout, simplemente no se usa aca.
 export function SiteFooter({
   contactEmail,
-  contactPhone,
   instagramUrl,
   facebookUrl,
 }: {
   categoryTree?: CategoryTreeNode[];
   contactEmail?: string | null;
+  // contactPhone ya no se usa aca: el icono de WhatsApp se saco del footer
+  // (task #123) porque el boton flotante (whatsapp-float-button.tsx) ya
+  // cumple esa funcion en todo el sitio y tener los dos era redundante. Se
+  // deja el prop en la firma para no romper el call site en layout.tsx.
   contactPhone?: string | null;
   instagramUrl?: string | null;
   facebookUrl?: string | null;
 }) {
-  const whatsappHref = contactPhone ? `https://wa.me/${contactPhone.replace(/\D/g, "")}` : null;
-  const hasSocialLinks = Boolean(instagramUrl || facebookUrl || whatsappHref);
+  const hasSocialLinks = Boolean(instagramUrl || facebookUrl);
 
   return (
-    <footer className="mt-16 bg-neutral-950 text-white">
+    <footer className="fade-edge-top mt-16 bg-neutral-950 text-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6">
         <Link href="/" className="text-sm font-semibold">
           Tienda 3D
@@ -72,17 +74,6 @@ export function SiteFooter({
                 className="transition-colors hover:text-white"
               >
                 <FacebookIcon size={16} />
-              </a>
-            )}
-            {whatsappHref && (
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="WhatsApp"
-                className="transition-colors hover:text-white"
-              >
-                <WhatsAppIcon size={16} />
               </a>
             )}
           </div>

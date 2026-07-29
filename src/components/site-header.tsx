@@ -8,6 +8,7 @@ import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
 import { LogoutButton } from "@/components/logout-button";
 import { NotificationBell } from "@/components/notification-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function initialsOf(name?: string | null, email?: string | null): string {
   const source = name?.trim() || email?.trim() || "?";
@@ -51,46 +52,68 @@ function UserAvatarMenu({
   user: { name?: string | null; email?: string | null };
   isStaff: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const menuLinkClass = "rounded px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800";
+  const close = () => setOpen(false);
 
   return (
-    <details className="group relative">
-      <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white transition-transform [&::-webkit-details-marker]:hidden hover:scale-105 dark:bg-neutral-100 dark:text-neutral-900">
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        aria-label="Menu de cuenta"
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white transition-transform hover:scale-105 dark:bg-neutral-100 dark:text-neutral-900"
+      >
         {initialsOf(user.name, user.email)}
-      </summary>
-      <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-10 mt-2 flex min-w-48 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
-        <p className="truncate px-2 py-1 text-xs text-neutral-500">{user.name ?? user.email}</p>
-        {isStaff ? (
-          <Link href="/admin/dashboard" className={menuLinkClass}>
-            Panel
-          </Link>
-        ) : (
-          <>
-            <Link href="/mi-cuenta/perfil" className={menuLinkClass}>
-              Mi perfil
+      </button>
+
+      {open && (
+        <>
+          {/* Overlay para cerrar al clickear afuera, sin agregar una lib de
+              click-outside solo para esto (mismo patron que NotificationBell). */}
+          <button
+            type="button"
+            aria-hidden="true"
+            tabIndex={-1}
+            className="fixed inset-0 z-10 cursor-default"
+            onClick={close}
+          />
+          <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-20 mt-2 flex min-w-48 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
+            <p className="truncate px-2 py-1 text-xs text-neutral-500">{user.name ?? user.email}</p>
+            {isStaff ? (
+              <Link href="/admin/dashboard" className={menuLinkClass} onClick={close}>
+                Panel
+              </Link>
+            ) : (
+              <>
+                <Link href="/mi-cuenta/perfil" className={menuLinkClass} onClick={close}>
+                  Mi perfil
+                </Link>
+                <Link href="/mi-cuenta/compras" className={menuLinkClass} onClick={close}>
+                  Mis compras
+                </Link>
+                <Link href="/mi-cuenta/pedidos" className={menuLinkClass} onClick={close}>
+                  Mis pedidos a medida
+                </Link>
+                <Link href="/mi-cuenta/favoritos" className={menuLinkClass} onClick={close}>
+                  Mis favoritos
+                </Link>
+                <Link href="/mi-cuenta/puntos" className={menuLinkClass} onClick={close}>
+                  Mis puntos
+                </Link>
+              </>
+            )}
+            <Link href="/mi-cuenta/cambiar-contrasena" className={menuLinkClass} onClick={close}>
+              Cambiar contrasena
             </Link>
-            <Link href="/mi-cuenta/compras" className={menuLinkClass}>
-              Mis compras
-            </Link>
-            <Link href="/mi-cuenta/pedidos" className={menuLinkClass}>
-              Mis pedidos a medida
-            </Link>
-            <Link href="/mi-cuenta/favoritos" className={menuLinkClass}>
-              Mis favoritos
-            </Link>
-            <Link href="/mi-cuenta/puntos" className={menuLinkClass}>
-              Mis puntos
-            </Link>
-          </>
-        )}
-        <Link href="/mi-cuenta/cambiar-contrasena" className={menuLinkClass}>
-          Cambiar contrasena
-        </Link>
-        <div className="px-2 py-1.5">
-          <LogoutButton />
-        </div>
-      </div>
-    </details>
+            <div className="px-2 py-1.5">
+              <LogoutButton />
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -104,6 +127,35 @@ const linkClass = "text-sm text-neutral-600 hover:text-accent dark:text-neutral-
 // Sin marker nativo (list-none + ocultar el de WebKit): el ChevronDown de al
 // lado hace de indicador de que es un desplegable.
 const summaryClass = `${linkClass} flex cursor-pointer list-none items-center gap-1 [&::-webkit-details-marker]:hidden`;
+
+function CategoriesDropdown({ categoryTree }: { categoryTree: CategoryTreeNode[] }) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className={summaryClass}>
+        Categorias
+        <ChevronDown size={14} className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-hidden="true"
+            tabIndex={-1}
+            className="fixed inset-0 z-10 cursor-default"
+            onClick={close}
+          />
+          <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full left-0 z-20 mt-2 flex min-w-44 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
+            <CategoryLinks categoryTree={categoryTree} onSelect={close} />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function CategoryLinks({ categoryTree, onSelect }: { categoryTree: CategoryTreeNode[]; onSelect?: () => void }) {
   if (categoryTree.length === 0) {
@@ -156,15 +208,7 @@ export function SiteHeader({
         </Link>
 
         <nav className="hidden items-center gap-4 sm:flex">
-          <details className="group relative">
-            <summary className={summaryClass}>
-              Categorias
-              <ChevronDown size={14} className="transition-transform duration-200 group-open:rotate-180" />
-            </summary>
-            <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full left-0 z-10 mt-2 flex min-w-44 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
-              <CategoryLinks categoryTree={categoryTree} />
-            </div>
-          </details>
+          <CategoriesDropdown categoryTree={categoryTree} />
 
           {/* Ofertas: placeholder sin link real (el catalogo todavia no
               tiene el concepto de descuento, paso aparte). Solo visible para
@@ -185,6 +229,7 @@ export function SiteHeader({
         </nav>
 
         <div className="hidden items-center gap-4 sm:flex">
+          <ThemeToggle />
           {user && <NotificationBell initialItems={notificationItems} initialUnreadCount={notificationUnreadCount} />}
           {isCliente && <HeartIcon favoritesCount={favoritesCount} />}
           <CartIcon cartItemCount={cartItemCount} />
@@ -312,6 +357,10 @@ export function SiteHeader({
               Iniciar sesion
             </Link>
           )}
+          <div className="flex items-center gap-2 py-1 text-sm text-neutral-600 dark:text-neutral-300">
+            <ThemeToggle />
+            Modo claro / oscuro
+          </div>
         </nav>
       )}
     </header>

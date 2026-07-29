@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   ClipboardList,
   FolderTree,
+  Home,
   LayoutDashboard,
   Mail,
   Menu,
@@ -19,6 +20,7 @@ import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
 import { LogoutButton } from "@/components/logout-button";
 import { NotificationBell } from "@/components/notification-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type SessionUser = {
   name?: string | null;
@@ -70,10 +72,25 @@ export function AdminSidebar({
   return (
     <aside className="border-b border-neutral-200 sm:w-56 sm:shrink-0 sm:border-r sm:border-b-0 dark:border-neutral-800">
       <div className="flex items-center justify-between px-4 py-3 sm:px-3 sm:py-4">
-        <Link href="/" className="text-sm font-semibold">
-          Tienda 3D
-        </Link>
+        <div className="flex items-center gap-2.5">
+          <Link href="/admin/dashboard" className="text-sm font-semibold">
+            Tienda 3D
+          </Link>
+          {/* Volver a la tienda / Cerrar sesion (task #125): antes vivian al
+              pie del sidebar, habia que scrollear para llegar. Ahora quedan
+              arriba, junto al logo, siempre visibles. */}
+          <Link
+            href="/"
+            title="Volver a la tienda"
+            aria-label="Volver a la tienda"
+            className="flex items-center text-neutral-500 transition-colors hover:text-accent dark:text-neutral-400"
+          >
+            <Home size={17} strokeWidth={1.75} />
+          </Link>
+          <LogoutButton variant="icon" />
+        </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <NotificationBell initialItems={notificationItems} initialUnreadCount={notificationUnreadCount} />
           <button
             type="button"
@@ -106,10 +123,6 @@ export function AdminSidebar({
         }`}
       >
         <span className="text-neutral-500">{user.name ?? user.email}</span>
-        <LogoutButton />
-        <Link href="/" className="text-neutral-500 underline hover:text-accent">
-          Volver a la tienda
-        </Link>
       </div>
     </aside>
   );
