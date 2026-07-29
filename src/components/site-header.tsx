@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ShoppingCart } from "lucide-react";
+import { ChevronDown, Menu, ShoppingCart, X } from "lucide-react";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
@@ -37,11 +37,11 @@ function UserAvatarMenu({
   accountLabel: string;
 }) {
   return (
-    <details className="relative">
-      <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white [&::-webkit-details-marker]:hidden dark:bg-neutral-100 dark:text-neutral-900">
+    <details className="group relative">
+      <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white transition-transform [&::-webkit-details-marker]:hidden hover:scale-105 dark:bg-neutral-100 dark:text-neutral-900">
         {initialsOf(user.name, user.email)}
       </summary>
-      <div className="absolute top-full right-0 z-10 mt-2 flex min-w-48 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+      <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-10 mt-2 flex min-w-48 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
         <p className="truncate px-2 py-1 text-xs text-neutral-500">{user.name ?? user.email}</p>
         <Link href={accountHref} className="rounded px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800">
           {accountLabel}
@@ -121,12 +121,12 @@ export function SiteHeader({
         </Link>
 
         <nav className="hidden items-center gap-4 sm:flex">
-          <details className="relative">
+          <details className="group relative">
             <summary className={summaryClass}>
               Categorias
-              <ChevronDown size={14} />
+              <ChevronDown size={14} className="transition-transform duration-200 group-open:rotate-180" />
             </summary>
-            <div className="absolute top-full left-0 z-10 mt-2 flex min-w-44 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+            <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full left-0 z-10 mt-2 flex min-w-44 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
               <CategoryLinks categoryTree={categoryTree} />
             </div>
           </details>
@@ -167,18 +167,18 @@ export function SiteHeader({
           onClick={() => setMenuOpen((open) => !open)}
           aria-expanded={menuOpen}
           aria-label="Abrir menu"
-          className="text-sm text-neutral-600 sm:hidden dark:text-neutral-300"
+          className="text-neutral-600 sm:hidden dark:text-neutral-300"
         >
-          Menu
+          {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </div>
 
       {menuOpen && (
-        <nav className="flex flex-col gap-1 border-t border-neutral-200 px-4 py-3 sm:hidden dark:border-neutral-800">
-          <details>
+        <nav className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-1 border-t border-neutral-200 px-4 py-3 duration-150 sm:hidden dark:border-neutral-800">
+          <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-1 py-1 text-sm text-neutral-600 [&::-webkit-details-marker]:hidden dark:text-neutral-300">
               Categorias
-              <ChevronDown size={14} />
+              <ChevronDown size={14} className="transition-transform duration-200 group-open:rotate-180" />
             </summary>
             <div className="flex flex-col gap-1 pl-3">
               <CategoryLinks categoryTree={categoryTree} onSelect={() => setMenuOpen(false)} />

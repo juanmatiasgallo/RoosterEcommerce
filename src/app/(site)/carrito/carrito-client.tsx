@@ -5,10 +5,16 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { removeFromCart, updateCartItem, type CartRow } from "@/lib/cart/actions";
+import { Spinner } from "@/components/ui/spinner";
 
 function CartItemRow({ row }: { row: CartRow }) {
   const [quantity, setQuantity] = useState(row.item.quantity);
   const [isPending, startTransition] = useTransition();
+  // Animacion de salida optimista: ocultamos la fila de inmediato y recien
+  // despues mandamos el removeFromCart real (que dispara el revalidatePath
+  // que la saca de la lista del padre) — asi el usuario ve la transicion en
+  // vez de que la fila desaparezca de un salto.
+  const [isRemoving, setIsRemoving] = useState(false);
 
   // Debounce ~300ms antes de pegarle al server con cada cambio de cantidad,
   // mismo criterio que el resto de los inputs numericos del proyecto.
@@ -31,14 +37,18 @@ function CartItemRow({ row }: { row: CartRow }) {
   }, [quantity]);
 
   function handleRemove() {
-    startTransition(async () => {
-      try {
-        await removeFromCart(row.item.id);
-        toast.success("Producto quitado del carrito.");
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "No se pudo quitar el producto.");
-      }
-    });
+    setIsRemoving(true);
+    setTimeout(() => {
+      startTransition(async () => {
+        try {
+          await removeFromCart(row.item.id);
+          toast.success("Producto quitado del carrito.");
+        } catch (error) {
+          toast.error(error instanceof Error ? error.message : "No se pudo quitar el producto.");
+          setIsRemoving(false);
+        }
+      });
+    }, 200);
   }
 
   const subtotal = Number(row.variant.price) * quantity;
@@ -46,9 +56,9 @@ function CartItemRow({ row }: { row: CartRow }) {
 
   return (
     <div
-      className={`flex items-center justify-between gap-4 rounded border border-neutral-200 p-3 transition-opacity dark:border-neutral-800 ${
-        isPending ? "opacity-60" : "opacity-100"
-      }`}
+      className={`animate-in fade-in slide-in-from-top-1 flex items-center justify-between gap-4 overflow-hidden rounded border border-neutral-200 p-3 transition-all duration-200 dark:border-neutral-800 ${
+        isRemoving ? "max-h-0 scale-95 opacity-0 p-0 border-0" : "max-h-40 opacity-100"
+      } ${isPending && !isRemoving ? "opacity-60" : ""}`}
     >
       <div>
         <p className="font-medium">{row.product.name}</p>
@@ -71,8 +81,9 @@ function CartItemRow({ row }: { row: CartRow }) {
           type="button"
           onClick={handleRemove}
           disabled={isPending}
-          className="text-xs text-red-600 hover:underline disabled:opacity-50"
+          className="flex items-center gap-1 text-xs text-red-600 hover:underline disabled:opacity-50"
         >
+          {isPending && isRemoving && <Spinner size={12} />}
           Quitar
         </button>
       </div>
@@ -112,7 +123,7 @@ export function CarritoClient({
       ) : (
         <Link
           href="/checkout"
-          className="rounded bg-neutral-900 px-4 py-2 text-center text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+          className="rounded bg-neutral-900 px-4 py-2 text-center text-sm font-medium text-white active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
         >
           Continuar
         </Link>

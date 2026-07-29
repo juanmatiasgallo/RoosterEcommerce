@@ -15,6 +15,7 @@ import {
   type ManualPaymentMethodOption,
   type PaymentMethodValue,
 } from "@/components/payment-method-picker";
+import { Spinner } from "@/components/ui/spinner";
 
 type ShippingZoneOption = { id: string; name: string; description: string | null; cost: string };
 type Step = 1 | 2 | 3 | 4;
@@ -144,42 +145,44 @@ export function CheckoutWizard({
       <div className="flex flex-col gap-4">
         <StepHeader step={step} startedLoggedIn={startedLoggedIn} identifiedEmail={identifiedEmail} />
 
-        {step === 1 && <IdentifyStep onIdentified={handleIdentified} />}
+        <div key={step} className="animate-in fade-in slide-in-from-right-4 duration-300">
+          {step === 1 && <IdentifyStep onIdentified={handleIdentified} />}
 
-        {step === 2 && (
-          <ShippingStep
-            zones={shippingZones}
-            initialAddress={shippingAddress}
-            initialZone={shippingZone}
-            onContinue={(address, zone) => {
-              setShippingAddress(address);
-              setShippingZone(zone);
-              setStep(3);
-            }}
-          />
-        )}
+          {step === 2 && (
+            <ShippingStep
+              zones={shippingZones}
+              initialAddress={shippingAddress}
+              initialZone={shippingZone}
+              onContinue={(address, zone) => {
+                setShippingAddress(address);
+                setShippingZone(zone);
+                setStep(3);
+              }}
+            />
+          )}
 
-        {step === 3 && (
-          <PaymentStep
-            manualPaymentMethods={manualPaymentMethods}
-            value={paymentMethod}
-            onChange={setPaymentMethod}
-            onContinue={() => setStep(4)}
-            onBack={() => setStep(2)}
-          />
-        )}
+          {step === 3 && (
+            <PaymentStep
+              manualPaymentMethods={manualPaymentMethods}
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+              onContinue={() => setStep(4)}
+              onBack={() => setStep(2)}
+            />
+          )}
 
-        {step === 4 && (
-          <ConfirmStep
-            shippingAddress={shippingAddress}
-            shippingZone={shippingZone}
-            paymentMethod={paymentMethod}
-            manualPaymentMethods={manualPaymentMethods}
-            isSubmitting={isSubmittingOrder}
-            onConfirm={handleFinalize}
-            onBack={() => setStep(3)}
-          />
-        )}
+          {step === 4 && (
+            <ConfirmStep
+              shippingAddress={shippingAddress}
+              shippingZone={shippingZone}
+              paymentMethod={paymentMethod}
+              manualPaymentMethods={manualPaymentMethods}
+              isSubmitting={isSubmittingOrder}
+              onConfirm={handleFinalize}
+              onBack={() => setStep(3)}
+            />
+          )}
+        </div>
       </div>
 
       <OrderSummary items={items} subtotal={subtotal} shippingCost={shippingCost} total={total} />
@@ -331,8 +334,9 @@ function IdentifyStep({ onIdentified }: { onIdentified: (email: string) => void 
           <button
             type="submit"
             disabled={isChecking}
-            className="self-start rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+            className="flex items-center justify-center gap-2 self-start rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
           >
+            {isChecking && <Spinner size={14} />}
             {isChecking ? "Verificando..." : "Continuar"}
           </button>
         </form>
@@ -362,8 +366,9 @@ function IdentifyStep({ onIdentified }: { onIdentified: (email: string) => void 
             <button
               type="submit"
               disabled={isChecking}
-              className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+              className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
             >
+              {isChecking && <Spinner size={14} />}
               {isChecking ? "Ingresando..." : "Ingresar"}
             </button>
             <button
@@ -451,8 +456,9 @@ function IdentifyStep({ onIdentified }: { onIdentified: (email: string) => void 
             <button
               type="submit"
               disabled={isChecking}
-              className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+              className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
             >
+              {isChecking && <Spinner size={14} />}
               {isChecking ? "Creando cuenta..." : "Crear cuenta y continuar"}
             </button>
             <button
@@ -591,7 +597,7 @@ function ShippingStep({
 
       <button
         type="submit"
-        className="self-start rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+        className="self-start rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
       >
         Continuar
       </button>
@@ -636,11 +642,15 @@ function PaymentStep({
         <button
           type="button"
           onClick={onContinue}
-          className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+          className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] dark:bg-neutral-100 dark:text-neutral-900"
         >
           Continuar
         </button>
-        <button type="button" onClick={onBack} className="rounded border border-neutral-300 px-4 py-2 text-sm dark:border-neutral-700">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded border border-neutral-300 px-4 py-2 text-sm active:scale-[0.98] dark:border-neutral-700"
+        >
           Volver
         </button>
       </div>
@@ -696,8 +706,9 @@ function ConfirmStep({
           type="button"
           onClick={onConfirm}
           disabled={isSubmitting}
-          className="rounded bg-accent px-4 py-2 text-sm font-medium text-accent-foreground disabled:opacity-50 hover:bg-accent-hover"
+          className="flex items-center justify-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-foreground active:scale-[0.98] disabled:opacity-50 hover:bg-accent-hover"
         >
+          {isSubmitting && <Spinner size={14} />}
           {isSubmitting ? "Procesando..." : paymentMethod === "mercado_pago" ? "Finalizar compra" : "Generar orden de servicio"}
         </button>
         <button
@@ -803,8 +814,9 @@ function ReceiptUpload({ orderId }: { orderId: string }) {
         type="button"
         onClick={handleUpload}
         disabled={!file || isUploading}
-        className="self-start rounded border border-neutral-300 px-3 py-1.5 text-sm disabled:opacity-50 dark:border-neutral-700"
+        className="flex items-center justify-center gap-2 self-start rounded border border-neutral-300 px-3 py-1.5 text-sm active:scale-[0.98] disabled:opacity-50 dark:border-neutral-700"
       >
+        {isUploading && <Spinner size={14} />}
         {isUploading ? "Subiendo..." : "Subir comprobante"}
       </button>
     </div>

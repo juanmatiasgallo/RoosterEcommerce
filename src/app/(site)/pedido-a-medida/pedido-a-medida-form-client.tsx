@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { z } from "zod";
 import { createCustomOrderSchema } from "@/lib/custom-orders/schema";
 import { createCustomOrder } from "@/lib/custom-orders/actions";
+import { Spinner } from "@/components/ui/spinner";
 
 type FormValues = z.infer<typeof createCustomOrderSchema>;
 
@@ -152,8 +153,9 @@ export function PedidoAMedidaFormClient({ maxSizeMb }: { maxSizeMb: number }) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
       >
+        {isSubmitting && <Spinner size={14} />}
         {isSubmitting ? "Enviando..." : "Enviar pedido"}
       </button>
     </form>

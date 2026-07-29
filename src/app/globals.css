@@ -38,3 +38,50 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+::selection {
+  background: var(--color-accent);
+  color: var(--color-accent-foreground);
+}
+
+/* Foco visible consistente en todo el sitio (teclado): un solo lugar en vez
+   de repetir focus:ring-* en cada input/boton a mano. */
+a,
+button,
+input,
+textarea,
+select,
+summary {
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Usado por la campana de notificaciones cuando hay no-leidas (ver
+   notification-bell.tsx) — chiquito, no molesta, solo llama la atencion una
+   vez al montar. */
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-12deg);
+  }
+  75% {
+    transform: rotate(12deg);
+  }
+}

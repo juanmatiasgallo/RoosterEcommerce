@@ -65,9 +65,9 @@ export function NotificationBell({
         aria-label="Notificaciones"
         className="relative flex items-center text-neutral-600 hover:text-accent dark:text-neutral-300"
       >
-        <Bell size={20} />
+        <Bell size={20} className={unreadCount > 0 ? "animate-[wiggle_0.5s_ease-in-out]" : undefined} />
         {unreadCount > 0 && (
-          <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-foreground">
+          <span className="animate-in zoom-in-50 absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-foreground duration-200">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -84,7 +84,7 @@ export function NotificationBell({
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute top-full right-0 z-20 mt-2 flex max-h-96 w-80 flex-col overflow-y-auto rounded border border-neutral-200 bg-white shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-20 mt-2 flex max-h-96 w-80 flex-col overflow-y-auto rounded border border-neutral-200 bg-white shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
               <p className="text-sm font-medium">Notificaciones</p>
               {unreadCount > 0 && (

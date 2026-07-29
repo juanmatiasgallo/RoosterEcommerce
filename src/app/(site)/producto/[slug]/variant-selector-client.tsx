@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { addToCart } from "@/lib/cart/actions";
+import { Spinner } from "@/components/ui/spinner";
 
 type Variant = {
   id: string;
@@ -186,8 +187,9 @@ export function VariantSelectorClient({ variants, basePrice }: { variants: Varia
         type="button"
         onClick={handleAddToCart}
         disabled={!canAddToCart || isPending}
-        className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
       >
+        {isPending && <Spinner size={14} />}
         {isPending ? "Agregando..." : hasAnyStock ? "Agregar al carrito" : "Sin stock"}
       </button>
     </div>

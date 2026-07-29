@@ -11,15 +11,15 @@ export function ProductCard({ product }: { product: ProductListItem }) {
   return (
     <Link
       href={`/producto/${product.slug}`}
-      className="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 transition hover:shadow-md dark:border-neutral-800"
+      className="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-lg dark:border-neutral-800 dark:hover:border-neutral-700"
     >
-      <div className="relative aspect-square bg-neutral-100 dark:bg-neutral-900">
+      <div className="relative aspect-square overflow-hidden bg-neutral-100 dark:bg-neutral-900">
         {product.thumbnailUrl ? (
           <Image
             src={product.thumbnailUrl}
             alt={product.name}
             fill
-            className="object-cover transition group-hover:scale-105"
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
             sizes="(max-width: 768px) 50vw, 25vw"
           />
         ) : (

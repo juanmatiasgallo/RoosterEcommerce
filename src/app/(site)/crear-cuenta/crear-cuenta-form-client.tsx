@@ -11,6 +11,7 @@ import type { z } from "zod";
 import { registerSchema } from "@/lib/auth/schema";
 import { registerUser } from "@/lib/auth/actions";
 import { mergeGuestCartIntoUser } from "@/lib/cart/actions";
+import { Spinner } from "@/components/ui/spinner";
 
 // Le da tiempo al toast de exito a alcanzar a pintarse antes de que
 // window.location.assign corte el documento actual (un reload inmediato
@@ -172,8 +173,9 @@ export function CrearCuentaFormClient() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
       >
+        {isSubmitting && <Spinner size={14} />}
         {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}
       </button>
 
