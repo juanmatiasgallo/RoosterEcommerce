@@ -5,6 +5,7 @@ import { notify } from "@/lib/notifications/notify";
 import { sendMail } from "@/lib/mail";
 import { generateReceiptPdf, getReceiptUrl, type ReceiptItem } from "@/lib/receipt/pdf";
 import { formatCurrency } from "@/lib/format";
+import type { ShippingAddress } from "@/lib/orders/schema";
 
 // Mismas labels que /mi-cuenta/compras, /admin/pedidos y receipt/actions.ts
 // (duplicadas ahi tambien, ver comentario en receipt/actions.ts).
@@ -139,6 +140,7 @@ export async function markOrderAsPaid(params: {
           total: updated.total,
           customerName: customer.name,
           storeName: store.name,
+          shippingAddress: (order.shippingAddress as ShippingAddress | null) ?? null,
         });
 
         await sendMail({
