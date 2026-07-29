@@ -75,6 +75,31 @@ export async function getAvailableManualPaymentMethods(storeId: string) {
   return methods;
 }
 
+// Publico para el usuario logueado (no recibe id ajeno, siempre lee la
+// propia sesion): la direccion/zona que uso en su ultima compra, para
+// precargar el Paso 2 del checkout y que no tenga que volver a tipearla.
+export async function getDefaultShippingAddress(): Promise<{
+  address: ShippingAddress | null;
+  shippingZoneId: string | null;
+}> {
+  const session = await auth();
+  if (!session) return { address: null, shippingZoneId: null };
+
+  const [user] = await db
+    .select({ defaultShippingAddress: users.defaultShippingAddress, defaultShippingZoneId: users.defaultShippingZoneId })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+
+  if (!user) return { address: null, shippingZoneId: null };
+
+  const parsed = shippingAddressSchema.safeParse(user.defaultShippingAddress);
+  return {
+    address: parsed.success ? parsed.data : null,
+    shippingZoneId: user.defaultShippingZoneId ?? null,
+  };
+}
+
 // Mail con las instrucciones de pago + numero de orden para que el cliente
 // sepa que transferir/pagar y donde. Nunca bloquea la creacion de la orden
 // si el envio falla (mismo criterio de resiliencia que quoteCustomOrder en
@@ -275,6 +300,21 @@ export async function checkoutCart(params: {
     entityId: order.id,
     after: order,
   });
+
+  // Guarda la direccion (y zona) recien usada como default del usuario, para
+  // precargarla en su proxima compra (ver getDefaultShippingAddress mas
+  // abajo). No bloquea el checkout si falla por algun motivo raro: la orden
+  // ya quedo creada, esto es solo una comodidad.
+  if (shippingAddress) {
+    try {
+      await db
+        .update(users)
+        .set({ defaultShippingAddress: shippingAddress, defaultShippingZoneId: shippingZone?.id ?? null })
+        .where(eq(users.id, session.user.id));
+    } catch {
+      // no-op
+    }
+  }
 
   // El carrito se vacia en los dos casos: la orden ya tiene su propio
   // snapshot en order_items, y dejar el carrito intacto permitiria

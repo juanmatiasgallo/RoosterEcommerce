@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
+import { getPublicStoreContact } from "@/lib/settings/actions";
 
 export const metadata: Metadata = {
   title: "Ayuda",
   description: "Preguntas frecuentes y contacto por WhatsApp.",
 };
 
-// Mismo placeholder de telefono que ya usa site-footer.tsx (todavia no hay
-// un numero real documentado en ningun lado del repo).
-// TODO: reemplazar por el numero real de WhatsApp de la tienda.
+// Consulta la DB (telefono de contacto real): sin esto, el build de Docker
+// en EasyPanel pre-renderiza esta pagina en build time y falla (no tiene
+// red hacia la base ahi) — mismo criterio que el resto de paginas publicas.
+export const dynamic = "force-dynamic";
+
+// Mismo placeholder que site-footer.tsx: se usa solo si el admin todavia
+// no cargo un telefono real en /admin/configuracion.
 const WHATSAPP_PLACEHOLDER_PHONE = "+598 00 000 000";
-const WHATSAPP_HREF = `https://wa.me/${WHATSAPP_PLACEHOLDER_PHONE.replace(/\D/g, "")}`;
 
 const FAQS = [
   {
@@ -38,14 +42,18 @@ const FAQS = [
   },
 ];
 
-export default function AyudaPage() {
+export default async function AyudaPage() {
+  const contact = await getPublicStoreContact();
+  const phone = contact.contactPhone || WHATSAPP_PLACEHOLDER_PHONE;
+  const whatsappHref = `https://wa.me/${phone.replace(/\D/g, "")}`;
+
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Ayuda</h1>
       <p className="mt-1 text-neutral-500">Preguntas frecuentes. Si no encontras lo que buscas, escribinos.</p>
 
       <a
-        href={WHATSAPP_HREF}
+        href={whatsappHref}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-6 inline-flex items-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-foreground hover:bg-accent-hover"

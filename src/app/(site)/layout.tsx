@@ -5,6 +5,7 @@ import { getNotificationSummary } from "@/lib/notifications/actions";
 import { getPublicStoreContact, getVacationStatus } from "@/lib/settings/actions";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { WhatsAppFloatButton } from "@/components/whatsapp-float-button";
 
 // listCategoryTree consulta la DB: sin esto, el build de Docker en
 // EasyPanel intenta pre-renderizar este layout (y todo lo que envuelve) en
@@ -40,6 +41,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       />
       {children}
       <SiteFooter categoryTree={categoryTree} contactEmail={contact.contactEmail} contactPhone={contact.contactPhone} />
+      <WhatsAppFloatButton phone={contact.contactPhone} />
     </>
   );
 }

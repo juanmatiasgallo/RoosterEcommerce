@@ -103,6 +103,12 @@ export const users = pgTable("users", {
   // temporal, para que no se quede usandola.
   tempPasswordExpiresAt: timestamp("temp_password_expires_at"),
   mustChangePassword: boolean("must_change_password").notNull().default(false),
+  // Ultima direccion de envio usada en un checkout exitoso: se precarga en
+  // el Paso 2 del wizard para que el cliente no tenga que volver a tipear
+  // todo en cada compra. No es sensible (misma forma que orders.shippingAddress),
+  // se pisa cada vez que confirma una compra con una direccion distinta.
+  defaultShippingAddress: jsonb("default_shipping_address"),
+  defaultShippingZoneId: uuid("default_shipping_zone_id").references((): AnyPgColumn => shippingZones.id),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

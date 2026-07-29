@@ -51,12 +51,16 @@ export function CheckoutWizard({
   initialItems,
   initialTotal,
   initialUserEmail,
+  initialShippingAddress = null,
+  initialShippingZoneId = null,
   manualPaymentMethods,
   shippingZones,
 }: {
   initialItems: CartRow[];
   initialTotal: number;
   initialUserEmail: string | null;
+  initialShippingAddress?: ShippingAddress | null;
+  initialShippingZoneId?: string | null;
   manualPaymentMethods: ManualPaymentMethodOption[];
   shippingZones: ShippingZoneOption[];
 }) {
@@ -66,8 +70,13 @@ export function CheckoutWizard({
   const [subtotal, setSubtotal] = useState(initialTotal);
   const [identifiedEmail, setIdentifiedEmail] = useState(initialUserEmail);
 
-  const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
-  const [shippingZone, setShippingZone] = useState<ShippingZoneOption | null>(null);
+  // Precarga la direccion/zona de la ultima compra del cliente (si tiene
+  // una guardada) para que no arranque de cero cada vez — ver
+  // getDefaultShippingAddress en lib/orders/actions.ts.
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(initialShippingAddress);
+  const [shippingZone, setShippingZone] = useState<ShippingZoneOption | null>(
+    () => shippingZones.find((zone) => zone.id === initialShippingZoneId) ?? null,
+  );
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue>("mercado_pago");
 
