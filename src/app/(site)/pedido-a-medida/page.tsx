@@ -2,6 +2,7 @@ import { Sparkles } from "lucide-react";
 import { auth } from "@/auth";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS } from "@/lib/custom-orders/schema";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
+import { AnimatedHeading } from "@/components/animated-heading";
 import { PedidoAMedidaWizard } from "./pedido-a-medida-wizard";
 
 // Ya no requiere sesion antes de renderizar (ver proxy.ts, task #111): un
@@ -31,7 +32,11 @@ export default async function PedidoAMedidaPage() {
             <Sparkles size={13} />
             Cotizacion antes de pagar
           </div>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Pedi tu pieza a medida</h1>
+          <AnimatedHeading
+            as="h1"
+            text="Pedi tu pieza a medida"
+            className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl"
+          />
           <p className="mx-auto mt-3 max-w-md text-balance text-neutral-600 dark:text-neutral-300">
             Subi tu archivo .stl o .obj y nuestro equipo de diseno te manda una cotizacion antes de cobrarte nada.
           </p>

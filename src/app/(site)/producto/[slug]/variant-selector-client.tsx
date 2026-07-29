@@ -14,6 +14,7 @@ type Variant = {
   size: string | null;
   price: string;
   stock: number;
+  sku: string | null;
 };
 
 function uniqueValues(variants: Variant[], pick: (v: Variant) => string): string[] {
@@ -176,6 +177,14 @@ export function VariantSelectorClient({ variants, basePrice }: { variants: Varia
             : "Sin stock para esta combinacion"
           : "Esa combinacion no existe"}
       </p>
+
+      {/* Codigo de referencia de la variante (task #86): mismo criterio que
+          se pidio en otras pantallas (recibo, admin) -- el owner queria
+          poder identificar cada variante por su codigo tambien en la ficha
+          publica, no solo del lado del admin. */}
+      {selectedVariant?.sku && (
+        <p className="-mt-2 font-mono text-xs text-neutral-400">Codigo: {selectedVariant.sku}</p>
+      )}
 
       <div className="flex items-center gap-3">
         <label htmlFor="quantity" className="text-sm font-medium">

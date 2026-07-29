@@ -16,6 +16,7 @@ import { ValueProps } from "./value-props";
 import { NewsletterSection } from "./newsletter-section";
 import { getMyFavoriteProductIds } from "@/lib/favorites/actions";
 import { auth } from "@/auth";
+import { AnimatedHeading } from "@/components/animated-heading";
 
 // Esta pagina consulta la DB en cada request: si se deja como estatica por
 // defecto, `next build` la pre-renderiza en build time y el build de Docker
@@ -113,7 +114,7 @@ export default async function HomePage({
 
       <div id="catalogo" className="scroll-mt-6 border-t border-neutral-200 pt-10 dark:border-neutral-800">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-2xl font-semibold">Catalogo</h2>
+          <AnimatedHeading text="Catalogo" className="text-2xl font-semibold" />
           <span className="text-sm text-neutral-500">
             {catalog.length} articulo{catalog.length === 1 ? "" : "s"}
             {hasActiveFilters ? " con estos filtros" : " disponible" + (catalog.length === 1 ? "" : "s")}

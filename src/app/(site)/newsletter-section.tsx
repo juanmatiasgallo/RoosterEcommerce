@@ -1,6 +1,7 @@
 import { Mail } from "lucide-react";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
+import { AnimatedHeading } from "@/components/animated-heading";
 
 // Antes vivia en el footer (visible en todo el sitio); el owner pidio que
 // quede solo en la home, como una seccion propia con mas presencia visual.
@@ -20,7 +21,10 @@ export function NewsletterSection() {
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent motion-safe:animate-bounce">
           <Mail size={22} />
         </span>
-        <h2 className="text-2xl font-semibold text-neutral-900 dark:text-white">Suscribite y no te pierdas nada</h2>
+        <AnimatedHeading
+          text="Suscribite y no te pierdas nada"
+          className="text-2xl font-semibold text-neutral-900 dark:text-white"
+        />
         <p className="text-sm text-neutral-600 dark:text-neutral-400">
           Ofertas del catalogo y avisos de pedidos a medida, directo a tu mail. Sin spam.
         </p>

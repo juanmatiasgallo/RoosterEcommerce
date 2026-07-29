@@ -257,6 +257,10 @@ export function SiteHeader({
           <Link href="/pedido-a-medida" className={linkClass}>
             Pedido a medida
           </Link>
+
+          <Link href="/proyectos" className={linkClass}>
+            Proyectos
+          </Link>
         </nav>
 
         <div className="hidden items-center gap-4 sm:flex">
@@ -312,6 +316,13 @@ export function SiteHeader({
             onClick={() => setMenuOpen(false)}
           >
             Pedido a medida
+          </Link>
+          <Link
+            href="/proyectos"
+            className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+            onClick={() => setMenuOpen(false)}
+          >
+            Proyectos
           </Link>
           <Link
             href="/carrito"

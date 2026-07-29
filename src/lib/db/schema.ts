@@ -185,6 +185,23 @@ export const products = pgTable("products", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Galeria publica de trabajos impresos ("Proyectos" en el header, task
+// #21): no es catalogo vendible, solo portfolio para dar confianza. Una
+// imagen por item (a diferencia de product_images, que es 1:N) porque el
+// caso de uso es una grilla de fotos con titulo, no una ficha con varias
+// fotos del mismo trabajo.
+export const projects = pgTable("projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  imageUrl: text("image_url").notNull(),
+  position: integer("position").notNull().default(0),
+  // Soft delete, mismo criterio que productos/variantes (CLAUDE.md).
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const productMediaTypeEnum = pgEnum("product_media_type", ["image", "video"]);
 
 export const productImages = pgTable("product_images", {

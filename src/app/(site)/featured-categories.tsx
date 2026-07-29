@@ -2,13 +2,14 @@ import Link from "next/link";
 import { Layers } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
+import { AnimatedHeading } from "@/components/animated-heading";
 
 export function FeaturedCategories({ categoryTree }: { categoryTree: CategoryTreeNode[] }) {
   if (categoryTree.length === 0) return null;
 
   return (
     <section className="py-14">
-      <h2 className="text-2xl font-semibold">Categorias</h2>
+      <AnimatedHeading text="Categorias" className="text-2xl font-semibold" />
       <p className="mt-1 text-neutral-500">Explora el catalogo por tipo de pieza.</p>
 
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">

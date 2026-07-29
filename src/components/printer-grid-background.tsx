@@ -24,11 +24,16 @@ export function PrinterGridBackground() {
         animate={{ backgroundPosition: ["0px 0px", "42px 42px"] }}
         transition={{ duration: 11, repeat: Infinity, ease: "linear" }}
       />
+      {/* La linea de escaneo anima top Y opacity juntos: sin esto, el
+          "salto" de vuelta al inicio del loop se nota (poca decoloracion en
+          los extremos, reportado por el owner). Ahora se desvanece antes de
+          llegar a cada punta y recien reaparece ya en movimiento, asi el
+          reset del loop ocurre mientras es invisible. */}
       <motion.div
         className="absolute inset-x-0 h-28 bg-gradient-to-b from-transparent via-accent/25 to-transparent blur-md"
-        initial={{ top: "-15%" }}
-        animate={{ top: ["-15%", "110%"] }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.8 }}
+        initial={{ top: "-15%", opacity: 0 }}
+        animate={{ top: ["-15%", "50%", "110%"], opacity: [0, 1, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.8, times: [0, 0.5, 1] }}
       />
     </div>
   );

@@ -8,7 +8,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { auditLogs, users } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
-import { adminCreateUserSchema } from "./schema";
+import { adminCreateUserSchema, adminUpdateUserSchema } from "./schema";
 
 // A diferencia del molde CRUD habitual (admin + empleado), crear cuentas de
 // admin/empleado es mas sensible que el resto del panel (da acceso al
@@ -78,7 +78,9 @@ export async function listUsers() {
       id: users.id,
       name: users.name,
       email: users.email,
+      phone: users.phone,
       role: users.role,
+      active: users.active,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -87,3 +89,74 @@ export async function listUsers() {
 }
 
 export type AdminUserListItem = Awaited<ReturnType<typeof listUsers>>[number];
+
+// Trae el registro entero (scoped a storeId) para verificar pertenencia
+// antes de mutar -- mismo criterio de "verificar que el registro pertenece
+// a la tienda" que pide CLAUDE.md para cualquier edicion/borrado por id.
+async function getOwnedUser(id: string, storeId: string) {
+  const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  if (!user || user.storeId !== storeId) {
+    throw new Error("Usuario no encontrado.");
+  }
+  return user;
+}
+
+// Edicion de datos basicos de cualquier usuario (cliente o staff) desde el
+// panel (task #22: antes el admin no tenia ninguna opcion para tocar los
+// datos de un cliente). No permite tocar email/rol/contrasena, ver
+// adminUpdateUserSchema.
+export async function adminUpdateUser(id: string, input: z.infer<typeof adminUpdateUserSchema>) {
+  const session = await requireAdmin();
+  const data = adminUpdateUserSchema.parse(input);
+  const target = await getOwnedUser(id, session.user.storeId);
+
+  const [updated] = await db
+    .update(users)
+    .set({ name: data.name, phone: data.phone ? data.phone : null })
+    .where(eq(users.id, id))
+    .returning();
+
+  await db.insert(auditLogs).values({
+    storeId: session.user.storeId,
+    userId: session.user.id,
+    action: "admin_update_user",
+    entityType: "user",
+    entityId: id,
+    before: { name: target.name, phone: target.phone },
+    after: { name: updated.name, phone: updated.phone },
+  });
+
+  revalidatePath("/admin/usuarios");
+
+  return { id: updated.id, name: updated.name, phone: updated.phone };
+}
+
+// "Eliminar" un cliente = desactivar (soft delete), mismo criterio que
+// productos/variantes en CLAUDE.md: preserva el historial de ordenes y
+// permite reactivar. src/auth.ts ya bloquea el login si !user.active, asi
+// que este toggle es suficiente para bloquear el acceso de inmediato.
+export async function adminSetUserActive(id: string, active: boolean) {
+  const session = await requireAdmin();
+
+  if (id === session.user.id && !active) {
+    throw new Error("No podes desactivar tu propia cuenta.");
+  }
+
+  const target = await getOwnedUser(id, session.user.storeId);
+
+  const [updated] = await db.update(users).set({ active }).where(eq(users.id, id)).returning();
+
+  await db.insert(auditLogs).values({
+    storeId: session.user.storeId,
+    userId: session.user.id,
+    action: active ? "admin_reactivate_user" : "admin_deactivate_user",
+    entityType: "user",
+    entityId: id,
+    before: { active: target.active },
+    after: { active: updated.active },
+  });
+
+  revalidatePath("/admin/usuarios");
+
+  return { id: updated.id, active: updated.active };
+}

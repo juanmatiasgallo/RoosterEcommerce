@@ -3,6 +3,7 @@ import { PackageSearch, ShieldCheck, Truck } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
+import { AnimatedHeading } from "@/components/animated-heading";
 
 // Theme-aware (antes era bg-neutral-950 fijo, sin importar el tema -- se
 // veia como un bloque negro roto contra el fondo claro cuando el sitio
@@ -29,7 +30,11 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-6xl">
         <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catalogo + pedidos a medida</p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Impresion 3D a tu medida</h1>
+        <AnimatedHeading
+          as="h1"
+          text="Impresion 3D a tu medida"
+          className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl"
+        />
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-600 dark:text-neutral-300">
           Elegi una pieza de nuestro catalogo o subi tu propio diseno: te cotizamos antes de cobrarte nada y lo
           imprimimos para vos.
