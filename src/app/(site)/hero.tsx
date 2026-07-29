@@ -30,10 +30,18 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-6xl">
         <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catalogo + pedidos a medida</p>
+        {/* Dos lineas, un solo h1: la 1ra neutra, la 2da con el color de
+            acento + un glow radial detras (bg-accent/25 blur-3xl) para que
+            resalte lo principal, mas presencia que una linea de texto plano.
+            splitBy="letter" arma la frase letra por letra en vez de por
+            palabra, mas "vivo" para el titulo mas grande del sitio. */}
         <AnimatedHeading
           as="h1"
-          text="Impresion 3D a tu medida"
-          className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl"
+          text={["Impresion 3D", "a tu medida"]}
+          lineClassName={["", "text-accent"]}
+          splitBy="letter"
+          glow
+          className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl"
         />
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-600 dark:text-neutral-300">
           Elegi una pieza de nuestro catalogo o subi tu propio diseno: te cotizamos antes de cobrarte nada y lo
@@ -41,14 +49,20 @@ export function Hero() {
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link href="#catalogo" className={buttonVariants({ variant: "default", size: "lg" })}>
+          <Link
+            href="#catalogo"
+            className={cn(
+              buttonVariants({ variant: "default", size: "lg" }),
+              "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-accent/30 active:scale-[0.97]",
+            )}
+          >
             Ver catalogo
           </Link>
           <Link
             href="/pedido-a-medida"
             className={cn(
               buttonVariants({ variant: "outline", size: "lg" }),
-              "border-neutral-300 text-neutral-900 hover:bg-neutral-900/5 dark:border-white/30 dark:text-white dark:hover:bg-white/10",
+              "border-neutral-300 text-neutral-900 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-neutral-900/5 active:scale-[0.97] dark:border-white/30 dark:text-white dark:hover:bg-white/10",
             )}
           >
             Pedir a medida

@@ -27,6 +27,12 @@
  * una.
  */
 @theme {
+  /* Genera la utilidad font-heading (Tailwind v4 crea font-* a partir de
+     tokens --font-*). Referencia --font-display (variable real que setea
+     next/font en <html>, ver layout.tsx) — no --font-heading directo, para
+     no crear una referencia circular con este mismo token. */
+  --font-heading: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+
   --color-accent: #b45309;
   --color-accent-hover: #92400e;
   --color-accent-foreground: #ffffff;

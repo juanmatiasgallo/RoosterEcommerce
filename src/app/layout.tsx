@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Work_Sans } from "next/font/google";
+import { Space_Grotesk, Work_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
@@ -10,6 +10,17 @@ const workSans = Work_Sans({
   subsets: ["latin"],
   weight: ["400", "600"],
   variable: "--font-sans",
+  display: "swap",
+});
+
+// Fuente de titulos (task #23 -- "que las letras tengan mas presencia"):
+// geometrica y con mas caracter que Work Sans, solo para headings (ver
+// utilidad font-heading en globals.css + animated-heading.tsx). Nombre de
+// variable distinto de --font-sans a proposito para no pisarla.
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -26,7 +37,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={workSans.variable} suppressHydrationWarning>
+    <html lang="es" className={`${workSans.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           {children}

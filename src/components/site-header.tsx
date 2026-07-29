@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Heart, Menu, Search, ShoppingCart, X } from "lucide-react";
@@ -11,6 +11,7 @@ import { LogoutButton } from "@/components/logout-button";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SearchBar } from "@/components/search-bar";
+import { cn } from "@/lib/utils";
 
 function initialsOf(name?: string | null, email?: string | null): string {
   const source = name?.trim() || email?.trim() || "?";
@@ -224,6 +225,21 @@ export function SiteHeader({
   notificationUnreadCount?: number;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // Header "integrado con la pagina" (task #23): sticky + vidrio esmerilado
+  // (backdrop-blur) en vez de un bloque opaco fijo -- deja intuir el fondo
+  // animado del Hero por detras al scrollear. El borde/sombra solo aparecen
+  // despues de scrollear un poco, asi arranca "fundido" con el Hero en vez
+  // de cortar de golpe.
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 8);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // No existe todavia un /admin (index) que redirija segun rol, por eso el
   // destino real es /admin/dashboard, que ya es el hub del panel de admin.
@@ -232,7 +248,14 @@ export function SiteHeader({
   const cartLabel = `Carrito${cartItemCount > 0 ? ` (${cartItemCount})` : ""}`;
 
   return (
-    <header className="border-b border-neutral-200 dark:border-neutral-800">
+    <header
+      className={cn(
+        "sticky top-0 z-40 border-b bg-white/80 backdrop-blur-md transition-[background-color,border-color,box-shadow] duration-300 dark:bg-neutral-950/70",
+        scrolled
+          ? "border-neutral-200 shadow-sm dark:border-neutral-800"
+          : "border-transparent shadow-none",
+      )}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/" className="text-lg font-semibold">
           Tienda 3D

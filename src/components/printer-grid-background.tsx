@@ -20,6 +20,15 @@ export function PrinterGridBackground() {
           backgroundImage:
             "linear-gradient(color-mix(in srgb, var(--color-accent) 16%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 16%, transparent) 1px, transparent 1px)",
           backgroundSize: "42px 42px",
+          // Pasaje entre secciones menos brusco (varios stops, no 2, para
+          // que el degrade sea perceptualmente suave -- con solo 2 stops
+          // sobre un fondo oscuro solido tuvimos banding visible una vez,
+          // ver historial; aca el target es la grilla, ya mayormente
+          // transparente, asi que el fade es mucho mas gradual). Cubre un
+          // 40% de la seccion en cada punta en vez de cortar de golpe en el
+          // borde.
+          maskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%)",
         }}
         animate={{ backgroundPosition: ["0px 0px", "42px 42px"] }}
         transition={{ duration: 11, repeat: Infinity, ease: "linear" }}
