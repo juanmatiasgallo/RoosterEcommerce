@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { findCategoryPath, getProductBySlug, listCategoryTree, listProducts } from "@/lib/catalog/queries";
 import { Breadcrumb, type BreadcrumbItem } from "../../breadcrumb";
-import { ProductCard } from "../../product-card";
+import { ProductCarousel } from "../../product-carousel";
 import { ProductGalleryClient } from "./product-gallery-client";
+import { ProductReviews } from "./product-reviews";
+import { RecentlyViewedCarousel } from "./recently-viewed-carousel";
 import { VariantSelectorClient } from "./variant-selector-client";
 
 // Igual que en "/": consulta la DB, asi que no puede quedar como estatica o
@@ -62,7 +64,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   ];
 
   const related = product.categoryId
-    ? (await listProducts({ categoryId: product.categoryId })).filter((p) => p.id !== product.id).slice(0, 4)
+    ? (await listProducts({ categoryId: product.categoryId })).filter((p) => p.id !== product.id).slice(0, 10)
     : [];
 
   return (
@@ -87,13 +89,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       {related.length > 0 && (
         <section className="mt-14">
           <h2 className="mb-4 text-lg font-semibold">Tambien te puede interesar</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {related.map((relatedProduct) => (
-              <ProductCard key={relatedProduct.id} product={relatedProduct} />
-            ))}
-          </div>
+          <ProductCarousel products={related} />
         </section>
       )}
+
+      <RecentlyViewedCarousel productId={product.id} />
+
+      <ProductReviews productId={product.id} productSlug={product.slug} />
     </main>
   );
 }

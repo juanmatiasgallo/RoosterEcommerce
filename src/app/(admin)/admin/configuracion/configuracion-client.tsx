@@ -91,6 +91,8 @@ function PaymentInstructionsForm({ initial }: { initial: PaymentInstructionsSett
       paymentInstructionsTransferencia: settings.paymentInstructionsTransferencia ?? "",
       paymentInstructionsAbitab: settings.paymentInstructionsAbitab ?? "",
       paymentInstructionsRedpagos: settings.paymentInstructionsRedpagos ?? "",
+      paymentInstructionsMiDinero: settings.paymentInstructionsMiDinero ?? "",
+      paymentInstructionsPrex: settings.paymentInstructionsPrex ?? "",
     },
   });
 
@@ -158,6 +160,42 @@ function PaymentInstructionsForm({ initial }: { initial: PaymentInstructionsSett
               rows={3}
               {...register("paymentInstructionsRedpagos")}
               placeholder="Ej: Paga en cualquier local Red Pagos con el codigo de cobranza XXXX..."
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="paymentInstructionsMiDinero" className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Debito Mi Dinero
+              {settings.paymentInstructionsMiDinero ? (
+                <Badge variant="success">Activo</Badge>
+              ) : (
+                <Badge variant="neutral">No se ofrece</Badge>
+              )}
+            </label>
+            <textarea
+              id="paymentInstructionsMiDinero"
+              rows={3}
+              {...register("paymentInstructionsMiDinero")}
+              placeholder="Ej: Transferi desde tu app Mi Dinero a..."
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="paymentInstructionsPrex" className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Prex
+              {settings.paymentInstructionsPrex ? (
+                <Badge variant="success">Activo</Badge>
+              ) : (
+                <Badge variant="neutral">No se ofrece</Badge>
+              )}
+            </label>
+            <textarea
+              id="paymentInstructionsPrex"
+              rows={3}
+              {...register("paymentInstructionsPrex")}
+              placeholder="Ej: Manda a mi alias de Prex @xxxxx..."
               className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </div>

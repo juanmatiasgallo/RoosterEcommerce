@@ -12,6 +12,7 @@ import {
   jsonb,
   pgEnum,
   check,
+  unique,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
@@ -55,6 +56,8 @@ export const stores = pgTable("stores", {
   paymentInstructionsTransferencia: text("payment_instructions_transferencia"),
   paymentInstructionsAbitab: text("payment_instructions_abitab"),
   paymentInstructionsRedpagos: text("payment_instructions_redpagos"),
+  paymentInstructionsMiDinero: text("payment_instructions_mi_dinero"),
+  paymentInstructionsPrex: text("payment_instructions_prex"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -132,7 +135,12 @@ export const productReviews = pgTable(
     verifiedPurchase: boolean("verified_purchase").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },
-  (table) => [check("product_reviews_rating_range", sql`${table.rating} >= 1 AND ${table.rating} <= 5`)],
+  (table) => [
+    check("product_reviews_rating_range", sql`${table.rating} >= 1 AND ${table.rating} <= 5`),
+    // Un usuario deja como maximo una reseña por producto (puede editarla,
+    // no duplicarla).
+    unique("product_reviews_product_user_unique").on(table.productId, table.userId),
+  ],
 );
 
 // --- Carrito --------------------------------------------------------------
@@ -209,11 +217,18 @@ export const orderStatusEnum = pgEnum("order_status", [
 
 export const orderSourceEnum = pgEnum("order_source", ["catalogo", "pedido_custom"]);
 
-// "mercado_pago" confirma sola via webhook. Las otras tres son medios
-// manuales/offline (sin integracion de API): el cliente elige una, recibe
+// "mercado_pago" confirma sola via webhook. El resto son medios
+// manuales/offline (sin integracion de API): el cliente elige uno, recibe
 // instrucciones (texto libre configurado en /admin/configuracion) por mail,
 // y un admin confirma el pago a mano cuando lo verifica.
-export const paymentMethodEnum = pgEnum("payment_method", ["mercado_pago", "transferencia", "abitab", "redpagos"]);
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "mercado_pago",
+  "transferencia",
+  "abitab",
+  "redpagos",
+  "mi_dinero",
+  "prex",
+]);
 
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),

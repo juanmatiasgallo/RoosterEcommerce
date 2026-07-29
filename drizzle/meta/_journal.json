@@ -64,6 +64,13 @@
       "when": 1785288326492,
       "tag": "0008_kind_mercury",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1785290518789,
+      "tag": "0009_bright_ted_forrester",
+      "breakpoints": true
     }
   ]
 }

@@ -137,6 +137,72 @@ export async function listProducts(params: ListProductsParams = {}) {
   });
 }
 
+// Para el carrete de "productos que miraste antes": el tracking de que
+// productos vio el usuario vive en localStorage del browser (ver
+// recently-viewed-tracker.tsx), esta query solo resuelve esos ids a datos
+// reales de catalogo — si un producto se desactivo o se borro, simplemente
+// no aparece (no rompe nada del lado del cliente).
+export async function listProductsByIds(ids: string[]) {
+  if (ids.length === 0) return [];
+
+  const storeId = await getDefaultStoreId();
+
+  const matched = await db
+    .select()
+    .from(products)
+    .where(and(inArray(products.id, ids), eq(products.storeId, storeId), eq(products.active, true)));
+
+  if (matched.length === 0) return [];
+
+  const productIds = matched.map((product) => product.id);
+
+  const [images, variants] = await Promise.all([
+    db
+      .select()
+      .from(productImages)
+      .where(inArray(productImages.productId, productIds))
+      .orderBy(asc(productImages.position)),
+    db
+      .select()
+      .from(productVariants)
+      .where(and(inArray(productVariants.productId, productIds), eq(productVariants.active, true))),
+  ]);
+
+  const thumbnailByProduct = new Map<string, string>();
+  for (const image of images) {
+    if (!thumbnailByProduct.has(image.productId)) {
+      thumbnailByProduct.set(image.productId, image.url);
+    }
+  }
+
+  const variantsByProduct = new Map<string, typeof variants>();
+  for (const variant of variants) {
+    const list = variantsByProduct.get(variant.productId) ?? [];
+    list.push(variant);
+    variantsByProduct.set(variant.productId, list);
+  }
+
+  const byId = new Map(
+    matched.map((product) => {
+      const productVariantsList = variantsByProduct.get(product.id) ?? [];
+      const prices = productVariantsList.map((variant) => Number(variant.price));
+      return [
+        product.id,
+        {
+          ...product,
+          thumbnailUrl: thumbnailByProduct.get(product.id) ?? null,
+          minVariantPrice: prices.length > 0 ? Math.min(...prices) : null,
+          availableVariantCount: productVariantsList.filter((variant) => variant.stock > 0).length,
+        },
+      ];
+    }),
+  );
+
+  // Se preserva el orden pedido (mas reciente visto primero), no el orden
+  // de la query.
+  return ids.map((id) => byId.get(id)).filter((product): product is NonNullable<typeof product> => Boolean(product));
+}
+
 export type ProductListItem = Awaited<ReturnType<typeof listProducts>>[number];
 
 export type AvailableFilters = { materials: string[]; colors: string[] };

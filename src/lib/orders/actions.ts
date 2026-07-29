@@ -22,14 +22,27 @@ async function requireStaff() {
   return session;
 }
 
-export type ManualPaymentMethod = "transferencia" | "abitab" | "redpagos";
+export type ManualPaymentMethod = "transferencia" | "abitab" | "redpagos" | "mi_dinero" | "prex";
 export type PaymentMethod = "mercado_pago" | ManualPaymentMethod;
 
 const MANUAL_METHOD_LABELS: Record<ManualPaymentMethod, string> = {
   transferencia: "Transferencia bancaria",
   abitab: "Abitab",
   redpagos: "Red Pagos",
+  mi_dinero: "Debito Mi Dinero",
+  prex: "Prex",
 };
+
+// Una entrada por medio manual: que columna de `stores` tiene sus
+// instrucciones. Agregar un medio nuevo es sumar una fila aca + la columna
+// en schema.ts + el campo en el form de /admin/configuracion.
+const MANUAL_METHOD_COLUMNS = {
+  transferencia: "paymentInstructionsTransferencia",
+  abitab: "paymentInstructionsAbitab",
+  redpagos: "paymentInstructionsRedpagos",
+  mi_dinero: "paymentInstructionsMiDinero",
+  prex: "paymentInstructionsPrex",
+} as const satisfies Record<ManualPaymentMethod, keyof typeof stores.$inferSelect>;
 
 // Publico (no admin-gated a proposito): el checkout necesita saber que
 // medios de pago manuales estan configurados (tienen instrucciones
@@ -37,33 +50,15 @@ const MANUAL_METHOD_LABELS: Record<ManualPaymentMethod, string> = {
 // Mercado Pago no aparece aca — el checkout lo ofrece siempre, sin
 // depender de esta lista.
 export async function getAvailableManualPaymentMethods(storeId: string) {
-  const [store] = await db
-    .select({
-      paymentInstructionsTransferencia: stores.paymentInstructionsTransferencia,
-      paymentInstructionsAbitab: stores.paymentInstructionsAbitab,
-      paymentInstructionsRedpagos: stores.paymentInstructionsRedpagos,
-    })
-    .from(stores)
-    .where(eq(stores.id, storeId))
-    .limit(1);
+  const [store] = await db.select().from(stores).where(eq(stores.id, storeId)).limit(1);
+  if (!store) return [];
 
   const methods: { value: ManualPaymentMethod; label: string; instructions: string }[] = [];
-  if (store?.paymentInstructionsTransferencia) {
-    methods.push({
-      value: "transferencia",
-      label: MANUAL_METHOD_LABELS.transferencia,
-      instructions: store.paymentInstructionsTransferencia,
-    });
-  }
-  if (store?.paymentInstructionsAbitab) {
-    methods.push({ value: "abitab", label: MANUAL_METHOD_LABELS.abitab, instructions: store.paymentInstructionsAbitab });
-  }
-  if (store?.paymentInstructionsRedpagos) {
-    methods.push({
-      value: "redpagos",
-      label: MANUAL_METHOD_LABELS.redpagos,
-      instructions: store.paymentInstructionsRedpagos,
-    });
+  for (const [method, column] of Object.entries(MANUAL_METHOD_COLUMNS) as [ManualPaymentMethod, keyof typeof store][]) {
+    const instructions = store[column];
+    if (typeof instructions === "string" && instructions) {
+      methods.push({ value: method, label: MANUAL_METHOD_LABELS[method], instructions });
+    }
   }
   return methods;
 }

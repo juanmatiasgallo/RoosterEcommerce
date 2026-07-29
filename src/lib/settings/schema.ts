@@ -26,4 +26,6 @@ export const updatePaymentInstructionsSchema = z.object({
   paymentInstructionsTransferencia: z.string().max(2000).optional(),
   paymentInstructionsAbitab: z.string().max(2000).optional(),
   paymentInstructionsRedpagos: z.string().max(2000).optional(),
+  paymentInstructionsMiDinero: z.string().max(2000).optional(),
+  paymentInstructionsPrex: z.string().max(2000).optional(),
 });

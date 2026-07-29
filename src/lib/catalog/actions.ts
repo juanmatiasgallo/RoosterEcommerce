@@ -10,6 +10,7 @@ import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
 import { auditLogs, categories, productImages, products, productVariants } from "@/lib/db/schema";
+import { listProductsByIds } from "./queries";
 import {
   createCategorySchema,
   createProductSchema,
@@ -588,4 +589,13 @@ export async function reorderProductImages(input: z.infer<typeof reorderProductI
 
   revalidatePath("/admin/productos");
   return items;
+}
+
+// Publico, sin guard de rol: el tracking de "vistos antes" (ver
+// recently-viewed-tracker.tsx) vive en localStorage del browser, esta
+// action solo resuelve esos ids a datos de catalogo. Se acota a 12 ids para
+// no permitir una query arbitrariamente grande desde el cliente.
+export async function getRecentlyViewedProducts(ids: string[]) {
+  const safeIds = ids.filter((id) => typeof id === "string" && id.length > 0).slice(0, 12);
+  return listProductsByIds(safeIds);
 }

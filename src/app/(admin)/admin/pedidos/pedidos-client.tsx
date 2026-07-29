@@ -11,6 +11,8 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   transferencia: "Transferencia",
   abitab: "Abitab",
   redpagos: "Red Pagos",
+  mi_dinero: "Debito Mi Dinero",
+  prex: "Prex",
 };
 
 const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
