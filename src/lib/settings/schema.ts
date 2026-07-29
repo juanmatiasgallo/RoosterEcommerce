@@ -18,3 +18,12 @@ export const updateMercadoPagoSettingsSchema = z.object({
   mpAccessToken: z.string().max(500).optional(),
   mpWebhookSecret: z.string().max(500).optional(),
 });
+
+// Texto libre, no sensible (se le muestra al cliente tal cual) — a
+// diferencia de SMTP/MP arriba, vacio SI pisa el valor guardado (permite
+// borrar las instrucciones de un medio para dejar de ofrecerlo).
+export const updatePaymentInstructionsSchema = z.object({
+  paymentInstructionsTransferencia: z.string().max(2000).optional(),
+  paymentInstructionsAbitab: z.string().max(2000).optional(),
+  paymentInstructionsRedpagos: z.string().max(2000).optional(),
+});

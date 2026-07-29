@@ -13,6 +13,7 @@ import { auditLogs, customOrders, orderItems, orders, users } from "@/lib/db/sch
 import { formatCurrency } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
 import { createPreference } from "@/lib/mercadopago/client";
+import { getAvailableManualPaymentMethods, type ManualPaymentMethod, type PaymentMethod } from "@/lib/orders/actions";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS, createCustomOrderSchema, quoteCustomOrderSchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -211,11 +212,14 @@ export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCu
   return { ...updated, emailSent };
 }
 
-// Paso 4 de docs/spec-ecommerce-base.md: crea (o reutiliza) la orden
-// source="pedido_custom" ligada a esta cotizacion, genera la preferencia de
-// Mercado Pago y devuelve el link de pago. Mismo patron que checkoutCart en
-// src/lib/orders/actions.ts: el pago en si se confirma solo por webhook.
-export async function initiateCustomOrderPayment(id: string) {
+// Paso 4 de docs/spec-ecommerce-base.md, extendido con medios de pago
+// manuales (mismo criterio que checkoutCart en src/lib/orders/actions.ts):
+// crea (o reutiliza) la orden source="pedido_custom" ligada a esta
+// cotizacion. Con "mercado_pago" genera la preferencia y devuelve el link
+// de pago; con un medio manual, la orden queda "pendiente_confirmacion"
+// como orden de servicio y se manda el mail con instrucciones + numero de
+// orden — un admin la confirma a mano cuando el pago llega.
+export async function initiateCustomOrderPayment(id: string, paymentMethod: PaymentMethod = "mercado_pago") {
   const session = await requireUser();
 
   const [existing] = await db
@@ -232,13 +236,27 @@ export async function initiateCustomOrderPayment(id: string) {
     throw new Error("Este pedido no tiene un precio cotizado valido.");
   }
 
+  let manualMethod: { value: ManualPaymentMethod; label: string; instructions: string } | undefined;
+  if (paymentMethod !== "mercado_pago") {
+    const available = await getAvailableManualPaymentMethods(session.user.storeId);
+    manualMethod = available.find((method) => method.value === paymentMethod);
+    if (!manualMethod) throw new Error("Ese medio de pago no esta disponible.");
+  }
+
   // Si el cliente ya habia clickeado "Pagar" antes sin completar el pago,
-  // reutiliza esa misma orden "pendiente_pago" en vez de crear una nueva
-  // cada vez (evita acumular ordenes duplicadas por el mismo pedido).
+  // reutiliza esa misma orden pendiente en vez de crear una nueva cada vez
+  // (evita acumular ordenes duplicadas por el mismo pedido). Si cambio de
+  // medio de pago respecto del intento anterior, se sigue usando la orden
+  // ya creada tal cual estaba (no se pisa el metodo elegido la primera vez).
   const [existingOrder] = await db
     .select()
     .from(orders)
-    .where(and(eq(orders.customOrderId, existing.id), eq(orders.status, "pendiente_pago")))
+    .where(
+      and(
+        eq(orders.customOrderId, existing.id),
+        inArray(orders.status, ["pendiente_pago", "pendiente_confirmacion"]),
+      ),
+    )
     .limit(1);
 
   const itemTitle = `Pedido a medida: ${existing.fileName}`;
@@ -253,7 +271,8 @@ export async function initiateCustomOrderPayment(id: string) {
           userId: session.user.id,
           source: "pedido_custom",
           customOrderId: existing.id,
-          status: "pendiente_pago",
+          status: manualMethod ? "pendiente_confirmacion" : "pendiente_pago",
+          paymentMethod,
           total: existing.quotedPrice,
         })
         .returning()
@@ -283,6 +302,40 @@ export async function initiateCustomOrderPayment(id: string) {
     });
   }
 
+  if (manualMethod) {
+    // Mail con las instrucciones + numero de orden, mismo criterio de
+    // resiliencia que el mail de cotizacion de arriba: si falla, no
+    // bloquea nada (la orden ya quedo guardada). Solo se manda la primera
+    // vez (orden nueva), no en cada click de "Pagar" sobre la misma orden
+    // ya existente.
+    if (!existingOrder && session.user.email) {
+      try {
+        await sendMail({
+          storeId: session.user.storeId,
+          to: session.user.email,
+          subject: `Orden de servicio #${order.orderNumber} — instrucciones de pago`,
+          text: [
+            `Tu orden de servicio #${order.orderNumber} quedo registrada por ${formatCurrency(Number(order.total))}.`,
+            `Medio de pago elegido: ${manualMethod.label}.`,
+            "",
+            manualMethod.instructions,
+            "",
+            "En cuanto confirmemos que el pago llego, vas a ver la orden actualizada en tu cuenta (/mi-cuenta/pedidos).",
+          ].join("\n"),
+        });
+      } catch {
+        // No se relanza: un mail que falla no puede tirar abajo la orden.
+      }
+    }
+
+    return {
+      type: "manual" as const,
+      orderNumber: order.orderNumber,
+      methodLabel: manualMethod.label,
+      instructions: manualMethod.instructions,
+    };
+  }
+
   const preference = await createPreference({
     orderId: order.id,
     storeId: session.user.storeId,
@@ -295,5 +348,5 @@ export async function initiateCustomOrderPayment(id: string) {
 
   await db.update(orders).set({ mpPreferenceId: preference.id }).where(eq(orders.id, order.id));
 
-  return { initPoint };
+  return { type: "mercado_pago" as const, initPoint };
 }

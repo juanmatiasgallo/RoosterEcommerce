@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { auditLogs, stores } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
-import { updateMercadoPagoSettingsSchema, updateSmtpSettingsSchema } from "./schema";
+import { updateMercadoPagoSettingsSchema, updatePaymentInstructionsSchema, updateSmtpSettingsSchema } from "./schema";
 
 // A diferencia del molde CRUD habitual (admin + empleado), la config SMTP
 // son credenciales reales de un proveedor de correo para toda la tienda —
@@ -162,6 +162,67 @@ export async function updateMercadoPagoSettings(input: z.infer<typeof updateMerc
   revalidatePath("/admin/configuracion");
 
   return toPublicMpSettings(updated);
+}
+
+function toPublicPaymentInstructions(store: typeof stores.$inferSelect) {
+  return {
+    paymentInstructionsTransferencia: store.paymentInstructionsTransferencia,
+    paymentInstructionsAbitab: store.paymentInstructionsAbitab,
+    paymentInstructionsRedpagos: store.paymentInstructionsRedpagos,
+  };
+}
+
+export async function getPaymentInstructions() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return toPublicPaymentInstructions(store);
+}
+
+export type PaymentInstructionsSettings = Awaited<ReturnType<typeof getPaymentInstructions>>;
+
+export async function updatePaymentInstructions(input: z.infer<typeof updatePaymentInstructionsSchema>) {
+  const session = await requireAdmin();
+  const data = updatePaymentInstructionsSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      // A diferencia de SMTP/MP, vacio SI pisa (permite borrar y dejar de
+      // ofrecer ese medio) — por eso se compara contra undefined, no contra
+      // el string vacio.
+      ...(data.paymentInstructionsTransferencia !== undefined && {
+        paymentInstructionsTransferencia: data.paymentInstructionsTransferencia || null,
+      }),
+      ...(data.paymentInstructionsAbitab !== undefined && {
+        paymentInstructionsAbitab: data.paymentInstructionsAbitab || null,
+      }),
+      ...(data.paymentInstructionsRedpagos !== undefined && {
+        paymentInstructionsRedpagos: data.paymentInstructionsRedpagos || null,
+      }),
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "payment_instructions",
+    entityId: session.user.storeId,
+    before: toPublicPaymentInstructions(existing),
+    after: toPublicPaymentInstructions(updated),
+  });
+
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/carrito");
+
+  return toPublicPaymentInstructions(updated);
 }
 
 export async function sendTestEmail() {

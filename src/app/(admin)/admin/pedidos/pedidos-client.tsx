@@ -3,10 +3,18 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
-import { updateOrderStatus, type AdminOrderRow } from "@/lib/orders/actions";
+import { confirmManualPayment, updateOrderStatus, type AdminOrderRow } from "@/lib/orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  mercado_pago: "Mercado Pago",
+  transferencia: "Transferencia",
+  abitab: "Abitab",
+  redpagos: "Red Pagos",
+};
+
 const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
+  pendiente_confirmacion: { label: "Orden de servicio — sin confirmar", variant: "warning" },
   pagado: { label: "Pagado", variant: "info" },
   en_preparacion: { label: "En preparacion", variant: "warning" },
   enviado: { label: "Enviado", variant: "accent" },
@@ -42,6 +50,20 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
     });
   }
 
+  function handleConfirmManual(id: string) {
+    setUpdatingId(id);
+    startTransition(async () => {
+      try {
+        await confirmManualPayment(id);
+        toast.success("Pago confirmado.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo confirmar el pago.");
+      } finally {
+        setUpdatingId(null);
+      }
+    });
+  }
+
   if (orders.length === 0) {
     return <p className="mt-4 text-neutral-500">Todavia no hay ordenes pagadas.</p>;
   }
@@ -52,14 +74,26 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
         const status = STATUS_LABELS[row.order.status] ?? { label: row.order.status, variant: "neutral" as const };
         const next = NEXT_STATUS[row.order.status];
 
+        const isManualPending = row.order.status === "pendiente_confirmacion";
+
         return (
-          <div key={row.order.id} className="rounded border border-neutral-200 p-4 dark:border-neutral-800">
+          <div
+            key={row.order.id}
+            className={`rounded border p-4 ${
+              isManualPending
+                ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30"
+                : "border-neutral-200 dark:border-neutral-800"
+            }`}
+          >
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-medium">{row.customerName ?? row.customerEmail}</p>
+                <p className="font-medium">
+                  Orden #{row.order.orderNumber} — {row.customerName ?? row.customerEmail}
+                </p>
                 <p className="text-xs text-neutral-500">
                   {formatDate(row.order.createdAt)} ·{" "}
-                  {row.order.source === "pedido_custom" ? "Pedido a medida" : "Catalogo"}
+                  {row.order.source === "pedido_custom" ? "Pedido a medida" : "Catalogo"} ·{" "}
+                  {PAYMENT_METHOD_LABELS[row.order.paymentMethod] ?? row.order.paymentMethod}
                 </p>
               </div>
               <Badge variant={status.variant} className="shrink-0">
@@ -78,6 +112,16 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
 
             <div className="mt-3 flex items-center justify-between">
               <p className="text-sm font-medium">{formatCurrency(Number(row.order.total))}</p>
+              {isManualPending && (
+                <button
+                  type="button"
+                  onClick={() => handleConfirmManual(row.order.id)}
+                  disabled={isPending && updatingId === row.order.id}
+                  className="rounded bg-amber-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 hover:bg-amber-700"
+                >
+                  {isPending && updatingId === row.order.id ? "Confirmando..." : "Confirmar pago recibido"}
+                </button>
+              )}
               {next && (
                 <button
                   type="button"

@@ -6,6 +6,7 @@ import {
   varchar,
   numeric,
   integer,
+  serial,
   boolean,
   timestamp,
   jsonb,
@@ -46,6 +47,14 @@ export const stores = pgTable("stores", {
   mpAccessTokenEncrypted: text("mp_access_token_encrypted"),
   mpPublicKey: varchar("mp_public_key", { length: 200 }),
   mpWebhookSecretEncrypted: text("mp_webhook_secret_encrypted"),
+  // Instrucciones de pago para los medios manuales (texto libre, no
+  // sensible: se le muestra tal cual al cliente en el checkout y en el
+  // mail). Nulo/vacio = ese medio no se ofrece en el checkout todavia (ver
+  // getAvailableManualPaymentMethods en src/lib/orders/actions.ts) — asi se
+  // evita mostrar una opcion de pago sin datos reales detras.
+  paymentInstructionsTransferencia: text("payment_instructions_transferencia"),
+  paymentInstructionsAbitab: text("payment_instructions_abitab"),
+  paymentInstructionsRedpagos: text("payment_instructions_redpagos"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -184,6 +193,13 @@ export const customOrders = pgTable("custom_orders", {
 
 export const orderStatusEnum = pgEnum("order_status", [
   "pendiente_pago",
+  // El cliente eligio un medio de pago manual (no Mercado Pago): la orden
+  // ("orden de servicio") ya existe y se le mandaron las instrucciones por
+  // mail, pero nadie confirmo todavia que el dinero llego. Solo un admin
+  // puede pasarla a "pagado" a mano (ver updateOrderStatus/confirmManualPayment
+  // en src/lib/orders/actions.ts) — a diferencia de Mercado Pago, aca no hay
+  // webhook que lo haga solo.
+  "pendiente_confirmacion",
   "pagado",
   "en_preparacion",
   "enviado",
@@ -193,13 +209,24 @@ export const orderStatusEnum = pgEnum("order_status", [
 
 export const orderSourceEnum = pgEnum("order_source", ["catalogo", "pedido_custom"]);
 
+// "mercado_pago" confirma sola via webhook. Las otras tres son medios
+// manuales/offline (sin integracion de API): el cliente elige una, recibe
+// instrucciones (texto libre configurado en /admin/configuracion) por mail,
+// y un admin confirma el pago a mano cuando lo verifica.
+export const paymentMethodEnum = pgEnum("payment_method", ["mercado_pago", "transferencia", "abitab", "redpagos"]);
+
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
+  // Numero corto y secuencial para mostrarle al cliente/admin ("Orden
+  // #1042") en vez del uuid — mas facil de comunicar por telefono/WhatsApp
+  // al coordinar un pago manual.
+  orderNumber: serial("order_number").notNull(),
   storeId: uuid("store_id").notNull().references(() => stores.id),
   userId: uuid("user_id").notNull().references(() => users.id),
   source: orderSourceEnum("source").notNull().default("catalogo"),
   customOrderId: uuid("custom_order_id").references(() => customOrders.id),
   status: orderStatusEnum("status").notNull().default("pendiente_pago"),
+  paymentMethod: paymentMethodEnum("payment_method").notNull().default("mercado_pago"),
   total: numeric("total", { precision: 12, scale: 2 }).notNull(),
   shippingAddress: jsonb("shipping_address"),
   mpPreferenceId: varchar("mp_preference_id", { length: 100 }),

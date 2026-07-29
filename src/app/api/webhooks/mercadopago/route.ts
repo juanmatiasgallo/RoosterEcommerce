@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getDefaultStoreId } from "@/lib/db/store";
-import { auditLogs, customOrders, orderItems, orders, productVariants } from "@/lib/db/schema";
+import { orders } from "@/lib/db/schema";
 import { getPayment, getWebhookSecret } from "@/lib/mercadopago/client";
+import { markOrderAsPaid } from "@/lib/orders/mark-paid";
 
 /**
  * Paso 5 de docs/spec-ecommerce-base.md (critico, no saltear seguridad).
@@ -107,42 +108,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (payment.status === "approved") {
-    if (order.status === "pagado") {
-      return NextResponse.json({ received: true });
-    }
-
-    await db.transaction(async (tx) => {
-      await tx
-        .update(orders)
-        .set({ status: "pagado", mpPaymentId: paymentId })
-        .where(eq(orders.id, order.id));
-
-      if (order.source === "catalogo") {
-        // Stock recien se descuenta aca, nunca antes (ni al agregar al
-        // carrito ni al crear la preferencia) — evita vender de mas por
-        // carritos abandonados.
-        const items = await tx.select().from(orderItems).where(eq(orderItems.orderId, order.id));
-        for (const item of items) {
-          if (!item.variantId) continue;
-          await tx
-            .update(productVariants)
-            .set({ stock: sql`${productVariants.stock} - ${item.quantity}` })
-            .where(eq(productVariants.id, item.variantId));
-        }
-      } else if (order.source === "pedido_custom" && order.customOrderId) {
-        await tx.update(customOrders).set({ status: "pagado" }).where(eq(customOrders.id, order.customOrderId));
-      }
-
-      await tx.insert(auditLogs).values({
-        storeId: order.storeId,
-        userId: order.userId,
-        action: "payment_approved",
-        entityType: "order",
-        entityId: order.id,
-        before: { status: order.status },
-        after: { status: "pagado", mpPaymentId: paymentId },
-      });
-    });
+    // markOrderAsPaid ya es idempotente (no-op si ya esta "pagado"), pero
+    // ademas descuenta stock / actualiza el pedido a medida / escribe
+    // audit_logs en una sola transaccion — mismo lugar que usa la
+    // confirmacion manual de pagos offline (ver src/lib/orders/actions.ts).
+    await markOrderAsPaid({ orderId: order.id, actorUserId: order.userId, paymentReference: paymentId });
   } else if (payment.status === "rejected" || payment.status === "cancelled") {
     // Estados no aprobados: se deja la orden en su estado (no se toca
     // stock), solo se guarda el mpPaymentId para idempotencia.

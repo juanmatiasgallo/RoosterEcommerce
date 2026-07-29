@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getMercadoPagoSettings, getSmtpSettings } from "@/lib/settings/actions";
+import { getMercadoPagoSettings, getPaymentInstructions, getSmtpSettings } from "@/lib/settings/actions";
 import { ConfiguracionClient } from "./configuracion-client";
 
 // Consulta la DB: sin esto, el build de Docker en EasyPanel la
@@ -22,7 +22,11 @@ export default async function ConfiguracionAdminPage() {
     redirect("/");
   }
 
-  const [smtpSettings, mpSettings] = await Promise.all([getSmtpSettings(), getMercadoPagoSettings()]);
+  const [smtpSettings, mpSettings, paymentInstructions] = await Promise.all([
+    getSmtpSettings(),
+    getMercadoPagoSettings(),
+    getPaymentInstructions(),
+  ]);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -32,7 +36,11 @@ export default async function ConfiguracionAdminPage() {
       </p>
 
       <div className="mt-6">
-        <ConfiguracionClient initialSmtp={smtpSettings} initialMp={mpSettings} />
+        <ConfiguracionClient
+          initialSmtp={smtpSettings}
+          initialMp={mpSettings}
+          initialPaymentInstructions={paymentInstructions}
+        />
       </div>
     </div>
   );

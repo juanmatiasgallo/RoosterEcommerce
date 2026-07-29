@@ -1,4 +1,6 @@
 import { getMyCustomOrders } from "@/lib/custom-orders/actions";
+import { getAvailableManualPaymentMethods } from "@/lib/orders/actions";
+import { getDefaultStoreId } from "@/lib/db/store";
 import { PedidosClient } from "./pedidos-client";
 
 // Consulta la DB directo (los pedidos del usuario logueado): sin esto, el
@@ -13,12 +15,16 @@ export const dynamic = "force-dynamic";
  * del proyecto).
  */
 export default async function MiCuentaPedidosPage() {
-  const orders = await getMyCustomOrders();
+  const storeId = await getDefaultStoreId();
+  const [orders, manualPaymentMethods] = await Promise.all([
+    getMyCustomOrders(),
+    getAvailableManualPaymentMethods(storeId),
+  ]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Mis pedidos a medida</h1>
-      <PedidosClient orders={orders} />
+      <PedidosClient orders={orders} manualPaymentMethods={manualPaymentMethods} />
     </main>
   );
 }

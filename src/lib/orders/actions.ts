@@ -5,9 +5,12 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
-import { auditLogs, cartItems, orderItems, orders, users } from "@/lib/db/schema";
+import { auditLogs, cartItems, orderItems, orders, stores, users } from "@/lib/db/schema";
 import { getCartItems } from "@/lib/cart/actions";
 import { createPreference } from "@/lib/mercadopago/client";
+import { markOrderAsPaid } from "@/lib/orders/mark-paid";
+import { sendMail } from "@/lib/mail";
+import { formatCurrency } from "@/lib/format";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
 
@@ -17,6 +20,85 @@ async function requireStaff() {
     throw new Error("No autorizado.");
   }
   return session;
+}
+
+export type ManualPaymentMethod = "transferencia" | "abitab" | "redpagos";
+export type PaymentMethod = "mercado_pago" | ManualPaymentMethod;
+
+const MANUAL_METHOD_LABELS: Record<ManualPaymentMethod, string> = {
+  transferencia: "Transferencia bancaria",
+  abitab: "Abitab",
+  redpagos: "Red Pagos",
+};
+
+// Publico (no admin-gated a proposito): el checkout necesita saber que
+// medios de pago manuales estan configurados (tienen instrucciones
+// cargadas en /admin/configuracion) para poder ofrecerlos como opcion.
+// Mercado Pago no aparece aca — el checkout lo ofrece siempre, sin
+// depender de esta lista.
+export async function getAvailableManualPaymentMethods(storeId: string) {
+  const [store] = await db
+    .select({
+      paymentInstructionsTransferencia: stores.paymentInstructionsTransferencia,
+      paymentInstructionsAbitab: stores.paymentInstructionsAbitab,
+      paymentInstructionsRedpagos: stores.paymentInstructionsRedpagos,
+    })
+    .from(stores)
+    .where(eq(stores.id, storeId))
+    .limit(1);
+
+  const methods: { value: ManualPaymentMethod; label: string; instructions: string }[] = [];
+  if (store?.paymentInstructionsTransferencia) {
+    methods.push({
+      value: "transferencia",
+      label: MANUAL_METHOD_LABELS.transferencia,
+      instructions: store.paymentInstructionsTransferencia,
+    });
+  }
+  if (store?.paymentInstructionsAbitab) {
+    methods.push({ value: "abitab", label: MANUAL_METHOD_LABELS.abitab, instructions: store.paymentInstructionsAbitab });
+  }
+  if (store?.paymentInstructionsRedpagos) {
+    methods.push({
+      value: "redpagos",
+      label: MANUAL_METHOD_LABELS.redpagos,
+      instructions: store.paymentInstructionsRedpagos,
+    });
+  }
+  return methods;
+}
+
+// Mail con las instrucciones de pago + numero de orden para que el cliente
+// sepa que transferir/pagar y donde. Nunca bloquea la creacion de la orden
+// si el envio falla (mismo criterio de resiliencia que quoteCustomOrder en
+// custom-orders/actions.ts) — la orden de servicio ya quedo guardada en la
+// DB antes de intentar mandar el mail.
+async function sendManualPaymentInstructions(params: {
+  storeId: string;
+  to: string;
+  orderNumber: number;
+  total: string;
+  methodLabel: string;
+  instructions: string;
+}) {
+  try {
+    await sendMail({
+      storeId: params.storeId,
+      to: params.to,
+      subject: `Orden de servicio #${params.orderNumber} — instrucciones de pago`,
+      text: [
+        `Tu orden de servicio #${params.orderNumber} quedo registrada por ${formatCurrency(Number(params.total))}.`,
+        `Medio de pago elegido: ${params.methodLabel}.`,
+        "",
+        params.instructions,
+        "",
+        "En cuanto confirmemos que el pago llego, vas a ver la orden actualizada en tu cuenta (/mi-cuenta/pedidos).",
+      ].join("\n"),
+    });
+  } catch {
+    // No se loguea el error real ni se relanza: un mail que falla no puede
+    // tirar abajo la creacion de la orden, que ya esta guardada.
+  }
 }
 
 async function logAudit(params: {
@@ -39,13 +121,22 @@ async function logAudit(params: {
   });
 }
 
-// Paso 3 de docs/spec-ecommerce-base.md: crea la orden + order_items a
-// partir del carrito real del server (nunca del total que muestre el
-// cliente), genera la preferencia de Mercado Pago, y devuelve el link de
-// pago para que el cliente redirija con window.location.assign. El pago en
-// si se confirma solo por el webhook (src/app/api/webhooks/mercadopago/route.ts),
-// esto solo deja la orden en "pendiente_pago".
-export async function checkoutCart() {
+// Paso 3 de docs/spec-ecommerce-base.md, extendido con medios de pago
+// manuales: crea la orden + order_items a partir del carrito real del
+// server (nunca del total que muestre el cliente).
+//
+// Con "mercado_pago" (default): genera la preferencia y devuelve el link de
+// pago (init_point) para que el cliente redirija con window.location.assign.
+// El pago se confirma solo por el webhook, esto deja la orden en
+// "pendiente_pago".
+//
+// Con un medio manual (transferencia/abitab/redpagos): no hay integracion
+// de pago real — la orden ("orden de servicio") queda en
+// "pendiente_confirmacion", se le manda un mail al cliente con las
+// instrucciones + numero de orden, y un admin la confirma a mano desde
+// /admin/pedidos cuando verifica que el dinero llego (ver
+// confirmManualPayment mas abajo).
+export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago") {
   const session = await auth();
   if (!session) throw new Error("Debes iniciar sesion para pagar.");
 
@@ -60,13 +151,24 @@ export async function checkoutCart() {
     }
   }
 
+  let manualMethod: { value: ManualPaymentMethod; label: string; instructions: string } | undefined;
+  if (paymentMethod !== "mercado_pago") {
+    const available = await getAvailableManualPaymentMethods(session.user.storeId);
+    manualMethod = available.find((method) => method.value === paymentMethod);
+    // Defensa en profundidad: no confiar en que el cliente solo mande un
+    // valor que la UI le ofrecio — si ese medio no tiene instrucciones
+    // cargadas, no se puede generar la orden de servicio.
+    if (!manualMethod) throw new Error("Ese medio de pago no esta disponible.");
+  }
+
   const [order] = await db
     .insert(orders)
     .values({
       storeId: session.user.storeId,
       userId: session.user.id,
       source: "catalogo",
-      status: "pendiente_pago",
+      status: manualMethod ? "pendiente_confirmacion" : "pendiente_pago",
+      paymentMethod,
       total: total.toFixed(2),
     })
     .returning();
@@ -91,6 +193,32 @@ export async function checkoutCart() {
     after: order,
   });
 
+  // El carrito se vacia en los dos casos: la orden ya tiene su propio
+  // snapshot en order_items, y dejar el carrito intacto permitiria
+  // clickear "Ir a pagar" de nuevo y generar ordenes duplicadas.
+  await db.delete(cartItems).where(eq(cartItems.userId, session.user.id));
+  revalidatePath("/carrito");
+
+  if (manualMethod) {
+    if (session.user.email) {
+      await sendManualPaymentInstructions({
+        storeId: session.user.storeId,
+        to: session.user.email,
+        orderNumber: order.orderNumber,
+        total: order.total,
+        methodLabel: manualMethod.label,
+        instructions: manualMethod.instructions,
+      });
+    }
+
+    return {
+      type: "manual" as const,
+      orderNumber: order.orderNumber,
+      methodLabel: manualMethod.label,
+      instructions: manualMethod.instructions,
+    };
+  }
+
   const preference = await createPreference({
     orderId: order.id,
     storeId: session.user.storeId,
@@ -107,15 +235,7 @@ export async function checkoutCart() {
 
   await db.update(orders).set({ mpPreferenceId: preference.id }).where(eq(orders.id, order.id));
 
-  // El carrito se vacia aca: la orden ya tiene su propio snapshot en
-  // order_items, y dejar el carrito intacto permitiria clickear "Ir a
-  // pagar" de nuevo y generar ordenes "pendiente_pago" duplicadas por cada
-  // intento. El stock recien se descuenta cuando el webhook confirma el
-  // pago, no antes.
-  await db.delete(cartItems).where(eq(cartItems.userId, session.user.id));
-  revalidatePath("/carrito");
-
-  return { initPoint };
+  return { type: "mercado_pago" as const, initPoint };
 }
 
 // Paso 6 de docs/spec-ecommerce-base.md: cola de ordenes que ya tienen algo
@@ -192,6 +312,33 @@ export async function updateOrderStatus(id: string, nextStatus: "en_preparacion"
     before: { status: existing.status },
     after: { status: nextStatus },
   });
+
+  revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/dashboard");
+
+  return updated;
+}
+
+// Confirmacion manual de una orden de servicio (medio de pago transferencia
+// /abitab/redpagos): el admin la usa cuando verifico que el dinero
+// efectivamente llego. Usa markOrderAsPaid — mismo helper que el webhook de
+// Mercado Pago — asi que descuenta stock / marca el pedido a medida como
+// pagado / escribe audit_logs exactamente igual que un pago automatico.
+export async function confirmManualPayment(id: string) {
+  const session = await requireStaff();
+
+  const [existing] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, id), eq(orders.storeId, session.user.storeId)))
+    .limit(1);
+  if (!existing) throw new Error("Orden no encontrada.");
+
+  if (existing.status !== "pendiente_confirmacion") {
+    throw new Error(`Esta orden esta en estado "${existing.status}", no hay un pago manual que confirmar.`);
+  }
+
+  const updated = await markOrderAsPaid({ orderId: id, actorUserId: session.user.id });
 
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/dashboard");

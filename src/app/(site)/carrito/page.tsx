@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getCartItems } from "@/lib/cart/actions";
+import { getAvailableManualPaymentMethods } from "@/lib/orders/actions";
+import { getDefaultStoreId } from "@/lib/db/store";
 import { CarritoClient } from "./carrito-client";
 
 // Consulta la DB (via getCartItems): sin esto, el build de Docker en
@@ -8,7 +10,11 @@ import { CarritoClient } from "./carrito-client";
 export const dynamic = "force-dynamic";
 
 export default async function CarritoPage() {
-  const { items, total } = await getCartItems();
+  const storeId = await getDefaultStoreId();
+  const [{ items, total }, manualPaymentMethods] = await Promise.all([
+    getCartItems(),
+    getAvailableManualPaymentMethods(storeId),
+  ]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -23,7 +29,7 @@ export default async function CarritoPage() {
           .
         </p>
       ) : (
-        <CarritoClient items={items} total={total} />
+        <CarritoClient items={items} total={total} manualPaymentMethods={manualPaymentMethods} />
       )}
     </main>
   );

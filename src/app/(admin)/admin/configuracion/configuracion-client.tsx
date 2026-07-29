@@ -5,12 +5,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import type { z } from "zod";
-import { updateMercadoPagoSettingsSchema, updateSmtpSettingsSchema } from "@/lib/settings/schema";
+import {
+  updateMercadoPagoSettingsSchema,
+  updatePaymentInstructionsSchema,
+  updateSmtpSettingsSchema,
+} from "@/lib/settings/schema";
 import {
   sendTestEmail,
   updateMercadoPagoSettings,
+  updatePaymentInstructions,
   updateSmtpSettings,
   type MercadoPagoSettings,
+  type PaymentInstructionsSettings,
   type SmtpSettings,
 } from "@/lib/settings/actions";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,13 +25,16 @@ import { Button } from "@/components/ui/button";
 
 type SmtpFormValues = z.infer<typeof updateSmtpSettingsSchema>;
 type MpFormValues = z.infer<typeof updateMercadoPagoSettingsSchema>;
+type PaymentInstructionsFormValues = z.infer<typeof updatePaymentInstructionsSchema>;
 
 export function ConfiguracionClient({
   initialSmtp,
   initialMp,
+  initialPaymentInstructions,
 }: {
   initialSmtp: SmtpSettings;
   initialMp: MercadoPagoSettings;
+  initialPaymentInstructions: PaymentInstructionsSettings;
 }) {
   return (
     <div className="flex flex-col gap-10">
@@ -41,6 +50,22 @@ export function ConfiguracionClient({
       </section>
 
       <section>
+        <h2 className="text-lg font-semibold">Medios de pago manuales</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Alternativa a Mercado Pago: transferencia, Abitab o Red Pagos. Cada uno solo aparece como opcion en
+          el checkout si le cargas instrucciones aca. El cliente que elige uno de estos genera una{" "}
+          <strong>orden de servicio</strong> (no se cobra sola) y vos confirmas el pago a mano desde{" "}
+          <a href="/admin/pedidos" className="underline">
+            /admin/pedidos
+          </a>{" "}
+          cuando lo verificas.
+        </p>
+        <div className="mt-4">
+          <PaymentInstructionsForm initial={initialPaymentInstructions} />
+        </div>
+      </section>
+
+      <section>
         <h2 className="text-lg font-semibold">SMTP</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Se usa para enviar notificaciones por email.
@@ -50,6 +75,99 @@ export function ConfiguracionClient({
         </div>
       </section>
     </div>
+  );
+}
+
+function PaymentInstructionsForm({ initial }: { initial: PaymentInstructionsSettings }) {
+  const [settings, setSettings] = useState(initial);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<PaymentInstructionsFormValues>({
+    resolver: zodResolver(updatePaymentInstructionsSchema),
+    defaultValues: {
+      paymentInstructionsTransferencia: settings.paymentInstructionsTransferencia ?? "",
+      paymentInstructionsAbitab: settings.paymentInstructionsAbitab ?? "",
+      paymentInstructionsRedpagos: settings.paymentInstructionsRedpagos ?? "",
+    },
+  });
+
+  async function onSubmit(values: PaymentInstructionsFormValues) {
+    try {
+      const updated = await updatePaymentInstructions(values);
+      setSettings(updated);
+      toast.success("Instrucciones de pago guardadas.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar.");
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div>
+            <label htmlFor="paymentInstructionsTransferencia" className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Transferencia bancaria
+              {settings.paymentInstructionsTransferencia ? (
+                <Badge variant="success">Activo</Badge>
+              ) : (
+                <Badge variant="neutral">No se ofrece</Badge>
+              )}
+            </label>
+            <textarea
+              id="paymentInstructionsTransferencia"
+              rows={3}
+              {...register("paymentInstructionsTransferencia")}
+              placeholder="Ej: Transferi a cuenta N. XXXX del Banco X a nombre de..."
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="paymentInstructionsAbitab" className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Abitab
+              {settings.paymentInstructionsAbitab ? (
+                <Badge variant="success">Activo</Badge>
+              ) : (
+                <Badge variant="neutral">No se ofrece</Badge>
+              )}
+            </label>
+            <textarea
+              id="paymentInstructionsAbitab"
+              rows={3}
+              {...register("paymentInstructionsAbitab")}
+              placeholder="Ej: Paga en cualquier local Abitab con el codigo de cobranza XXXX..."
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="paymentInstructionsRedpagos" className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Red Pagos
+              {settings.paymentInstructionsRedpagos ? (
+                <Badge variant="success">Activo</Badge>
+              ) : (
+                <Badge variant="neutral">No se ofrece</Badge>
+              )}
+            </label>
+            <textarea
+              id="paymentInstructionsRedpagos"
+              rows={3}
+              {...register("paymentInstructionsRedpagos")}
+              placeholder="Ej: Paga en cualquier local Red Pagos con el codigo de cobranza XXXX..."
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+
+          <Button type="submit" disabled={isSubmitting} className="self-start">
+            {isSubmitting ? "Guardando..." : "Guardar"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
