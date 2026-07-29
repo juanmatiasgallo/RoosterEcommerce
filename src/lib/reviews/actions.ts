@@ -1,12 +1,21 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { and, avg, count, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { auditLogs, orderItems, orders, productReviews, productVariants, users } from "@/lib/db/schema";
+import { UPLOAD_IMAGE_ALLOWED_EXTENSIONS } from "@/lib/catalog/schema";
 import { createReviewSchema } from "./schema";
 import type { z } from "zod";
+
+// Hasta 5 fotos por reseña — suficiente para mostrar el producto recibido
+// sin permitir un abuso de espacio en disco (mismo volumen persistente que
+// usan las imagenes de producto y los comprobantes de pago, ver CLAUDE.md).
+const MAX_REVIEW_IMAGES = 5;
 
 // Una orden cuenta como "compra" habilitante para reseñar recien cuando el
 // pago esta confirmado (pagado en adelante) — "pendiente_pago" y
@@ -104,6 +113,12 @@ export async function createReview(
   productId: string,
   input: z.infer<typeof createReviewSchema>,
   productSlug?: string,
+  // Fotos opcionales que el cliente adjunta con la reseña (task #104). Se
+  // suben aca mismo, en la misma llamada, en vez de un flujo separado tipo
+  // uploadPaymentReceipt: una reseña no tiene una pantalla de edicion
+  // posterior donde volver a subirlas, asi que no tiene sentido separarlo
+  // en dos pasos.
+  files?: File[],
 ) {
   const session = await auth();
   if (!session) throw new Error("Debes iniciar sesion para dejar una reseña.");
@@ -121,6 +136,35 @@ export async function createReview(
     throw new Error(message);
   }
 
+  const imageFiles = (files ?? []).filter((file) => file.size > 0).slice(0, MAX_REVIEW_IMAGES);
+  for (const file of imageFiles) {
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!UPLOAD_IMAGE_ALLOWED_EXTENSIONS.includes(ext)) {
+      throw new Error(`Extension no permitida en las fotos. Usa: ${UPLOAD_IMAGE_ALLOWED_EXTENSIONS.join(", ")}.`);
+    }
+    const maxSizeMb = Number(process.env.UPLOADS_MAX_SIZE_MB ?? 20);
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      throw new Error(`Una de las fotos supera el tamano maximo permitido (${maxSizeMb} MB).`);
+    }
+  }
+
+  let imageUrls: string[] = [];
+  if (imageFiles.length > 0) {
+    const uploadsDir = process.env.UPLOADS_DIR ?? "./public/uploads";
+    const reviewsDir = path.resolve(uploadsDir, "reviews");
+    await mkdir(reviewsDir, { recursive: true });
+
+    imageUrls = await Promise.all(
+      imageFiles.map(async (file) => {
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+        const filename = `${randomUUID()}.${ext}`;
+        const buffer = Buffer.from(await file.arrayBuffer());
+        await writeFile(path.join(reviewsDir, filename), buffer);
+        return `/uploads/reviews/${filename}`;
+      }),
+    );
+  }
+
   const [review] = await db
     .insert(productReviews)
     .values({
@@ -129,6 +173,7 @@ export async function createReview(
       userId: session.user.id,
       rating: data.rating,
       comment: data.comment || null,
+      images: imageUrls.length > 0 ? imageUrls : null,
       verifiedPurchase: true,
     })
     .returning();

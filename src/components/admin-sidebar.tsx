@@ -3,7 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import {
+  ClipboardList,
+  FolderTree,
+  LayoutDashboard,
+  Mail,
+  Menu,
+  Package,
+  Settings,
+  Users,
+  Wand2,
+  X,
+} from "lucide-react";
 import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
 import { LogoutButton } from "@/components/logout-button";
@@ -16,12 +27,12 @@ type SessionUser = {
 };
 
 const NAV_ITEMS = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/productos", label: "Productos" },
-  { href: "/admin/categorias", label: "Categorias" },
-  { href: "/admin/pedidos", label: "Pedidos" },
-  { href: "/admin/pedidos-custom", label: "Pedidos a medida" },
-  { href: "/admin/newsletter", label: "Newsletter" },
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/productos", label: "Productos", icon: Package },
+  { href: "/admin/categorias", label: "Categorias", icon: FolderTree },
+  { href: "/admin/pedidos", label: "Pedidos", icon: ClipboardList },
+  { href: "/admin/pedidos-custom", label: "Pedidos a medida", icon: Wand2 },
+  { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
 ];
 
 // Usuarios y Configuracion son admin-only: Configuracion ya lo era (expone
@@ -29,8 +40,8 @@ const NAV_ITEMS = [
 // proximo prompt (21) — el link ya queda armado aunque la pagina todavia
 // no exista.
 const ADMIN_ONLY_ITEMS = [
-  { href: "/admin/usuarios", label: "Usuarios" },
-  { href: "/admin/configuracion", label: "Configuracion" },
+  { href: "/admin/usuarios", label: "Usuarios", icon: Users },
+  { href: "/admin/configuracion", label: "Configuracion", icon: Settings },
 ];
 
 export function AdminSidebar({
@@ -49,7 +60,7 @@ export function AdminSidebar({
 
   function linkClass(href: string) {
     const active = pathname === href || pathname?.startsWith(`${href}/`);
-    return `block rounded px-3 py-2 text-sm transition-colors ${
+    return `flex items-center gap-2.5 rounded px-3 py-2 text-sm transition-colors ${
       active
         ? "bg-accent text-accent-foreground"
         : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
@@ -83,6 +94,7 @@ export function AdminSidebar({
       >
         {items.map((item) => (
           <Link key={item.href} href={item.href} className={linkClass(item.href)} onClick={() => setMenuOpen(false)}>
+            <item.icon size={16} strokeWidth={1.75} aria-hidden="true" />
             {item.label}
           </Link>
         ))}

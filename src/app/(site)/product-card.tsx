@@ -5,13 +5,16 @@ import type { ProductListItem } from "@/lib/catalog/queries";
 import { Badge } from "@/components/ui/badge";
 import { ProductPlaceholder } from "@/components/product-placeholder";
 import { FavoriteButton } from "@/components/favorite-button";
+import { StarRating } from "@/components/star-rating";
 
 export function ProductCard({
   product,
   favorited = false,
+  isLoggedIn = false,
 }: {
   product: ProductListItem;
   favorited?: boolean;
+  isLoggedIn?: boolean;
 }) {
   const price = product.minVariantPrice ?? Number(product.basePrice);
 
@@ -21,7 +24,7 @@ export function ProductCard({
       className="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-lg dark:border-neutral-800 dark:hover:border-neutral-700"
     >
       <div className="relative aspect-square overflow-hidden bg-neutral-100 dark:bg-neutral-900">
-        <FavoriteButton productId={product.id} initialFavorited={favorited} />
+        <FavoriteButton productId={product.id} initialFavorited={favorited} isLoggedIn={isLoggedIn} />
         {product.thumbnailUrl ? (
           <Image
             src={product.thumbnailUrl}
@@ -50,6 +53,12 @@ export function ProductCard({
 
       <div className="flex flex-1 flex-col gap-1 p-3">
         <h3 className="line-clamp-2 text-sm font-medium text-neutral-900 dark:text-neutral-100">{product.name}</h3>
+        {product.reviewCount > 0 && (
+          <div className="flex items-center gap-1">
+            <StarRating value={product.averageRating} size={12} />
+            <span className="text-xs text-neutral-400">({product.reviewCount})</span>
+          </div>
+        )}
         <p className="text-sm text-neutral-500 dark:text-neutral-400">desde {formatCurrency(price)}</p>
       </div>
     </Link>

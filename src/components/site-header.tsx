@@ -66,6 +66,9 @@ function UserAvatarMenu({
           </Link>
         ) : (
           <>
+            <Link href="/mi-cuenta/perfil" className={menuLinkClass}>
+              Mi perfil
+            </Link>
             <Link href="/mi-cuenta/compras" className={menuLinkClass}>
               Mis compras
             </Link>
@@ -249,6 +252,13 @@ export function SiteHeader({
           )}
           {isCliente && (
             <>
+              <Link
+                href="/mi-cuenta/perfil"
+                className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Mi perfil
+              </Link>
               <Link
                 href="/mi-cuenta/compras"
                 className="py-1 text-sm text-neutral-600 dark:text-neutral-300"

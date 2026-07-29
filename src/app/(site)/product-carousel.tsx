@@ -11,9 +11,11 @@ import { ProductCard } from "./product-card";
 export function ProductCarousel({
   products,
   favoritedIds = [],
+  isLoggedIn = false,
 }: {
   products: ProductListItem[];
   favoritedIds?: string[];
+  isLoggedIn?: boolean;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +33,7 @@ export function ProductCarousel({
       >
         {products.map((product) => (
           <div key={product.id} className="w-40 shrink-0 snap-start sm:w-48">
-            <ProductCard product={product} favorited={favoritedIds.includes(product.id)} />
+            <ProductCard product={product} favorited={favoritedIds.includes(product.id)} isLoggedIn={isLoggedIn} />
           </div>
         ))}
       </div>

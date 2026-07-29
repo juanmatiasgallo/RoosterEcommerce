@@ -16,7 +16,7 @@ export default async function MiCuentaPuntosPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Mis puntos</h1>
       <p className="mt-1 text-neutral-500">
         Ganas puntos con cada compra confirmada y los podes canjear por un cupon de descuento para tu proxima
@@ -24,6 +24,6 @@ export default async function MiCuentaPuntosPage() {
       </p>
 
       <PuntosClient initialBalance={balance} initialHistory={history} initialCoupons={coupons} rates={rates} />
-    </main>
+    </div>
   );
 }

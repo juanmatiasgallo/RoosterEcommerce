@@ -22,9 +22,9 @@ export default async function MiCuentaPedidosPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Mis pedidos a medida</h1>
       <PedidosClient orders={orders} manualPaymentMethods={manualPaymentMethods} />
-    </main>
+    </div>
   );
 }

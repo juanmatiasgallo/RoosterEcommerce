@@ -14,7 +14,7 @@ export default async function CambiarContrasenaPage() {
   const forced = session?.user.mustChangePassword ?? false;
 
   return (
-    <main className="mx-auto max-w-sm px-4 py-12">
+    <div className="mx-auto max-w-sm px-4 py-12">
       <h1 className="text-2xl font-semibold">Cambiar contrasena</h1>
       <p className="mt-1 text-neutral-500">
         {forced
@@ -25,6 +25,6 @@ export default async function CambiarContrasenaPage() {
       <div className="mt-6">
         <CambiarContrasenaFormClient forced={forced} />
       </div>
-    </main>
+    </div>
   );
 }

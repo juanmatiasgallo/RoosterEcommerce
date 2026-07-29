@@ -21,6 +21,14 @@ export const registerSchema = z
 
 export type Role = "admin" | "empleado" | "cliente";
 
+// Edicion de datos propios desde /mi-cuenta/perfil (task #116) -- a
+// diferencia de registerSchema, no toca password ni role.
+export const updateProfileSchema = z.object({
+  name: z.string().min(1, "Requerido").max(200),
+  email: z.string().email(),
+  phone: z.string().min(6, "Ingresa un celular de contacto valido.").max(50),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.email(),
 });

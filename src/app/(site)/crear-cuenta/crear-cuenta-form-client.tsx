@@ -11,6 +11,8 @@ import type { z } from "zod";
 import { registerSchema } from "@/lib/auth/schema";
 import { registerUser } from "@/lib/auth/actions";
 import { mergeGuestCartIntoUser } from "@/lib/cart/actions";
+import { mergeGuestFavoritesIntoUser } from "@/lib/favorites/actions";
+import { getGuestFavoriteIds, clearGuestFavorites } from "@/lib/favorites/guest-favorites";
 import { Spinner } from "@/components/ui/spinner";
 
 // Le da tiempo al toast de exito a alcanzar a pintarse antes de que
@@ -62,6 +64,16 @@ export function CrearCuentaFormClient() {
       // Fusiona el carrito de invitado (si armo uno antes de registrarse)
       // con la cuenta recien creada.
       await mergeGuestCartIntoUser();
+
+      try {
+        const guestFavoriteIds = getGuestFavoriteIds();
+        if (guestFavoriteIds.length > 0) {
+          await mergeGuestFavoritesIntoUser(guestFavoriteIds);
+          clearGuestFavorites();
+        }
+      } catch {
+        // no-op
+      }
 
       toast.success("Cuenta creada correctamente");
 

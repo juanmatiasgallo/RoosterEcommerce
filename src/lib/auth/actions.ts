@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { auditLogs, users } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
 import { sendMail } from "@/lib/mail";
-import { changePasswordSchema, forgotPasswordSchema, registerSchema } from "./schema";
+import { changePasswordSchema, forgotPasswordSchema, registerSchema, updateProfileSchema } from "./schema";
 
 const TEMP_PASSWORD_VALID_HOURS = 24;
 
@@ -54,6 +54,66 @@ export async function registerUser(input: z.infer<typeof registerSchema>) {
   });
 
   return { id: created.id, email: created.email };
+}
+
+// Datos propios frescos de la DB para /mi-cuenta/perfil -- session.user (JWT)
+// no trae phone, y name/email podrian estar desactualizados si el usuario
+// los cambio en otra pestana antes de volver a loguearse (ver comentario de
+// updateMyProfile mas abajo).
+export async function getMyProfile() {
+  const session = await auth();
+  if (!session) throw new Error("Debes iniciar sesion.");
+
+  const [user] = await db
+    .select({ name: users.name, email: users.email, phone: users.phone })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+  if (!user) throw new Error("Usuario no encontrado.");
+
+  return user;
+}
+
+// Edicion de datos propios desde /mi-cuenta/perfil (task #116). Devuelve
+// emailChanged para que el cliente sepa si tiene que cerrar sesion y volver
+// a entrar -- con sesion JWT (ver src/auth.ts), el mail que se ve en el
+// header queda "horneado" en el token desde el login y no se refresca solo
+// hasta el proximo signIn, asi que forzar un logout es lo mas simple y
+// confiable (evita meter trigger:"update" en el callback jwt).
+export async function updateMyProfile(input: z.infer<typeof updateProfileSchema>) {
+  const session = await auth();
+  if (!session) throw new Error("Debes iniciar sesion.");
+
+  const data = updateProfileSchema.parse(input);
+  const email = data.email.toLowerCase();
+
+  const [current] = await db.select().from(users).where(eq(users.id, session.user.id)).limit(1);
+  if (!current) throw new Error("Usuario no encontrado.");
+
+  const emailChanged = email !== current.email;
+
+  if (emailChanged) {
+    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    if (existing) throw new Error("Ese email ya esta en uso por otra cuenta.");
+  }
+
+  const [updated] = await db
+    .update(users)
+    .set({ name: data.name, email, phone: data.phone })
+    .where(eq(users.id, session.user.id))
+    .returning();
+
+  await db.insert(auditLogs).values({
+    storeId: session.user.storeId,
+    userId: session.user.id,
+    action: "update_profile",
+    entityType: "user",
+    entityId: session.user.id,
+    before: { name: current.name, email: current.email, phone: current.phone },
+    after: { name: updated.name, email: updated.email, phone: updated.phone },
+  });
+
+  return { emailChanged };
 }
 
 // Publica: el paso 1 del checkout (identificacion por mail) la usa para

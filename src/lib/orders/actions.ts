@@ -100,6 +100,34 @@ export async function getDefaultShippingAddress(): Promise<{
   };
 }
 
+// Edicion manual desde /mi-cuenta/perfil (task #116): a diferencia del
+// guardado automatico de checkoutCart (que solo pisa la direccion default
+// como efecto secundario de una compra), esta es la accion explicita que
+// el cliente dispara desde "Mi perfil" para actualizar su direccion
+// guardada sin tener que pasar por un checkout.
+export async function updateMyShippingAddress(address: ShippingAddress, shippingZoneId: string | null) {
+  const session = await auth();
+  if (!session) throw new Error("Debes iniciar sesion.");
+
+  const data = shippingAddressSchema.parse(address);
+
+  await db
+    .update(users)
+    .set({ defaultShippingAddress: data, defaultShippingZoneId: shippingZoneId })
+    .where(eq(users.id, session.user.id));
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update_shipping_address",
+    entityType: "user",
+    entityId: session.user.id,
+    after: { defaultShippingAddress: data, defaultShippingZoneId: shippingZoneId },
+  });
+
+  return { success: true as const };
+}
+
 // Medio de pago usado en el checkout anterior del usuario (ver el guardado
 // en checkoutCart mas abajo) — se precarga en el Paso 3 del wizard. Nulo si
 // todavia no compro nada, el wizard arranca en "mercado_pago" por default.
@@ -600,13 +628,36 @@ export async function updateOrderStatus(id: string, nextStatus: AdvanceableOrder
     enviado: "fue enviado",
     entregado: "fue entregado",
   };
+  const statusLabel = STATUS_NOTIFICATION_LABELS[nextStatus] ?? `paso a ${nextStatus}`;
   await notify({
     storeId: session.user.storeId,
     recipientUserId: existing.userId,
     type: "order_status_changed",
-    title: `Tu pedido #${existing.orderNumber} ${STATUS_NOTIFICATION_LABELS[nextStatus] ?? `paso a ${nextStatus}`}`,
+    title: `Tu pedido #${existing.orderNumber} ${statusLabel}`,
     link: "/mi-cuenta/pedidos",
   });
+
+  // Mail al cliente en cada transicion del pipeline (antes solo se mandaba
+  // mail en la creacion de la orden y en la confirmacion de pago). Resiliente
+  // -- no bloquea el cambio de estado si el mail falla, mismo criterio que
+  // el resto de los mails de este archivo.
+  try {
+    const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
+    if (customer) {
+      await sendMail({
+        storeId: session.user.storeId,
+        to: customer.email,
+        subject: `Tu pedido #${existing.orderNumber} ${statusLabel}`,
+        text: [
+          `Tu pedido #${existing.orderNumber} ${statusLabel}.`,
+          "",
+          "Segui el estado completo desde tu cuenta: /mi-cuenta/pedidos",
+        ].join("\n"),
+      });
+    }
+  } catch {
+    // No-op: mismo criterio de resiliencia que el resto de los mails.
+  }
 
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/dashboard");
@@ -639,21 +690,28 @@ export async function confirmManualPayment(id: string) {
   // el unico mail que recibia era el de instrucciones al crear la orden, no
   // habia ninguna confirmacion de que el admin ya lo verifico. Resiliente
   // (no bloquea la confirmacion si el mail falla).
-  try {
-    const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
-    if (customer) {
-      await sendMail({
-        storeId: session.user.storeId,
-        to: customer.email,
-        subject: `Pago confirmado — orden #${updated.orderNumber}`,
-        text: [
-          `Confirmamos que recibimos el pago de tu orden #${updated.orderNumber} por ${formatCurrency(Number(updated.total))}.`,
-          "Nos vamos a poner en contacto para coordinar la entrega.",
-        ].join("\n\n"),
-      });
+  //
+  // Solo para pedido_custom: las ordenes "catalogo" ya reciben un mail mas
+  // completo (comprobante en PDF con QR, ver getReceiptUrl) desde el propio
+  // markOrderAsPaid de arriba — mandar este tambien seria un mail duplicado
+  // para el mismo evento.
+  if (existing.source !== "catalogo") {
+    try {
+      const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
+      if (customer) {
+        await sendMail({
+          storeId: session.user.storeId,
+          to: customer.email,
+          subject: `Pago confirmado — orden #${updated.orderNumber}`,
+          text: [
+            `Confirmamos que recibimos el pago de tu orden #${updated.orderNumber} por ${formatCurrency(Number(updated.total))}.`,
+            "Nos vamos a poner en contacto para coordinar la entrega.",
+          ].join("\n\n"),
+        });
+      }
+    } catch {
+      // No-op: mismo criterio de resiliencia que el resto de los mails.
     }
-  } catch {
-    // No-op: mismo criterio de resiliencia que el resto de los mails.
   }
 
   revalidatePath("/admin/pedidos");

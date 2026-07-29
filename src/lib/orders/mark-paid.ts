@@ -1,7 +1,22 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs, customOrders, loyaltyPoints, orderItems, orders, productVariants, stores } from "@/lib/db/schema";
+import { auditLogs, customOrders, loyaltyPoints, orderItems, orders, productVariants, stores, users } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/notify";
+import { sendMail } from "@/lib/mail";
+import { generateReceiptPdf, getReceiptUrl, type ReceiptItem } from "@/lib/receipt/pdf";
+import { formatCurrency } from "@/lib/format";
+
+// Mismas labels que /mi-cuenta/compras, /admin/pedidos y receipt/actions.ts
+// (duplicadas ahi tambien, ver comentario en receipt/actions.ts).
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  mercado_pago: "Mercado Pago",
+  transferencia: "Transferencia",
+  abitab: "Abitab",
+  redpagos: "Red Pagos",
+  mi_dinero: "Debito Mi Dinero",
+  prex: "Prex",
+  contra_entrega: "Pago contra entrega",
+};
 
 /**
  * Unico lugar donde una orden pasa de verdad a "pagado" — lo usan el
@@ -89,6 +104,62 @@ export async function markOrderAsPaid(params: {
     title: `Confirmamos el pago de tu pedido #${order.orderNumber}`,
     link: "/mi-cuenta/pedidos",
   });
+
+  // Talon-comprobante con QR por mail (task #103) -- solo para compras de
+  // catalogo, que son las que tienen pagina de comprobante en
+  // /mi-cuenta/compras/[id] (getReceiptData filtra por source="catalogo").
+  // Resiliente: nunca bloquea la confirmacion del pago si el mail o el PDF
+  // fallan, mismo criterio que el resto de los mails de este flujo.
+  if (order.source === "catalogo") {
+    try {
+      const [customer] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, order.userId)).limit(1);
+      const [store] = await db.select({ name: stores.name }).from(stores).where(eq(stores.id, order.storeId)).limit(1);
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+
+      if (customer && store) {
+        const receiptItems: ReceiptItem[] = items.map((item) => ({
+          productName: item.productName,
+          variantLabel: item.variantLabel,
+          variantSku: item.variantSku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        }));
+
+        const pdfBytes = await generateReceiptPdf(order.id, {
+          orderNumber: order.orderNumber,
+          createdAt: order.createdAt,
+          status: "pagado",
+          statusLabel: "Pago confirmado",
+          paymentMethod: order.paymentMethod,
+          paymentMethodLabel: PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod,
+          items: receiptItems,
+          shippingCost: order.shippingCost,
+          discountAmount: order.discountAmount,
+          couponCode: order.couponCode,
+          total: updated.total,
+          customerName: customer.name,
+          storeName: store.name,
+        });
+
+        await sendMail({
+          storeId: order.storeId,
+          to: customer.email,
+          subject: `Comprobante de tu compra #${order.orderNumber}`,
+          text: [
+            `Confirmamos el pago de tu compra #${order.orderNumber} por ${formatCurrency(Number(updated.total))}.`,
+            "Te dejamos el comprobante adjunto en PDF, con codigo QR para ver el estado del pedido en cualquier momento.",
+            "",
+            `Tambien podes verlo online aca: ${getReceiptUrl(order.id)}`,
+          ].join("\n"),
+          attachments: [
+            { filename: `recibo-orden-${order.orderNumber}.pdf`, content: Buffer.from(pdfBytes), contentType: "application/pdf" },
+          ],
+        });
+      }
+    } catch {
+      // No-op: mismo criterio de resiliencia que el resto de los mails.
+    }
+  }
 
   return updated;
 }

@@ -1,8 +1,24 @@
 import { cache } from "react";
-import { and, asc, desc, eq, exists, gte, ilike, inArray, lte } from "drizzle-orm";
+import { and, asc, avg, count, desc, eq, exists, gte, ilike, inArray, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { categories, productImages, products, productVariants } from "@/lib/db/schema";
+import { categories, productImages, productReviews, products, productVariants } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
+
+// Promedio de estrellas + cantidad de reseñas por producto, para mostrar en
+// las ProductCard de la grilla/carreteles (no solo en la ficha de
+// producto). Una sola query agrupada por productId en vez de N+1 -- mismo
+// criterio que el resto de este archivo con imagenes/variantes.
+async function reviewSummaryByProduct(productIds: string[]): Promise<Map<string, { average: number; count: number }>> {
+  if (productIds.length === 0) return new Map();
+
+  const rows = await db
+    .select({ productId: productReviews.productId, average: avg(productReviews.rating), total: count(productReviews.id) })
+    .from(productReviews)
+    .where(inArray(productReviews.productId, productIds))
+    .groupBy(productReviews.productId);
+
+  return new Map(rows.map((row) => [row.productId, { average: row.average ? Number(row.average) : 0, count: row.total }]));
+}
 
 export type ProductSort = "relevancia" | "precio_asc" | "precio_desc" | "nombre";
 
@@ -98,7 +114,7 @@ export async function listProducts(params: ListProductsParams = {}) {
   // product id en vez de una por producto, para no hacer N+1.
   const productIds = matched.map((product) => product.id);
 
-  const [images, variants] = await Promise.all([
+  const [images, variants, reviewSummaries] = await Promise.all([
     db
       .select()
       .from(productImages)
@@ -108,6 +124,7 @@ export async function listProducts(params: ListProductsParams = {}) {
       .select()
       .from(productVariants)
       .where(and(inArray(productVariants.productId, productIds), eq(productVariants.active, true))),
+    reviewSummaryByProduct(productIds),
   ]);
 
   const thumbnailByProduct = new Map<string, string>();
@@ -127,12 +144,15 @@ export async function listProducts(params: ListProductsParams = {}) {
   return matched.map((product) => {
     const productVariantsList = variantsByProduct.get(product.id) ?? [];
     const prices = productVariantsList.map((variant) => Number(variant.price));
+    const reviewSummary = reviewSummaries.get(product.id);
 
     return {
       ...product,
       thumbnailUrl: thumbnailByProduct.get(product.id) ?? null,
       minVariantPrice: prices.length > 0 ? Math.min(...prices) : null,
       availableVariantCount: productVariantsList.filter((variant) => variant.stock > 0).length,
+      averageRating: reviewSummary?.average ?? 0,
+      reviewCount: reviewSummary?.count ?? 0,
     };
   });
 }
@@ -156,7 +176,7 @@ export async function listProductsByIds(ids: string[]) {
 
   const productIds = matched.map((product) => product.id);
 
-  const [images, variants] = await Promise.all([
+  const [images, variants, reviewSummaries] = await Promise.all([
     db
       .select()
       .from(productImages)
@@ -166,6 +186,7 @@ export async function listProductsByIds(ids: string[]) {
       .select()
       .from(productVariants)
       .where(and(inArray(productVariants.productId, productIds), eq(productVariants.active, true))),
+    reviewSummaryByProduct(productIds),
   ]);
 
   const thumbnailByProduct = new Map<string, string>();
@@ -186,6 +207,7 @@ export async function listProductsByIds(ids: string[]) {
     matched.map((product) => {
       const productVariantsList = variantsByProduct.get(product.id) ?? [];
       const prices = productVariantsList.map((variant) => Number(variant.price));
+      const reviewSummary = reviewSummaries.get(product.id);
       return [
         product.id,
         {
@@ -193,6 +215,8 @@ export async function listProductsByIds(ids: string[]) {
           thumbnailUrl: thumbnailByProduct.get(product.id) ?? null,
           minVariantPrice: prices.length > 0 ? Math.min(...prices) : null,
           availableVariantCount: productVariantsList.filter((variant) => variant.stock > 0).length,
+          averageRating: reviewSummary?.average ?? 0,
+          reviewCount: reviewSummary?.count ?? 0,
         },
       ];
     }),

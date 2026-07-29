@@ -47,6 +47,22 @@ export async function ProductReviews({ productId, productSlug }: { productId: st
                 {review.comment && (
                   <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-400">{review.comment}</p>
                 )}
+                {review.images && review.images.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {review.images.map((url) => (
+                      <a
+                        key={url}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block h-16 w-16 overflow-hidden rounded border border-neutral-200 dark:border-neutral-800"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- foto de usuario en /uploads, no en el dominio de next/image */}
+                        <img src={url} alt="Foto de la reseña" className="h-full w-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
                 <p className="mt-1 text-xs text-neutral-400">{formatDate(review.createdAt)}</p>
               </div>
             ))

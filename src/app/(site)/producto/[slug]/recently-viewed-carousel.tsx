@@ -23,7 +23,7 @@ function readTrackedIds(): string[] {
 // Trackea "vistos antes" en localStorage (sin cuenta ni schema nuevo) y
 // muestra el carrete con los productos vistos antes de este, excluyendo el
 // que se esta viendo ahora.
-export function RecentlyViewedCarousel({ productId }: { productId: string }) {
+export function RecentlyViewedCarousel({ productId, isLoggedIn = false }: { productId: string; isLoggedIn?: boolean }) {
   const [products, setProducts] = useState<ProductListItem[]>([]);
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function RecentlyViewedCarousel({ productId }: { productId: string }) {
   return (
     <section className="mt-14">
       <h2 className="mb-4 text-lg font-semibold">Productos que miraste antes</h2>
-      <ProductCarousel products={products} />
+      <ProductCarousel products={products} isLoggedIn={isLoggedIn} />
     </section>
   );
 }

@@ -11,7 +11,7 @@ export default async function MiCuentaFavoritosPage() {
   const products = await getMyFavoriteProducts();
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Mis favoritos</h1>
       <p className="mt-1 text-neutral-500">Los productos que guardaste para mas adelante.</p>
 
@@ -26,10 +26,10 @@ export default async function MiCuentaFavoritosPage() {
       ) : (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} favorited />
+            <ProductCard key={product.id} product={product} favorited isLoggedIn />
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }

@@ -31,7 +31,7 @@ export default async function MiCuentaComprasPage() {
   const orders = await getMyOrders();
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-8">
+    <div className="mx-auto max-w-2xl px-4 py-8">
       <h1 className="text-2xl font-semibold">Mis compras</h1>
       <p className="mt-1 text-neutral-500">Historial de tus compras del catalogo.</p>
 
@@ -77,10 +77,16 @@ export default async function MiCuentaComprasPage() {
               <div className="mt-4">
                 <OrderStatusTracker status={row.order.status} />
               </div>
+
+              <div className="mt-3 text-right">
+                <Link href={`/mi-cuenta/compras/${row.order.id}`} className="text-sm underline">
+                  Ver comprobante
+                </Link>
+              </div>
             </div>
           ))}
         </div>
       )}
-    </main>
+    </div>
   );
 }

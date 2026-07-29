@@ -16,13 +16,19 @@ const TRUST_BADGES = [
 
 export function Hero() {
   return (
-    <section className="animate-in fade-in slide-in-from-bottom-2 relative overflow-hidden rounded-xl bg-neutral-950 px-6 py-16 text-center text-white duration-500 sm:py-24">
+    // "Full-bleed": la seccion se sale del contenedor centrado (max-w-6xl)
+    // del resto de la home y ocupa el ancho completo del navegador -- el
+    // truco es el clasico left-1/2 + -mx-[50vw] + w-screen, que posiciona
+    // la seccion relativa al viewport en vez de a su padre. El contenido de
+    // adentro (texto, botones) vuelve a quedar centrado en un
+    // mx-auto max-w-6xl propio, para alinear con el resto de la pagina.
+    <section className="animate-in fade-in slide-in-from-bottom-2 relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-950 px-6 py-16 text-center text-white duration-500 sm:py-24">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-20 -left-16 h-64 w-64 rounded-full bg-accent/25 blur-3xl" />
         <div className="absolute -right-20 -bottom-24 h-72 w-72 rounded-full bg-accent/15 blur-3xl" />
       </div>
 
-      <div className="relative">
+      <div className="relative mx-auto max-w-6xl">
         <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catalogo + pedidos a medida</p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Impresion 3D a tu medida</h1>
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-300">

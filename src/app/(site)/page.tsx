@@ -13,7 +13,9 @@ import { Hero } from "./hero";
 import { HowItWorks } from "./how-it-works";
 import { ProductCard } from "./product-card";
 import { ValueProps } from "./value-props";
+import { NewsletterSection } from "./newsletter-section";
 import { getMyFavoriteProductIds } from "@/lib/favorites/actions";
+import { auth } from "@/auth";
 
 // Esta pagina consulta la DB en cada request: si se deja como estatica por
 // defecto, `next build` la pre-renderiza en build time y el build de Docker
@@ -91,12 +93,14 @@ export default async function HomePage({
     sort,
   };
 
-  const [catalog, categoryTree, availableFilters, favoritedIds] = await Promise.all([
+  const [catalog, categoryTree, availableFilters, favoritedIds, session] = await Promise.all([
     listProducts(listParams),
     listCategoryTree(),
     listAvailableFilters(),
     getMyFavoriteProductIds(),
+    auth(),
   ]);
+  const isLoggedIn = Boolean(session);
 
   const hasActiveFilters = Object.values(listParams).some((value) => value !== undefined);
 
@@ -136,7 +140,12 @@ export default async function HomePage({
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {catalog.map((product) => (
-                <ProductCard key={product.id} product={product} favorited={favoritedIds.includes(product.id)} />
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  favorited={favoritedIds.includes(product.id)}
+                  isLoggedIn={isLoggedIn}
+                />
               ))}
             </div>
           )}
@@ -150,6 +159,8 @@ export default async function HomePage({
         </Link>
         .
       </p>
+
+      <NewsletterSection />
     </main>
   );
 }

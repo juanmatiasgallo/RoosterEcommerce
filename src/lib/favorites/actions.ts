@@ -51,6 +51,46 @@ export async function toggleFavorite(productId: string): Promise<{ favorited: bo
   return { favorited: true };
 }
 
+// Fusiona los favoritos guardados en localStorage de un invitado (ver
+// src/lib/favorites/guest-favorites.ts) apenas se loguea o crea cuenta —
+// mismo momento/criterio que mergeGuestCartIntoUser para el carrito. Se
+// llama siempre que el cliente tenga ids en localStorage; silenciosa si la
+// lista viene vacia. Usa ON CONFLICT DO NOTHING implicito via el unique
+// constraint: si el producto ya era favorito, el insert de esa fila
+// simplemente no se hace.
+export async function mergeGuestFavoritesIntoUser(productIds: string[]): Promise<void> {
+  if (productIds.length === 0) return;
+  const session = await auth();
+  if (!session) return;
+
+  const existing = await db
+    .select({ productId: favorites.productId })
+    .from(favorites)
+    .where(eq(favorites.userId, session.user.id));
+  const existingIds = new Set(existing.map((row) => row.productId));
+
+  const toInsert = productIds.filter((id) => !existingIds.has(id));
+  if (toInsert.length === 0) return;
+
+  // Si alguno de esos productos ya no existe (se borro desde que el
+  // invitado lo marco), el insert de esa fila fallaria por la FK — se
+  // ignora el error entero en vez de bloquear el login por esto, es solo
+  // una comodidad.
+  try {
+    await db.insert(favorites).values(
+      toInsert.map((productId) => ({
+        storeId: session.user.storeId,
+        userId: session.user.id,
+        productId,
+      })),
+    );
+  } catch {
+    // no-op
+  }
+
+  revalidatePath("/mi-cuenta/favoritos");
+}
+
 // Para /mi-cuenta/favoritos: reusa listProductsByIds (mismo shape de
 // ProductListItem que usa ProductCard en todo el sitio) en vez de duplicar
 // la query de thumbnail/precio/stock.

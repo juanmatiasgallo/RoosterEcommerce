@@ -8,6 +8,8 @@ import Link from "next/link";
 import type { z } from "zod";
 import { loginSchema } from "@/lib/auth/schema";
 import { mergeGuestCartIntoUser } from "@/lib/cart/actions";
+import { mergeGuestFavoritesIntoUser } from "@/lib/favorites/actions";
+import { getGuestFavoriteIds, clearGuestFavorites } from "@/lib/favorites/guest-favorites";
 import { Spinner } from "@/components/ui/spinner";
 
 type FormValues = z.infer<typeof loginSchema>;
@@ -46,6 +48,19 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
       // el usuario recien logueado, antes de navegar. Se llama siempre; la
       // action misma no hace nada si no hay cookie de invitado.
       await mergeGuestCartIntoUser();
+
+      // Mismo momento para fusionar los favoritos guardados en localStorage
+      // como invitado (ver guest-favorites.ts) — no bloquea el login si
+      // falla, es solo una comodidad.
+      try {
+        const guestFavoriteIds = getGuestFavoriteIds();
+        if (guestFavoriteIds.length > 0) {
+          await mergeGuestFavoritesIntoUser(guestFavoriteIds);
+          clearGuestFavorites();
+        }
+      } catch {
+        // no-op
+      }
 
       // El resultado de signIn no trae el rol: se pide la sesion recien
       // creada para decidir el destino. admin/empleado van siempre a su

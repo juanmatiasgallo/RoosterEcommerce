@@ -10,6 +10,7 @@ import { RecentlyViewedCarousel } from "./recently-viewed-carousel";
 import { VariantSelectorClient } from "./variant-selector-client";
 import { getMyFavoriteProductIds } from "@/lib/favorites/actions";
 import { FavoriteButton } from "@/components/favorite-button";
+import { auth } from "@/auth";
 
 // Igual que en "/": consulta la DB, asi que no puede quedar como estatica o
 // el build de Docker en EasyPanel falla (no tiene red hacia la DB en build
@@ -70,8 +71,9 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     ? (await listProducts({ categoryId: product.categoryId })).filter((p) => p.id !== product.id).slice(0, 10)
     : [];
 
-  const favoritedIds = await getMyFavoriteProductIds();
+  const [favoritedIds, session] = await Promise.all([getMyFavoriteProductIds(), auth()]);
   const isFavorited = favoritedIds.includes(product.id);
+  const isLoggedIn = Boolean(session);
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
@@ -88,7 +90,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
 
           <div className="mt-3">
-            <FavoriteButton productId={product.id} initialFavorited={isFavorited} variant="button" />
+            <FavoriteButton productId={product.id} initialFavorited={isFavorited} isLoggedIn={isLoggedIn} variant="button" />
           </div>
         </div>
       </div>
@@ -98,11 +100,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       {related.length > 0 && (
         <section className="mt-14">
           <h2 className="mb-4 text-lg font-semibold">Tambien te puede interesar</h2>
-          <ProductCarousel products={related} favoritedIds={favoritedIds} />
+          <ProductCarousel products={related} favoritedIds={favoritedIds} isLoggedIn={isLoggedIn} />
         </section>
       )}
 
-      <RecentlyViewedCarousel productId={product.id} />
+      <RecentlyViewedCarousel productId={product.id} isLoggedIn={isLoggedIn} />
 
       <ProductReviews productId={product.id} productSlug={product.slug} />
     </main>

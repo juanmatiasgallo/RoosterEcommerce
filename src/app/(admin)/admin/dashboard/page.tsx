@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FolderTree, Package, Receipt, Wand2 } from "lucide-react";
 import { listProductsForAdmin } from "@/lib/catalog/actions";
 import { listCategoryTree } from "@/lib/catalog/queries";
 import { listCustomOrdersForAdmin } from "@/lib/custom-orders/actions";
@@ -6,6 +7,7 @@ import { listOrdersForAdmin } from "@/lib/orders/actions";
 import { formatCurrency } from "@/lib/format";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DashboardStatCards } from "@/components/admin/dashboard-stat-cards";
 
 function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
@@ -54,43 +56,19 @@ export default async function AdminDashboardPage() {
     <div className="mx-auto max-w-4xl">
       <h1 className="text-2xl font-semibold">Panel admin</h1>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Link href="/admin/pedidos-custom">
-          <Card className="h-full transition hover:border-accent hover:shadow-md">
-            <CardContent>
-              <p className="text-3xl font-semibold">{pendientesCotizar.length}</p>
-              <p className="mt-1 text-sm text-neutral-500">Pedidos por cotizar</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/admin/productos">
-          <Card className="h-full transition hover:border-accent hover:shadow-md">
-            <CardContent>
-              <p className="text-3xl font-semibold">{activeProducts.length}</p>
-              <p className="mt-1 text-sm text-neutral-500">Productos activos</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/admin/categorias">
-          <Card className="h-full transition hover:border-accent hover:shadow-md">
-            <CardContent>
-              <p className="text-3xl font-semibold">{totalCategorias}</p>
-              <p className="mt-1 text-sm text-neutral-500">Categorias</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href="/admin/pedidos-custom">
-          <Card className="h-full transition hover:border-accent hover:shadow-md">
-            <CardContent>
-              <p className="text-3xl font-semibold">{cotizadosEsperandoPago.length}</p>
-              <p className="mt-1 text-sm text-neutral-500">Cotizados esperando pago</p>
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+      <DashboardStatCards
+        stats={[
+          { href: "/admin/pedidos-custom", label: "Pedidos por cotizar", value: pendientesCotizar.length, icon: Wand2 },
+          { href: "/admin/productos", label: "Productos activos", value: activeProducts.length, icon: Package },
+          { href: "/admin/categorias", label: "Categorias", value: totalCategorias, icon: FolderTree },
+          {
+            href: "/admin/pedidos-custom",
+            label: "Cotizados esperando pago",
+            value: cotizadosEsperandoPago.length,
+            icon: Receipt,
+          },
+        ]}
+      />
 
       <section className="mt-10">
         <div className="flex items-center justify-between">

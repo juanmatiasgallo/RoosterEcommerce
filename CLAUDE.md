@@ -19,9 +19,12 @@ archivo. Pasos chicos, verificables y deployados de a uno.
   `drizzle/`.
 - Auth.js (NextAuth v5) con Credentials provider + bcrypt. Tres roles:
   `admin`, `empleado`, `cliente`. A diferencia de ChickenHouseContab, el sitio
-  publico (catalogo, ficha de producto) es navegable SIN sesion; solo
-  `/admin/*`, `/mi-cuenta/*` y `/pedido-a-medida` requieren login (ver
-  `src/proxy.ts`).
+  publico (catalogo, ficha de producto, pedido a medida) es navegable SIN
+  sesion; solo `/admin/*` y `/mi-cuenta/*` requieren login (ver
+  `src/proxy.ts`). `/pedido-a-medida` es publica pero su wizard pide
+  identificarse (login o alta rapida) antes de poder subir el archivo --
+  mismo patron que `/checkout`, que tampoco esta gateada pero tampoco deja
+  pagar sin cuenta.
 - UI: Tailwind + shadcn/ui (componentes copiados en `src/components/ui`, no
   un paquete npm cerrado), compuestos con **Base UI** (`@base-ui/react`), no
   Radix. Formularios con React Hook Form + Zod.

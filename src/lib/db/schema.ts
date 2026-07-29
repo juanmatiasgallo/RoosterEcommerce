@@ -223,6 +223,9 @@ export const productReviews = pgTable(
     userId: uuid("user_id").notNull().references(() => users.id),
     rating: integer("rating").notNull(),
     comment: text("comment"),
+    // URLs (/uploads/reviews/...) de las fotos que el cliente subio junto
+    // con la reseña — nulo/vacio si no subio ninguna, nunca obligatorio.
+    images: jsonb("images").$type<string[]>(),
     verifiedPurchase: boolean("verified_purchase").notNull().default(false),
     createdAt: timestamp("created_at").notNull().defaultNow(),
   },

@@ -1,23 +1,49 @@
-import { PedidoAMedidaFormClient } from "./pedido-a-medida-form-client";
+import { Sparkles } from "lucide-react";
+import { auth } from "@/auth";
+import { CUSTOM_ORDER_ALLOWED_EXTENSIONS } from "@/lib/custom-orders/schema";
+import { PedidoAMedidaWizard } from "./pedido-a-medida-wizard";
 
-/**
- * Requiere sesion, ya protegido en src/proxy.ts (no se duplica el chequeo
- * aca). No consulta la DB directo desde este Server Component (el envio
- * pasa por la Server Action createCustomOrder desde el client), asi que no
- * necesita force-dynamic.
- */
-export default function PedidoAMedidaPage() {
+// Ya no requiere sesion antes de renderizar (ver proxy.ts, task #111): un
+// visitante sin cuenta puede entrar y ver la pagina; recien el wizard le
+// pide identificarse (login o alta rapida con telefono de contacto) en su
+// primer paso, antes de poder subir el archivo -- mismo patron que
+// /checkout. Como ahora depende de la sesion actual (auth()), necesita
+// force-dynamic: sin esto, el build de Docker en EasyPanel intenta
+// pre-renderizarla en build time y falla (no tiene red hacia la base ahi).
+export const dynamic = "force-dynamic";
+
+export default async function PedidoAMedidaPage() {
+  const session = await auth();
   const maxSizeMb = Number(process.env.UPLOADS_MAX_SIZE_MB ?? 20);
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-8">
-      <h1 className="text-2xl font-semibold">Pedi tu pieza a medida</h1>
-      <p className="mt-1 text-neutral-500">
-        Subi tu archivo y te enviamos una cotizacion antes de cobrarte nada.
-      </p>
+    <main>
+      {/* Full-bleed, mismo truco que el Hero de la home: se sale del
+          contenedor centrado para dar mas presencia visual a esta pagina,
+          que ahora es la puerta de entrada tanto para clientes como para
+          gente sin cuenta todavia. */}
+      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-950 px-6 py-14 text-center text-white sm:py-20">
+        <div className="pointer-events-none absolute -top-16 -left-10 h-56 w-56 rounded-full bg-accent/25 blur-3xl" />
+        <div className="pointer-events-none absolute -right-10 -bottom-16 h-56 w-56 rounded-full bg-accent/15 blur-3xl" />
 
-      <div className="mt-6">
-        <PedidoAMedidaFormClient maxSizeMb={maxSizeMb} />
+        <div className="relative mx-auto max-w-xl">
+          <div className="mx-auto flex w-fit items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-accent">
+            <Sparkles size={13} />
+            Cotizacion antes de pagar
+          </div>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Pedi tu pieza a medida</h1>
+          <p className="mx-auto mt-3 max-w-md text-balance text-neutral-300">
+            Subi tu archivo .stl o .obj y nuestro equipo de diseno te manda una cotizacion antes de cobrarte nada.
+          </p>
+        </div>
+      </section>
+
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <PedidoAMedidaWizard
+          startedLoggedIn={Boolean(session)}
+          maxSizeMb={maxSizeMb}
+          allowedExtensions={CUSTOM_ORDER_ALLOWED_EXTENSIONS}
+        />
       </div>
     </main>
   );

@@ -51,16 +51,16 @@ export function ProductDetailsTabs({
   return (
     <section className="mt-10 border-t border-neutral-200 pt-6 dark:border-neutral-800">
       {tabs.length > 1 ? (
-        <div className="flex gap-1 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="flex gap-2 border-b border-neutral-200 dark:border-neutral-800">
           {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
               onClick={() => setTab(t.key)}
-              className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+              className={`-mb-px border-b-2 px-4 py-3 text-sm font-semibold transition-colors ${
                 tab === t.key
-                  ? "border-neutral-900 text-neutral-900 dark:border-neutral-100 dark:text-neutral-100"
-                  : "border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+                  ? "border-accent text-neutral-900 dark:text-neutral-100"
+                  : "border-transparent text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
               }`}
             >
               {t.label}
@@ -68,7 +68,7 @@ export function ProductDetailsTabs({
           ))}
         </div>
       ) : (
-        <h2 className="mb-3 text-sm font-medium text-neutral-700 dark:text-neutral-300">{tabs[0].label}</h2>
+        <h2 className="mb-3 text-sm font-semibold text-neutral-700 dark:text-neutral-300">{tabs[0].label}</h2>
       )}
 
       <div className="animate-in fade-in duration-200 pt-4">

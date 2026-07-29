@@ -23,6 +23,10 @@ export async function sendMail(params: {
   subject: string;
   text: string;
   html?: string;
+  // Adjuntos opcionales (ej. el PDF del comprobante de compra, ver
+  // src/lib/receipt/pdf.ts) — content en Buffer, nodemailer lo maneja
+  // directo sin pasar por disco.
+  attachments?: { filename: string; content: Buffer; contentType?: string }[];
 }): Promise<SendMailResult> {
   const [store] = await db.select().from(stores).where(eq(stores.id, params.storeId)).limit(1);
   if (!store) {
@@ -56,6 +60,7 @@ export async function sendMail(params: {
       subject: params.subject,
       text: params.text,
       html: params.html,
+      attachments: params.attachments,
     });
     return { status: "sent" };
   } catch (error) {

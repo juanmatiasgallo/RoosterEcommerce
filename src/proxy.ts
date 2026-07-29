@@ -40,7 +40,14 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/mi-cuenta") || pathname.startsWith("/pedido-a-medida")) {
+  // /pedido-a-medida ya NO esta aca (task #111): antes exigia sesion antes
+  // de poder ver la pagina, pero el owner pidio que un visitante sin cuenta
+  // pueda entrar y empezar el pedido -- el propio wizard (ver
+  // pedido-a-medida-wizard.tsx) le pide identificarse (login o alta rapida
+  // con telefono de contacto) recien en su primer paso, antes de poder
+  // subir el archivo. Esto alinea el codigo con el comentario original de
+  // arriba de este archivo, que ya decia que pedido a medida era publico.
+  if (pathname.startsWith("/mi-cuenta")) {
     if (!isLoggedIn) {
       const loginUrl = new URL("/login", nextUrl);
       loginUrl.searchParams.set("callbackUrl", pathname);
