@@ -29,3 +29,22 @@ export const updatePaymentInstructionsSchema = z.object({
   paymentInstructionsMiDinero: z.string().max(2000).optional(),
   paymentInstructionsPrex: z.string().max(2000).optional(),
 });
+
+// Texto libre no sensible, mismo criterio que instructions arriba: vacio SI
+// pisa (permite borrar un dato ya cargado).
+export const updateStoreInfoSchema = z.object({
+  legalName: z.string().max(200).optional(),
+  taxId: z.string().max(50).optional(),
+  address: z.string().max(300).optional(),
+  city: z.string().max(100).optional(),
+  department: z.string().max(100).optional(),
+  contactPhone: z.string().max(50).optional(),
+  contactEmail: z.union([z.email(), z.literal("")]).optional(),
+  invoicePrefix: z.string().max(20).optional(),
+  nextInvoiceNumber: z.number().int().positive().optional(),
+});
+
+export const updateVacationModeSchema = z.object({
+  vacationMode: z.boolean(),
+  vacationMessage: z.string().max(1000).optional(),
+});

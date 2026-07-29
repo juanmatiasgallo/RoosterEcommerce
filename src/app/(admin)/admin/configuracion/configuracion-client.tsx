@@ -9,16 +9,29 @@ import {
   updateMercadoPagoSettingsSchema,
   updatePaymentInstructionsSchema,
   updateSmtpSettingsSchema,
+  updateStoreInfoSchema,
+  updateVacationModeSchema,
 } from "@/lib/settings/schema";
 import {
   sendTestEmail,
   updateMercadoPagoSettings,
   updatePaymentInstructions,
   updateSmtpSettings,
+  updateStoreInfo,
+  updateVacationMode,
   type MercadoPagoSettings,
   type PaymentInstructionsSettings,
   type SmtpSettings,
+  type StoreInfoSettings,
 } from "@/lib/settings/actions";
+import { formatCurrency } from "@/lib/format";
+import { createShippingZoneSchema } from "@/lib/shipping/schema";
+import {
+  createShippingZone,
+  deleteShippingZone,
+  updateShippingZone,
+  type ShippingZoneRow,
+} from "@/lib/shipping/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,18 +39,62 @@ import { Button } from "@/components/ui/button";
 type SmtpFormValues = z.infer<typeof updateSmtpSettingsSchema>;
 type MpFormValues = z.infer<typeof updateMercadoPagoSettingsSchema>;
 type PaymentInstructionsFormValues = z.infer<typeof updatePaymentInstructionsSchema>;
+type StoreInfoFormValues = z.infer<typeof updateStoreInfoSchema>;
+type VacationFormValues = z.infer<typeof updateVacationModeSchema>;
+type ShippingZoneFormValues = z.infer<typeof createShippingZoneSchema>;
 
 export function ConfiguracionClient({
   initialSmtp,
   initialMp,
   initialPaymentInstructions,
+  initialStoreInfo,
+  initialVacation,
+  initialShippingZones,
 }: {
   initialSmtp: SmtpSettings;
   initialMp: MercadoPagoSettings;
   initialPaymentInstructions: PaymentInstructionsSettings;
+  initialStoreInfo: StoreInfoSettings;
+  initialVacation: { vacationMode: boolean; vacationMessage: string | null };
+  initialShippingZones: ShippingZoneRow[];
 }) {
   return (
     <div className="flex flex-col gap-10">
+      <section>
+        <h2 className="text-lg font-semibold">Datos de la tienda</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Razon social, RUT y contacto. Se usan en el footer del sitio y como referencia para numerar comprobantes.
+        </p>
+        <div className="mt-4">
+          <StoreInfoForm initial={initialStoreInfo} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">Envios</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Zonas y costos de envio que se muestran en{" "}
+          <a href="/envios" className="underline">
+            /envios
+          </a>
+          . Todavia no se suman automaticamente al total del checkout.
+        </p>
+        <div className="mt-4">
+          <ShippingZonesManager initialZones={initialShippingZones} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">Modo vacaciones</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Si lo activas, se bloquean nuevas compras (catalogo y pedidos a medida) y se muestra un aviso en todo el
+          sitio. El catalogo sigue navegable.
+        </p>
+        <div className="mt-4">
+          <VacationModeForm initial={initialVacation} />
+        </div>
+      </section>
+
       <section>
         <h2 className="text-lg font-semibold">Mercado Pago</h2>
         <p className="mt-1 text-sm text-neutral-500">
@@ -481,6 +538,357 @@ function SmtpSettingsForm({ initial }: { initial: SmtpSettings }) {
           >
             {isSendingTest ? "Enviando..." : "Enviar email de prueba"}
           </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StoreInfoForm({ initial }: { initial: StoreInfoSettings }) {
+  const [settings, setSettings] = useState(initial);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<StoreInfoFormValues>({
+    resolver: zodResolver(updateStoreInfoSchema),
+    defaultValues: {
+      legalName: settings.legalName ?? "",
+      taxId: settings.taxId ?? "",
+      address: settings.address ?? "",
+      city: settings.city ?? "",
+      department: settings.department ?? "",
+      contactPhone: settings.contactPhone ?? "",
+      contactEmail: settings.contactEmail ?? "",
+      invoicePrefix: settings.invoicePrefix ?? "",
+      nextInvoiceNumber: settings.nextInvoiceNumber,
+    },
+  });
+
+  async function onSubmit(values: StoreInfoFormValues) {
+    try {
+      const updated = await updateStoreInfo(values);
+      setSettings(updated);
+      toast.success("Datos de la tienda guardados.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar.");
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="legalName" className="mb-1 block text-sm font-medium">
+                Razon social
+              </label>
+              <input
+                id="legalName"
+                {...register("legalName")}
+                placeholder="Tienda 3D SRL"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div>
+              <label htmlFor="taxId" className="mb-1 block text-sm font-medium">
+                RUT
+              </label>
+              <input
+                id="taxId"
+                {...register("taxId")}
+                placeholder="21XXXXXXXXXX"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="address" className="mb-1 block text-sm font-medium">
+              Direccion
+            </label>
+            <input
+              id="address"
+              {...register("address")}
+              placeholder="Calle 1234"
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="city" className="mb-1 block text-sm font-medium">
+                Ciudad
+              </label>
+              <input
+                id="city"
+                {...register("city")}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div>
+              <label htmlFor="department" className="mb-1 block text-sm font-medium">
+                Departamento
+              </label>
+              <input
+                id="department"
+                {...register("department")}
+                placeholder="Montevideo"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="contactPhone" className="mb-1 block text-sm font-medium">
+                Telefono de contacto
+              </label>
+              <input
+                id="contactPhone"
+                {...register("contactPhone")}
+                placeholder="+598 00 000 000"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div>
+              <label htmlFor="contactEmail" className="mb-1 block text-sm font-medium">
+                Email de contacto
+              </label>
+              <input
+                id="contactEmail"
+                type="email"
+                {...register("contactEmail")}
+                placeholder="hola@tutienda.com"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.contactEmail && <p className="mt-1 text-xs text-red-600">{errors.contactEmail.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="invoicePrefix" className="mb-1 block text-sm font-medium">
+                Prefijo de comprobante
+              </label>
+              <input
+                id="invoicePrefix"
+                {...register("invoicePrefix")}
+                placeholder="A"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+            <div>
+              <label htmlFor="nextInvoiceNumber" className="mb-1 block text-sm font-medium">
+                Proximo numero
+              </label>
+              <input
+                id="nextInvoiceNumber"
+                type="number"
+                {...register("nextInvoiceNumber", { valueAsNumber: true })}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+          </div>
+
+          <Button type="submit" disabled={isSubmitting} className="self-start">
+            {isSubmitting ? "Guardando..." : "Guardar"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function VacationModeForm({ initial }: { initial: { vacationMode: boolean; vacationMessage: string | null } }) {
+  const [settings, setSettings] = useState(initial);
+
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { isSubmitting },
+  } = useForm<VacationFormValues>({
+    resolver: zodResolver(updateVacationModeSchema),
+    defaultValues: {
+      vacationMode: settings.vacationMode,
+      vacationMessage: settings.vacationMessage ?? "",
+    },
+  });
+
+  const vacationMode = watch("vacationMode");
+
+  async function onSubmit(values: VacationFormValues) {
+    try {
+      const updated = await updateVacationMode(values);
+      setSettings(updated);
+      toast.success(updated.vacationMode ? "Modo vacaciones activado." : "Modo vacaciones desactivado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar.");
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" {...register("vacationMode")} />
+            Activar modo vacaciones
+            {settings.vacationMode && <Badge variant="warning">Activo ahora</Badge>}
+          </label>
+
+          {vacationMode && (
+            <div>
+              <label htmlFor="vacationMessage" className="mb-1 block text-sm font-medium">
+                Mensaje para mostrar en el sitio
+              </label>
+              <textarea
+                id="vacationMessage"
+                rows={2}
+                {...register("vacationMessage")}
+                placeholder="Estamos de vacaciones del 1 al 15 de enero, volvemos a despachar el 16."
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+          )}
+
+          <Button type="submit" disabled={isSubmitting} className="self-start">
+            {isSubmitting ? "Guardando..." : "Guardar"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ShippingZonesManager({ initialZones }: { initialZones: ShippingZoneRow[] }) {
+  const [zones, setZones] = useState(initialZones);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<ShippingZoneFormValues>({
+    resolver: zodResolver(createShippingZoneSchema),
+    defaultValues: { name: "", description: "", cost: 0 },
+  });
+
+  async function onSubmit(values: ShippingZoneFormValues) {
+    try {
+      const created = await createShippingZone(values);
+      setZones((prev) => [...prev, created]);
+      reset({ name: "", description: "", cost: 0 });
+      toast.success("Zona de envio agregada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo agregar la zona.");
+    }
+  }
+
+  async function handleToggleActive(zone: ShippingZoneRow) {
+    try {
+      const updated = await updateShippingZone(zone.id, { active: !zone.active });
+      setZones((prev) => prev.map((z) => (z.id === zone.id ? updated : z)));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo actualizar la zona.");
+    }
+  }
+
+  async function handleDelete(zone: ShippingZoneRow) {
+    try {
+      await deleteShippingZone(zone.id);
+      setZones((prev) => prev.filter((z) => z.id !== zone.id));
+      toast.success("Zona eliminada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar la zona.");
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {zones.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {zones.map((zone) => (
+            <Card key={zone.id}>
+              <CardContent className="flex items-center justify-between gap-4 py-3">
+                <div>
+                  <p className="flex items-center gap-2 text-sm font-medium">
+                    {zone.name}
+                    {zone.active ? (
+                      <Badge variant="success">Activa</Badge>
+                    ) : (
+                      <Badge variant="neutral">Inactiva</Badge>
+                    )}
+                  </p>
+                  {zone.description && (
+                    <p className="mt-0.5 text-xs text-neutral-500">{zone.description}</p>
+                  )}
+                  <p className="mt-0.5 text-xs text-neutral-500">{formatCurrency(Number(zone.cost))}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => handleToggleActive(zone)}>
+                    {zone.active ? "Desactivar" : "Activar"}
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => handleDelete(zone)}>
+                    Eliminar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <p className="text-sm font-medium">Agregar zona</p>
+            <div className="grid gap-4 sm:grid-cols-[1fr_1fr_140px]">
+              <div>
+                <label htmlFor="zoneName" className="mb-1 block text-sm font-medium">
+                  Nombre
+                </label>
+                <input
+                  id="zoneName"
+                  {...register("name")}
+                  placeholder="Montevideo"
+                  className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                />
+                {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name.message}</p>}
+              </div>
+              <div>
+                <label htmlFor="zoneDescription" className="mb-1 block text-sm font-medium">
+                  Cobertura (opcional)
+                </label>
+                <input
+                  id="zoneDescription"
+                  {...register("description")}
+                  placeholder="Capital y area metropolitana"
+                  className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                />
+              </div>
+              <div>
+                <label htmlFor="zoneCost" className="mb-1 block text-sm font-medium">
+                  Costo
+                </label>
+                <input
+                  id="zoneCost"
+                  type="number"
+                  step="0.01"
+                  {...register("cost", { valueAsNumber: true })}
+                  className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                />
+                {errors.cost && <p className="mt-1 text-xs text-red-600">{errors.cost.message}</p>}
+              </div>
+            </div>
+
+            <Button type="submit" disabled={isSubmitting} className="self-start">
+              {isSubmitting ? "Agregando..." : "Agregar zona"}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

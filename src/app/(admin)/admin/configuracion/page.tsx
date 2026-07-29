@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
-import { getMercadoPagoSettings, getPaymentInstructions, getSmtpSettings } from "@/lib/settings/actions";
+import {
+  getMercadoPagoSettings,
+  getPaymentInstructions,
+  getSmtpSettings,
+  getStoreInfo,
+  getVacationSettings,
+} from "@/lib/settings/actions";
+import { listShippingZonesForAdmin } from "@/lib/shipping/actions";
 import { ConfiguracionClient } from "./configuracion-client";
 
 // Consulta la DB: sin esto, el build de Docker en EasyPanel la
@@ -22,11 +29,15 @@ export default async function ConfiguracionAdminPage() {
     redirect("/");
   }
 
-  const [smtpSettings, mpSettings, paymentInstructions] = await Promise.all([
-    getSmtpSettings(),
-    getMercadoPagoSettings(),
-    getPaymentInstructions(),
-  ]);
+  const [smtpSettings, mpSettings, paymentInstructions, storeInfo, vacationSettings, shippingZones] =
+    await Promise.all([
+      getSmtpSettings(),
+      getMercadoPagoSettings(),
+      getPaymentInstructions(),
+      getStoreInfo(),
+      getVacationSettings(),
+      listShippingZonesForAdmin(),
+    ]);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -40,6 +51,9 @@ export default async function ConfiguracionAdminPage() {
           initialSmtp={smtpSettings}
           initialMp={mpSettings}
           initialPaymentInstructions={paymentInstructions}
+          initialStoreInfo={storeInfo}
+          initialVacation={vacationSettings}
+          initialShippingZones={shippingZones}
         />
       </div>
     </div>

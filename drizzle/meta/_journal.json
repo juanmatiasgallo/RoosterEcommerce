@@ -71,6 +71,13 @@
       "when": 1785290518789,
       "tag": "0009_bright_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785292291081,
+      "tag": "0010_ancient_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

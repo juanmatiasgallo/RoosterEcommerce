@@ -25,7 +25,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es" className={workSans.variable}>
+    <html lang="es" className={workSans.variable} suppressHydrationWarning>
       <body>
         {children}
         <Toaster richColors position="bottom-right" />

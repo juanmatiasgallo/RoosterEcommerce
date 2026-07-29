@@ -11,6 +11,7 @@ import { createPreference } from "@/lib/mercadopago/client";
 import { markOrderAsPaid } from "@/lib/orders/mark-paid";
 import { sendMail } from "@/lib/mail";
 import { formatCurrency } from "@/lib/format";
+import { getVacationStatus } from "@/lib/settings/actions";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
 
@@ -134,6 +135,11 @@ async function logAudit(params: {
 export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago") {
   const session = await auth();
   if (!session) throw new Error("Debes iniciar sesion para pagar.");
+
+  const vacation = await getVacationStatus();
+  if (vacation.vacationMode) {
+    throw new Error(vacation.vacationMessage || "La tienda no esta recibiendo pedidos en este momento.");
+  }
 
   const { items, total } = await getCartItems();
   if (items.length === 0) throw new Error("Tu carrito esta vacio.");

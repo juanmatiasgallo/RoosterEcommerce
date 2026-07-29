@@ -91,10 +91,14 @@ export function CarritoClient({
   items,
   total,
   manualPaymentMethods,
+  vacationMode = false,
+  vacationMessage,
 }: {
   items: CartRow[];
   total: number;
   manualPaymentMethods: ManualPaymentMethodOption[];
+  vacationMode?: boolean;
+  vacationMessage?: string | null;
 }) {
   const [isCheckingOut, startCheckout] = useTransition();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue>("mercado_pago");
@@ -161,18 +165,24 @@ export function CarritoClient({
         onChange={setPaymentMethod}
       />
 
-      <button
-        type="button"
-        onClick={handleCheckout}
-        disabled={isCheckingOut}
-        className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
-      >
-        {isCheckingOut
-          ? "Procesando..."
-          : paymentMethod === "mercado_pago"
-            ? "Ir a pagar"
-            : "Generar orden de servicio"}
-      </button>
+      {vacationMode ? (
+        <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+          {vacationMessage || "La tienda no esta recibiendo pedidos en este momento."}
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={handleCheckout}
+          disabled={isCheckingOut}
+          className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          {isCheckingOut
+            ? "Procesando..."
+            : paymentMethod === "mercado_pago"
+              ? "Ir a pagar"
+              : "Generar orden de servicio"}
+        </button>
+      )}
     </div>
   );
 }

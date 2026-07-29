@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { listCategoryTree } from "@/lib/catalog/queries";
 import { getCartItemCount } from "@/lib/cart/actions";
+import { getPublicStoreContact, getVacationStatus } from "@/lib/settings/actions";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 
@@ -10,17 +11,24 @@ import { SiteFooter } from "@/components/site-footer";
 export const dynamic = "force-dynamic";
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [categoryTree, session, cartItemCount] = await Promise.all([
+  const [categoryTree, session, cartItemCount, vacation, contact] = await Promise.all([
     listCategoryTree(),
     auth(),
     getCartItemCount(),
+    getVacationStatus(),
+    getPublicStoreContact(),
   ]);
 
   return (
     <>
+      {vacation.vacationMode && (
+        <div className="bg-amber-500 px-4 py-2 text-center text-sm font-medium text-white">
+          {vacation.vacationMessage || "Estamos en pausa: por ahora no se pueden realizar nuevos pedidos."}
+        </div>
+      )}
       <SiteHeader categoryTree={categoryTree} user={session?.user ?? null} cartItemCount={cartItemCount} />
       {children}
-      <SiteFooter categoryTree={categoryTree} />
+      <SiteFooter categoryTree={categoryTree} contactEmail={contact.contactEmail} contactPhone={contact.contactPhone} />
     </>
   );
 }

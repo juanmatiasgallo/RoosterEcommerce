@@ -14,6 +14,7 @@ import { formatCurrency } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
 import { createPreference } from "@/lib/mercadopago/client";
 import { getAvailableManualPaymentMethods, type ManualPaymentMethod, type PaymentMethod } from "@/lib/orders/actions";
+import { getVacationStatus } from "@/lib/settings/actions";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS, createCustomOrderSchema, quoteCustomOrderSchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -221,6 +222,11 @@ export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCu
 // orden — un admin la confirma a mano cuando el pago llega.
 export async function initiateCustomOrderPayment(id: string, paymentMethod: PaymentMethod = "mercado_pago") {
   const session = await requireUser();
+
+  const vacation = await getVacationStatus();
+  if (vacation.vacationMode) {
+    throw new Error(vacation.vacationMessage || "La tienda no esta recibiendo pedidos en este momento.");
+  }
 
   const [existing] = await db
     .select()

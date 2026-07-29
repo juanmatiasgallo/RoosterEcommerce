@@ -1,7 +1,20 @@
 import Link from "next/link";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 
-export function SiteFooter({ categoryTree }: { categoryTree: CategoryTreeNode[] }) {
+// Placeholders: se usan solo si el admin todavia no cargo datos reales de
+// contacto en /admin/configuracion (ver "Datos de la tienda").
+const FALLBACK_EMAIL = "hola@tutienda.example";
+const FALLBACK_PHONE = "+598 00 000 000";
+
+export function SiteFooter({
+  categoryTree,
+  contactEmail,
+  contactPhone,
+}: {
+  categoryTree: CategoryTreeNode[];
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+}) {
   return (
     <footer className="mt-16 border-t border-neutral-200 py-10 dark:border-neutral-800">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-3">
@@ -30,13 +43,17 @@ export function SiteFooter({ categoryTree }: { categoryTree: CategoryTreeNode[] 
 
         <div>
           <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Contacto</p>
-          {/* TODO: reemplazar con datos reales de contacto */}
           <ul className="mt-2 flex flex-col gap-1 text-sm text-neutral-500">
-            <li>hola@tutienda.example</li>
-            <li>+598 00 000 000</li>
+            <li>{contactEmail || FALLBACK_EMAIL}</li>
+            <li>{contactPhone || FALLBACK_PHONE}</li>
             <li>
               <Link href="/quienes-somos" className="hover:text-accent">
                 Quienes somos
+              </Link>
+            </li>
+            <li>
+              <Link href="/envios" className="hover:text-accent">
+                Envios
               </Link>
             </li>
             <li>

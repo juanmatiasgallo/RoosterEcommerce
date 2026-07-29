@@ -58,6 +58,24 @@ export const stores = pgTable("stores", {
   paymentInstructionsRedpagos: text("payment_instructions_redpagos"),
   paymentInstructionsMiDinero: text("payment_instructions_mi_dinero"),
   paymentInstructionsPrex: text("payment_instructions_prex"),
+  // Datos de la tienda + fiscales: descriptivos por ahora (se muestran en
+  // /quienes-somos, footer, mail de orden de servicio, etc.) — todavia no
+  // hay un motor de facturacion real, invoicePrefix/nextInvoiceNumber son
+  // para cuando se necesite numerar comprobantes propios.
+  legalName: varchar("legal_name", { length: 200 }),
+  taxId: varchar("tax_id", { length: 50 }),
+  address: varchar("address", { length: 300 }),
+  city: varchar("city", { length: 100 }),
+  department: varchar("department", { length: 100 }),
+  contactPhone: varchar("contact_phone", { length: 50 }),
+  contactEmail: varchar("contact_email", { length: 255 }),
+  invoicePrefix: varchar("invoice_prefix", { length: 20 }),
+  nextInvoiceNumber: integer("next_invoice_number").notNull().default(1),
+  // Modo vacaciones: si esta prendido, checkoutCart e
+  // initiateCustomOrderPayment rechazan nuevas compras y el sitio muestra
+  // vacationMessage — el catalogo sigue navegable, solo se bloquea pagar.
+  vacationMode: boolean("vacation_mode").notNull().default(false),
+  vacationMessage: text("vacation_message"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -142,6 +160,25 @@ export const productReviews = pgTable(
     unique("product_reviews_product_user_unique").on(table.productId, table.userId),
   ],
 );
+
+// --- Envios -----------------------------------------------------------
+
+// Zonas de envio informativas: nombre + costo + cobertura en texto libre
+// (no un listado estructurado de departamentos, para no sumar complejidad
+// antes de que haga falta). Se muestran en /envios y en /admin/configuracion.
+// Todavia no se cobran automaticamente en el checkout (el total de una
+// orden sigue siendo solo productos) — eso queda para cuando el checkout
+// pida direccion real.
+export const shippingZones = pgTable("shipping_zones", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  name: varchar("name", { length: 150 }).notNull(),
+  description: text("description"),
+  cost: numeric("cost", { precision: 12, scale: 2 }).notNull(),
+  active: boolean("active").notNull().default(true),
+  position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 
 // --- Carrito --------------------------------------------------------------
 

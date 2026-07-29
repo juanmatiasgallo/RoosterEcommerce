@@ -8,7 +8,13 @@ import { db } from "@/lib/db";
 import { auditLogs, stores } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
-import { updateMercadoPagoSettingsSchema, updatePaymentInstructionsSchema, updateSmtpSettingsSchema } from "./schema";
+import {
+  updateMercadoPagoSettingsSchema,
+  updatePaymentInstructionsSchema,
+  updateSmtpSettingsSchema,
+  updateStoreInfoSchema,
+  updateVacationModeSchema,
+} from "./schema";
 
 // A diferencia del molde CRUD habitual (admin + empleado), la config SMTP
 // son credenciales reales de un proveedor de correo para toda la tienda —
@@ -231,6 +237,137 @@ export async function updatePaymentInstructions(input: z.infer<typeof updatePaym
   revalidatePath("/carrito");
 
   return toPublicPaymentInstructions(updated);
+}
+
+function toPublicStoreInfo(store: typeof stores.$inferSelect) {
+  return {
+    legalName: store.legalName,
+    taxId: store.taxId,
+    address: store.address,
+    city: store.city,
+    department: store.department,
+    contactPhone: store.contactPhone,
+    contactEmail: store.contactEmail,
+    invoicePrefix: store.invoicePrefix,
+    nextInvoiceNumber: store.nextInvoiceNumber,
+  };
+}
+
+export async function getStoreInfo() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return toPublicStoreInfo(store);
+}
+
+export type StoreInfoSettings = Awaited<ReturnType<typeof getStoreInfo>>;
+
+// Publica (no admin-gated): el footer y /quienes-somos muestran el
+// contacto real de la tienda si esta cargado, sin requerir sesion de admin.
+export async function getPublicStoreContact() {
+  const [store] = await db
+    .select({ contactEmail: stores.contactEmail, contactPhone: stores.contactPhone })
+    .from(stores)
+    .limit(1);
+
+  return store ?? { contactEmail: null, contactPhone: null };
+}
+
+export async function updateStoreInfo(input: z.infer<typeof updateStoreInfoSchema>) {
+  const session = await requireAdmin();
+  const data = updateStoreInfoSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      ...(data.legalName !== undefined && { legalName: data.legalName || null }),
+      ...(data.taxId !== undefined && { taxId: data.taxId || null }),
+      ...(data.address !== undefined && { address: data.address || null }),
+      ...(data.city !== undefined && { city: data.city || null }),
+      ...(data.department !== undefined && { department: data.department || null }),
+      ...(data.contactPhone !== undefined && { contactPhone: data.contactPhone || null }),
+      ...(data.contactEmail !== undefined && { contactEmail: data.contactEmail || null }),
+      ...(data.invoicePrefix !== undefined && { invoicePrefix: data.invoicePrefix || null }),
+      ...(data.nextInvoiceNumber !== undefined && { nextInvoiceNumber: data.nextInvoiceNumber }),
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "store_info",
+    entityId: session.user.storeId,
+    before: toPublicStoreInfo(existing),
+    after: toPublicStoreInfo(updated),
+  });
+
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/quienes-somos");
+  revalidatePath("/ayuda");
+
+  return toPublicStoreInfo(updated);
+}
+
+// Publico (no admin-gated): el sitio necesita saber si esta en modo
+// vacaciones para bloquear "Ir a pagar" en /carrito y /pedido-a-medida y
+// mostrar el mensaje, sin requerir sesion de admin para leerlo.
+export async function getVacationStatus() {
+  const [store] = await db
+    .select({ vacationMode: stores.vacationMode, vacationMessage: stores.vacationMessage })
+    .from(stores)
+    .limit(1);
+
+  return store ?? { vacationMode: false, vacationMessage: null };
+}
+
+export async function getVacationSettings() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return { vacationMode: store.vacationMode, vacationMessage: store.vacationMessage };
+}
+
+export async function updateVacationMode(input: z.infer<typeof updateVacationModeSchema>) {
+  const session = await requireAdmin();
+  const data = updateVacationModeSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      vacationMode: data.vacationMode,
+      vacationMessage: data.vacationMessage || null,
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "vacation_mode",
+    entityId: session.user.storeId,
+    before: { vacationMode: existing.vacationMode, vacationMessage: existing.vacationMessage },
+    after: { vacationMode: updated.vacationMode, vacationMessage: updated.vacationMessage },
+  });
+
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/carrito");
+  revalidatePath("/pedido-a-medida");
+  revalidatePath("/");
+
+  return { vacationMode: updated.vacationMode, vacationMessage: updated.vacationMessage };
 }
 
 export async function sendTestEmail() {
