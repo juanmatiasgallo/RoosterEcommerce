@@ -31,7 +31,7 @@ export function SiteFooter({
   const hasSocialLinks = Boolean(instagramUrl || facebookUrl);
 
   return (
-    <footer className="fade-edge-top mt-16 bg-neutral-950 text-white">
+    <footer className="mt-16 bg-neutral-950 text-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6">
         <Link href="/" className="text-sm font-semibold">
           Tienda 3D

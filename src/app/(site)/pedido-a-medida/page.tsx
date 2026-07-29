@@ -22,7 +22,7 @@ export default async function PedidoAMedidaPage() {
           contenedor centrado para dar mas presencia visual a esta pagina,
           que ahora es la puerta de entrada tanto para clientes como para
           gente sin cuenta todavia. */}
-      <section className="fade-edge-y relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-950 px-6 py-14 text-center text-white sm:py-20">
+      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-950 px-6 py-14 text-center text-white sm:py-20">
         <div className="pointer-events-none absolute -top-16 -left-10 h-56 w-56 rounded-full bg-accent/25 blur-3xl" />
         <div className="pointer-events-none absolute -right-10 -bottom-16 h-56 w-56 rounded-full bg-accent/15 blur-3xl" />
 

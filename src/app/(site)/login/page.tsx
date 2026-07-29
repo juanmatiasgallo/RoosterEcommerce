@@ -1,3 +1,4 @@
+import { AuthShell } from "@/components/auth-shell";
 import { LoginFormClient } from "./login-form-client";
 
 // callbackUrl viene de un query param que arma src/proxy.ts, pero es un
@@ -19,11 +20,10 @@ export default async function LoginPage({
   const callbackUrl = sanitizeCallbackUrl(sp.callbackUrl);
 
   return (
-    <main className="mx-auto mt-16 max-w-sm px-4">
-      <h1 className="text-2xl font-semibold">Iniciar sesion</h1>
-      <div className="mt-6">
+    <main>
+      <AuthShell title="Iniciar sesion" subtitle="Entra a tu cuenta para seguir tus pedidos y compras.">
         <LoginFormClient callbackUrl={callbackUrl} />
-      </div>
+      </AuthShell>
     </main>
   );
 }

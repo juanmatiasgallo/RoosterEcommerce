@@ -58,14 +58,29 @@ export default async function AdminDashboardPage() {
 
       <DashboardStatCards
         stats={[
-          { href: "/admin/pedidos-custom", label: "Pedidos por cotizar", value: pendientesCotizar.length, icon: Wand2 },
-          { href: "/admin/productos", label: "Productos activos", value: activeProducts.length, icon: Package },
-          { href: "/admin/categorias", label: "Categorias", value: totalCategorias, icon: FolderTree },
+          {
+            href: "/admin/pedidos-custom",
+            label: "Pedidos por cotizar",
+            value: pendientesCotizar.length,
+            icon: <Wand2 size={18} strokeWidth={1.75} />,
+          },
+          {
+            href: "/admin/productos",
+            label: "Productos activos",
+            value: activeProducts.length,
+            icon: <Package size={18} strokeWidth={1.75} />,
+          },
+          {
+            href: "/admin/categorias",
+            label: "Categorias",
+            value: totalCategorias,
+            icon: <FolderTree size={18} strokeWidth={1.75} />,
+          },
           {
             href: "/admin/pedidos-custom",
             label: "Cotizados esperando pago",
             value: cotizadosEsperandoPago.length,
-            icon: Receipt,
+            icon: <Receipt size={18} strokeWidth={1.75} />,
           },
         ]}
       />

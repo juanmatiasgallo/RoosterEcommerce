@@ -11,7 +11,7 @@ import { NewsletterForm } from "@/components/newsletter-form";
 // borde redondeado pegado al borde del viewport).
 export function NewsletterSection() {
   return (
-    <section className="fade-edge-y relative left-1/2 right-1/2 -mx-[50vw] mt-16 w-screen overflow-hidden bg-neutral-950 px-6 py-14 text-center sm:px-12">
+    <section className="relative left-1/2 right-1/2 -mx-[50vw] mt-16 w-screen overflow-hidden bg-neutral-950 px-6 py-14 text-center sm:px-12">
       <div className="pointer-events-none absolute -left-16 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-accent/25 blur-3xl motion-safe:animate-pulse" />
       <div
         className="pointer-events-none absolute -right-16 top-1/2 h-56 w-56 -translate-y-1/2 rounded-full bg-accent/15 blur-3xl motion-safe:animate-pulse"

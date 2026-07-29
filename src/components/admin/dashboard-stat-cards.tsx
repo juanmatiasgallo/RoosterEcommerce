@@ -2,18 +2,24 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
 // Task #119: mismo nivel de pulido visual que /admin/configuracion, ahora en
 // el dashboard. Entrada escalonada con Framer Motion (primera vez que se usa
 // fuera del modal de newsletter) + icono por metrica para que cada numero se
 // lea mas rapido de un vistazo.
+//
+// icon es un ReactNode (ya renderizado, ej. <Wand2 size={18} />) y no el
+// componente en si (LucideIcon): AdminDashboardPage es un Server Component y
+// esto es un Client Component, y React solo puede pasar objetos planos (o
+// elementos ya renderizados) entre ese limite -- pasar la referencia a la
+// funcion del componente rompe la serializacion (ver bug reportado).
 export type DashboardStat = {
   href: string;
   label: string;
   value: number | string;
-  icon: LucideIcon;
+  icon: ReactNode;
 };
 
 const container = {
@@ -46,7 +52,7 @@ export function DashboardStatCards({ stats }: { stats: DashboardStat[] }) {
                   <p className="mt-1 text-sm text-neutral-500">{stat.label}</p>
                 </div>
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-                  <stat.icon size={18} strokeWidth={1.75} />
+                  {stat.icon}
                 </span>
               </CardContent>
             </Card>

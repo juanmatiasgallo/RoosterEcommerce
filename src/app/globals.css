@@ -99,27 +99,6 @@ summary:focus-visible {
   outline-offset: 2px;
 }
 
-/* Task #122: las secciones full-bleed oscuras (Hero, NewsletterSection,
-   banner de /pedido-a-medida, Footer) cortaban en seco contra el fondo
-   claro de la pagina -- se notaba el borde del <div> incluso con las
-   animaciones de blobs. En vez de adivinar un color de transicion (el fondo
-   cambia segun light/dark mode), se le aplica una mascara CSS a la seccion
-   entera: los primeros/ultimos px se van a transparente y dejan ver el
-   fondo real de la pagina de a poco, en vez de un corte recto.
-   fade-edge-y = fade arriba y abajo (secciones "flotantes" en medio del
-   contenido). fade-edge-top = solo arriba (el footer no necesita fade
-   abajo, ahi termina la pagina). */
-@layer utilities {
-  .fade-edge-y {
-    -webkit-mask-image: linear-gradient(to bottom, transparent, black 56px, black calc(100% - 56px), transparent);
-    mask-image: linear-gradient(to bottom, transparent, black 56px, black calc(100% - 56px), transparent);
-  }
-  .fade-edge-top {
-    -webkit-mask-image: linear-gradient(to bottom, transparent, black 56px);
-    mask-image: linear-gradient(to bottom, transparent, black 56px);
-  }
-}
-
 /* Usado por la campana de notificaciones cuando hay no-leidas (ver
    notification-bell.tsx) — chiquito, no molesta, solo llama la atencion una
    vez al montar. */

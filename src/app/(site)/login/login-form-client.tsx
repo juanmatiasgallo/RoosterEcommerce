@@ -86,7 +86,7 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
       <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium">
+        <label htmlFor="email" className="mb-1 block text-sm font-medium text-neutral-300">
           Email
         </label>
         <input
@@ -94,17 +94,17 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
           type="email"
           autoComplete="email"
           {...register("email")}
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="w-full rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500"
         />
-        {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
+        {errors.email && <p className="mt-1 text-xs text-red-400">{errors.email.message}</p>}
       </div>
 
       <div>
         <div className="mb-1 flex items-center justify-between">
-          <label htmlFor="password" className="block text-sm font-medium">
+          <label htmlFor="password" className="block text-sm font-medium text-neutral-300">
             Contrasena
           </label>
-          <Link href="/olvide-password" className="text-xs text-neutral-500 underline">
+          <Link href="/olvide-password" className="text-xs text-neutral-400 underline hover:text-white">
             Olvide mi contrasena
           </Link>
         </div>
@@ -113,13 +113,13 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
           type="password"
           autoComplete="current-password"
           {...register("password")}
-          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          className="w-full rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-neutral-500"
         />
-        {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
+        {errors.password && <p className="mt-1 text-xs text-red-400">{errors.password.message}</p>}
       </div>
 
       {formError && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-400">
           {formError}
         </p>
       )}
@@ -127,15 +127,15 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        className="flex items-center justify-center gap-2 rounded bg-accent px-4 py-2 text-sm font-medium text-accent-foreground active:scale-[0.98] disabled:opacity-50 hover:bg-accent-hover"
       >
         {isSubmitting && <Spinner size={14} />}
         {isSubmitting ? "Ingresando..." : "Ingresar"}
       </button>
 
-      <p className="text-sm text-neutral-500">
+      <p className="text-sm text-neutral-400">
         ¿No tenes cuenta?{" "}
-        <Link href="/crear-cuenta" className="underline">
+        <Link href="/crear-cuenta" className="text-accent underline hover:text-white">
           Crea una
         </Link>
       </p>
