@@ -121,11 +121,26 @@ export async function createCustomOrder(input: z.infer<typeof createCustomOrderS
 export async function getMyCustomOrders() {
   const session = await requireUser();
 
-  return db
-    .select()
+  // Left join a la orden real (si ya se pago): customOrders.status se queda
+  // fijo en "pagado" para siempre (el pipeline de impresion fino vive en
+  // orders.status, ver src/lib/orders/actions.ts) — sin este join la pantalla
+  // de "Mis pedidos" no podria mostrar el progreso real despues del pago.
+  const rows = await db
+    .select({
+      customOrder: customOrders,
+      linkedOrderStatus: orders.status,
+      linkedOrderNumber: orders.orderNumber,
+    })
     .from(customOrders)
+    .leftJoin(orders, eq(orders.customOrderId, customOrders.id))
     .where(eq(customOrders.userId, session.user.id))
     .orderBy(desc(customOrders.createdAt));
+
+  return rows.map((row) => ({
+    ...row.customOrder,
+    linkedOrderStatus: row.linkedOrderStatus,
+    linkedOrderNumber: row.linkedOrderNumber,
+  }));
 }
 
 export type CustomOrderRow = Awaited<ReturnType<typeof getMyCustomOrders>>[number];
@@ -148,6 +163,11 @@ export async function listCustomOrdersForAdmin() {
     )
     .orderBy(desc(customOrders.createdAt));
 }
+
+// Tipo propio (distinto de CustomOrderRow): esta lectura no tiene el join a
+// `orders` de getMyCustomOrders (pendiente/cotizado todavia no tienen una
+// orden real vinculada), asi que no trae linkedOrderStatus/linkedOrderNumber.
+export type AdminCustomOrderRow = Awaited<ReturnType<typeof listCustomOrdersForAdmin>>[number];
 
 export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCustomOrderSchema>) {
   const session = await requireStaff();

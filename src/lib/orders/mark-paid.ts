@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { auditLogs, customOrders, orderItems, orders, productVariants } from "@/lib/db/schema";
+import { auditLogs, customOrders, loyaltyPoints, orderItems, orders, productVariants, stores } from "@/lib/db/schema";
 import { notify } from "@/lib/notifications/notify";
 
 /**
@@ -48,6 +48,25 @@ export async function markOrderAsPaid(params: {
       }
     } else if (order.source === "pedido_custom" && order.customOrderId) {
       await tx.update(customOrders).set({ status: "pagado" }).where(eq(customOrders.id, order.customOrderId));
+    }
+
+    // Puntos por compra (si el admin configuro una tasa > 0 en
+    // /admin/configuracion). Se usa la tasa vigente en el momento del pago,
+    // no se recalcula si despues cambia. redondeado hacia abajo para no
+    // regalar puntos de mas por redondeo.
+    const [store] = await tx.select({ loyaltyPointsPer100: stores.loyaltyPointsPer100 }).from(stores).where(eq(stores.id, order.storeId)).limit(1);
+    if (store && store.loyaltyPointsPer100 > 0) {
+      const earnedPoints = Math.floor((Number(order.total) / 100) * store.loyaltyPointsPer100);
+      if (earnedPoints > 0) {
+        await tx.insert(loyaltyPoints).values({
+          storeId: order.storeId,
+          userId: order.userId,
+          orderId: order.id,
+          type: "earned",
+          points: earnedPoints,
+          note: `Compra #${order.orderNumber}`,
+        });
+      }
     }
 
     await tx.insert(auditLogs).values({

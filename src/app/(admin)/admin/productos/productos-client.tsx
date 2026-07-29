@@ -94,6 +94,7 @@ export function ProductosClient({
                 <th className="py-2 pr-4 font-medium">Nombre</th>
                 <th className="py-2 pr-4 font-medium">Precio base</th>
                 <th className="py-2 pr-4 font-medium">Variantes</th>
+                <th className="py-2 pr-4 font-medium">Codigos</th>
                 <th className="py-2 pr-4 font-medium">Estado</th>
                 <th className="py-2 pr-4 font-medium" />
               </tr>
@@ -110,6 +111,20 @@ export function ProductosClient({
                   </td>
                   <td className="py-2 pr-4">{formatCurrency(Number(product.basePrice))}</td>
                   <td className="py-2 pr-4">{product.variants.length}</td>
+                  <td className="py-2 pr-4">
+                    <div className="flex flex-wrap gap-1">
+                      {product.variants
+                        .filter((variant) => variant.sku)
+                        .map((variant) => (
+                          <code
+                            key={variant.id}
+                            className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+                          >
+                            {variant.sku}
+                          </code>
+                        ))}
+                    </div>
+                  </td>
                   <td className="py-2 pr-4">
                     {product.active ? (
                       <Badge variant="success">Activo</Badge>

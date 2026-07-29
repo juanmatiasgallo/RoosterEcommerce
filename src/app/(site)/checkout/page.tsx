@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getCartItems } from "@/lib/cart/actions";
-import { getAvailableManualPaymentMethods, getDefaultShippingAddress } from "@/lib/orders/actions";
+import { getAvailableManualPaymentMethods, getDefaultShippingAddress, getMyLastPaymentMethod } from "@/lib/orders/actions";
 import { listActiveShippingZones } from "@/lib/shipping/actions";
 import { getDefaultStoreId } from "@/lib/db/store";
 import { getVacationStatus } from "@/lib/settings/actions";
@@ -13,14 +13,16 @@ export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {
   const storeId = await getDefaultStoreId();
-  const [{ items, total }, session, manualPaymentMethods, shippingZones, vacation, defaultShipping] = await Promise.all([
-    getCartItems(),
-    auth(),
-    getAvailableManualPaymentMethods(storeId),
-    listActiveShippingZones(),
-    getVacationStatus(),
-    getDefaultShippingAddress(),
-  ]);
+  const [{ items, total }, session, manualPaymentMethods, shippingZones, vacation, defaultShipping, lastPaymentMethod] =
+    await Promise.all([
+      getCartItems(),
+      auth(),
+      getAvailableManualPaymentMethods(storeId),
+      listActiveShippingZones(),
+      getVacationStatus(),
+      getDefaultShippingAddress(),
+      getMyLastPaymentMethod(),
+    ]);
 
   if (items.length === 0) redirect("/carrito");
 
@@ -46,6 +48,7 @@ export default async function CheckoutPage() {
           initialUserEmail={session?.user.email ?? null}
           initialShippingAddress={defaultShipping.address}
           initialShippingZoneId={defaultShipping.shippingZoneId}
+          initialPaymentMethod={lastPaymentMethod}
           manualPaymentMethods={manualPaymentMethods}
           shippingZones={shippingZones.map((zone) => ({
             id: zone.id,

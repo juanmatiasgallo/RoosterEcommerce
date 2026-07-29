@@ -3,12 +3,12 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
-import { auditLogs, cartItems, orderItems, orders, shippingZones, stores, users } from "@/lib/db/schema";
+import { auditLogs, cartItems, discountCoupons, orderItems, orders, shippingZones, stores, users } from "@/lib/db/schema";
 import { getCartItems } from "@/lib/cart/actions";
 import { createPreference } from "@/lib/mercadopago/client";
 import { markOrderAsPaid } from "@/lib/orders/mark-paid";
@@ -98,6 +98,22 @@ export async function getDefaultShippingAddress(): Promise<{
     address: parsed.success ? parsed.data : null,
     shippingZoneId: user.defaultShippingZoneId ?? null,
   };
+}
+
+// Medio de pago usado en el checkout anterior del usuario (ver el guardado
+// en checkoutCart mas abajo) — se precarga en el Paso 3 del wizard. Nulo si
+// todavia no compro nada, el wizard arranca en "mercado_pago" por default.
+export async function getMyLastPaymentMethod(): Promise<PaymentMethod | null> {
+  const session = await auth();
+  if (!session) return null;
+
+  const [user] = await db
+    .select({ lastPaymentMethod: users.lastPaymentMethod })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+
+  return user?.lastPaymentMethod ?? null;
 }
 
 // Mail con las instrucciones de pago + numero de orden para que el cliente
@@ -209,6 +225,11 @@ export async function checkoutCart(params: {
   paymentMethod: PaymentMethod;
   shippingZoneId?: string;
   shippingAddress?: ShippingAddress;
+  // Codigo de un cupon de puntos del propio usuario (ver
+  // src/lib/loyalty/actions.ts) — nunca se confia en un monto que mande el
+  // cliente, solo en el codigo, y se revalida todo server-side (dueño,
+  // no usado, tienda) antes de aplicarlo.
+  couponCode?: string;
 }) {
   const session = await auth();
   if (!session) throw new Error("Debes iniciar sesion para pagar.");
@@ -264,7 +285,38 @@ export async function checkoutCart(params: {
 
   const shippingAddress = params.shippingAddress ? shippingAddressSchema.parse(params.shippingAddress) : undefined;
   const shippingCost = shippingZone ? Number(shippingZone.cost) : 0;
-  const orderTotal = total + shippingCost;
+
+  // Cupon de puntos (opcional): se revalida todo server-side — que exista,
+  // que sea de este usuario y tienda, y que no este usado — nunca se confia
+  // en el monto que pudiera mandar el cliente. El descuento se tope al
+  // subtotal de productos (nunca descuenta el envio ni deja el total
+  // negativo).
+  let coupon: { id: string; code: string; amount: string } | undefined;
+  let discountAmount = 0;
+  if (params.couponCode) {
+    const [found] = await db
+      .select({ id: discountCoupons.id, code: discountCoupons.code, amount: discountCoupons.amount })
+      .from(discountCoupons)
+      .where(
+        and(
+          eq(discountCoupons.code, params.couponCode),
+          eq(discountCoupons.userId, session.user.id),
+          eq(discountCoupons.storeId, session.user.storeId),
+          isNull(discountCoupons.usedAt),
+        ),
+      )
+      .limit(1);
+    if (!found) throw new Error("Ese cupon no es valido o ya fue usado.");
+    coupon = found;
+    discountAmount = Math.min(Number(found.amount), total);
+  }
+
+  // Ratio para prorratear el descuento entre los items al armar la
+  // preferencia de Mercado Pago (que no acepta un precio negativo aparte
+  // para "descuento") — el envio nunca se descuenta, solo el subtotal de
+  // productos.
+  const discountRatio = discountAmount > 0 && total > 0 ? (total - discountAmount) / total : 1;
+  const orderTotal = Math.max(0, total - discountAmount) + shippingCost;
 
   const [order] = await db
     .insert(orders)
@@ -277,9 +329,21 @@ export async function checkoutCart(params: {
       total: orderTotal.toFixed(2),
       shippingZoneId: shippingZone?.id,
       shippingCost: shippingCost.toFixed(2),
+      discountAmount: discountAmount.toFixed(2),
+      couponCode: coupon?.code,
       shippingAddress: shippingAddress ?? null,
     })
     .returning();
+
+  // Marca el cupon como usado recien ahora que la orden ya existe (nunca
+  // antes: si algo de arriba fallara, no queremos un cupon quemado sin
+  // orden real detras).
+  if (coupon) {
+    await db
+      .update(discountCoupons)
+      .set({ usedAt: new Date(), usedOrderId: order.id })
+      .where(eq(discountCoupons.id, coupon.id));
+  }
 
   await db.insert(orderItems).values(
     items.map((row) => ({
@@ -287,6 +351,7 @@ export async function checkoutCart(params: {
       variantId: row.variant.id,
       productName: row.product.name,
       variantLabel: [row.variant.material, row.variant.color, row.variant.size].filter(Boolean).join(" ") || null,
+      variantSku: row.variant.sku,
       unitPrice: row.variant.price,
       quantity: row.item.quantity,
     })),
@@ -301,19 +366,24 @@ export async function checkoutCart(params: {
     after: order,
   });
 
-  // Guarda la direccion (y zona) recien usada como default del usuario, para
-  // precargarla en su proxima compra (ver getDefaultShippingAddress mas
-  // abajo). No bloquea el checkout si falla por algun motivo raro: la orden
-  // ya quedo creada, esto es solo una comodidad.
-  if (shippingAddress) {
-    try {
-      await db
-        .update(users)
-        .set({ defaultShippingAddress: shippingAddress, defaultShippingZoneId: shippingZone?.id ?? null })
-        .where(eq(users.id, session.user.id));
-    } catch {
-      // no-op
-    }
+  // Guarda la direccion (y zona) y el medio de pago recien usados como
+  // default del usuario, para precargarlos en su proxima compra (ver
+  // getDefaultShippingAddress y getMyLastPaymentMethod mas abajo). No
+  // bloquea el checkout si falla por algun motivo raro: la orden ya quedo
+  // creada, esto es solo una comodidad.
+  try {
+    await db
+      .update(users)
+      .set({
+        lastPaymentMethod: paymentMethod,
+        ...(shippingAddress && {
+          defaultShippingAddress: shippingAddress,
+          defaultShippingZoneId: shippingZone?.id ?? null,
+        }),
+      })
+      .where(eq(users.id, session.user.id));
+  } catch {
+    // no-op
   }
 
   // El carrito se vacia en los dos casos: la orden ya tiene su propio
@@ -359,11 +429,25 @@ export async function checkoutCart(params: {
     };
   }
 
+  // Mercado Pago no tiene un campo de "descuento" en la preferencia basica
+  // de Checkout Pro, asi que el cupon se aplica prorrateando el precio de
+  // cada producto por discountRatio (el envio nunca se descuenta). El
+  // ultimo item absorbe el centavo de diferencia por redondeo, para que la
+  // suma le cierre exacto al total que se le cobra al cliente.
   const preferenceItems = items.map((row) => ({
     title: row.product.name,
     quantity: row.item.quantity,
-    unitPrice: Number(row.variant.price),
+    unitPrice: Math.round(Number(row.variant.price) * discountRatio * 100) / 100,
   }));
+  if (discountRatio < 1 && preferenceItems.length > 0) {
+    const targetProductsTotal = Math.round((total - discountAmount) * 100) / 100;
+    const roundedSum = preferenceItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    const diff = Math.round((targetProductsTotal - roundedSum) * 100) / 100;
+    if (diff !== 0) {
+      const last = preferenceItems[preferenceItems.length - 1];
+      last.unitPrice = Math.max(0, Math.round((last.unitPrice + diff / last.quantity) * 100) / 100);
+    }
+  }
   // Envio como linea aparte (no prorrateado entre productos): mas claro
   // para el cliente en el Checkout Pro de Mercado Pago.
   if (shippingZone && shippingCost > 0) {
@@ -423,18 +507,67 @@ export async function listOrdersForAdmin() {
 
 export type AdminOrderRow = Awaited<ReturnType<typeof listOrdersForAdmin>>[number];
 
+// Lectura scoped al usuario logueado, para "Mis compras" (catalogo) en
+// /mi-cuenta/compras — mismo criterio que getMyCustomOrders en
+// custom-orders/actions.ts. Excluye "pendiente_pago": una orden que nunca se
+// termino de pagar no es una "compra" para el cliente.
+export async function getMyOrders() {
+  const session = await auth();
+  if (!session) throw new Error("Debes iniciar sesion.");
+
+  const orderRows = await db
+    .select()
+    .from(orders)
+    .where(
+      and(
+        eq(orders.userId, session.user.id),
+        eq(orders.source, "catalogo"),
+        ne(orders.status, "pendiente_pago"),
+      ),
+    )
+    .orderBy(desc(orders.createdAt));
+
+  if (orderRows.length === 0) return [];
+
+  const itemRows = await db
+    .select()
+    .from(orderItems)
+    .where(
+      inArray(
+        orderItems.orderId,
+        orderRows.map((row) => row.id),
+      ),
+    );
+
+  const itemsByOrder = new Map<string, typeof itemRows>();
+  for (const item of itemRows) {
+    const list = itemsByOrder.get(item.orderId) ?? [];
+    list.push(item);
+    itemsByOrder.set(item.orderId, list);
+  }
+
+  return orderRows.map((order) => ({ order, items: itemsByOrder.get(order.id) ?? [] }));
+}
+
+export type MyOrderRow = Awaited<ReturnType<typeof getMyOrders>>[number];
+
 type OrderStatus = typeof orders.$inferSelect.status;
 
-// Camino feliz explicito, sin saltos: "pagado" -> "en_preparacion" ->
-// "enviado" -> "entregado". "cancelado" es terminal y no se maneja aca
-// (ver Paso 5: solo el webhook toca el estado de una orden no aprobada).
+// Camino feliz explicito, sin saltos: "pagado" -> "en_cola" ->
+// "imprimiendo" -> "postprocesado" -> "enviado" -> "entregado". "cancelado"
+// es terminal y no se maneja aca (ver Paso 5: solo el webhook toca el
+// estado de una orden no aprobada).
 const ORDER_STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
-  pagado: "en_preparacion",
-  en_preparacion: "enviado",
+  pagado: "en_cola",
+  en_cola: "imprimiendo",
+  imprimiendo: "postprocesado",
+  postprocesado: "enviado",
   enviado: "entregado",
 };
 
-export async function updateOrderStatus(id: string, nextStatus: "en_preparacion" | "enviado" | "entregado") {
+export type AdvanceableOrderStatus = "en_cola" | "imprimiendo" | "postprocesado" | "enviado" | "entregado";
+
+export async function updateOrderStatus(id: string, nextStatus: AdvanceableOrderStatus) {
   const session = await requireStaff();
 
   const [existing] = await db
@@ -461,7 +594,9 @@ export async function updateOrderStatus(id: string, nextStatus: "en_preparacion"
   });
 
   const STATUS_NOTIFICATION_LABELS: Record<string, string> = {
-    en_preparacion: "esta en preparacion",
+    en_cola: "entro en la cola de impresion",
+    imprimiendo: "se esta imprimiendo",
+    postprocesado: "termino de imprimirse y esta en postprocesado",
     enviado: "fue enviado",
     entregado: "fue entregado",
   };

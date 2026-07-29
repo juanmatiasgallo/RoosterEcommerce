@@ -51,3 +51,11 @@ export const updateVacationModeSchema = z.object({
   vacationMode: z.boolean(),
   vacationMessage: z.string().max(1000).optional(),
 });
+
+// En 0 el sistema de puntos queda apagado (no se otorgan puntos nuevos, ver
+// markOrderAsPaid en src/lib/orders/mark-paid.ts) sin tener que tocar
+// codigo. loyaltyPointValue es cuanto vale 1 punto en pesos al canjearlo.
+export const updateLoyaltySettingsSchema = z.object({
+  loyaltyPointsPer100: z.number().int().min(0).max(10000),
+  loyaltyPointValue: z.number().min(0).max(10000),
+});

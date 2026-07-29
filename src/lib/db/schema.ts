@@ -83,10 +83,35 @@ export const stores = pgTable("stores", {
   // vacationMessage — el catalogo sigue navegable, solo se bloquea pagar.
   vacationMode: boolean("vacation_mode").notNull().default(false),
   vacationMessage: text("vacation_message"),
+  // Puntos y recompensas (ver src/lib/loyalty/actions.ts): cuantos puntos
+  // se ganan por cada $100 gastados en una compra confirmada, y cuanto vale
+  // 1 punto en pesos al canjearlo por un cupon de descuento. En 0 el
+  // sistema queda apagado (no se otorgan puntos nuevos), sin tener que
+  // tocar codigo — el owner lo prende cargando una tasa desde
+  // /admin/configuracion.
+  loyaltyPointsPer100: integer("loyalty_points_per_100").notNull().default(0),
+  loyaltyPointValue: numeric("loyalty_point_value", { precision: 12, scale: 2 }).notNull().default("0.00"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "empleado", "cliente"]);
+
+// "mercado_pago" confirma sola via webhook. El resto son medios
+// manuales/offline (sin integracion de API): el cliente elige uno, recibe
+// instrucciones (texto libre configurado en /admin/configuracion) por mail,
+// y un admin confirma el pago a mano cuando lo verifica. Declarado aca
+// arriba (no junto a `orders` mas abajo) porque users.lastPaymentMethod
+// tambien lo usa y las columnas necesitan el enum ya definido en ese punto
+// del archivo.
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "mercado_pago",
+  "transferencia",
+  "abitab",
+  "redpagos",
+  "mi_dinero",
+  "prex",
+  "contra_entrega",
+]);
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -115,6 +140,11 @@ export const users = pgTable("users", {
   // se pisa cada vez que confirma una compra con una direccion distinta.
   defaultShippingAddress: jsonb("default_shipping_address"),
   defaultShippingZoneId: uuid("default_shipping_zone_id").references((): AnyPgColumn => shippingZones.id),
+  // Ultimo medio de pago elegido en un checkout exitoso (mismo criterio que
+  // defaultShippingAddress arriba): se precarga en el Paso 3 del wizard para
+  // que no tenga que volver a elegirlo cada vez. Nulo = todavia no compro
+  // nada, el wizard sigue arrancando en "mercado_pago" por default.
+  lastPaymentMethod: paymentMethodEnum("last_payment_method"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -192,6 +222,62 @@ export const productReviews = pgTable(
     unique("product_reviews_product_user_unique").on(table.productId, table.userId),
   ],
 );
+
+// Favoritos / lista de deseos: solo para usuarios logueados (a diferencia
+// del carrito, no hay version de invitado por cookie — guardar favoritos
+// sin cuenta no tiene mucho sentido de negocio y complica menos).
+export const favorites = pgTable(
+  "favorites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeId: uuid("store_id").notNull().references(() => stores.id),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [unique("favorites_user_product_unique").on(table.userId, table.productId)],
+);
+
+// --- Puntos y recompensas -----------------------------------------------
+
+export const loyaltyPointsTypeEnum = pgEnum("loyalty_points_type", ["earned", "redeemed"]);
+
+// Ledger simple (solo sumar/restar, sin un campo "balance" separado que se
+// pueda desincronizar): el saldo de un usuario es la suma de sus filas
+// (earned suma, redeemed resta). Una fila "earned" se crea automaticamente
+// cuando una orden pasa a pagado (ver markOrderAsPaid en
+// src/lib/orders/mark-paid.ts), usando stores.loyaltyPointsPer100 vigente en
+// ese momento — si despues el admin cambia la tasa, no se recalculan puntos
+// ya otorgados. Una fila "redeemed" se crea al canjear puntos por un cupon
+// de descuento (ver src/lib/loyalty/actions.ts).
+export const loyaltyPoints = pgTable("loyalty_points", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  orderId: uuid("order_id").references((): AnyPgColumn => orders.id, { onDelete: "set null" }),
+  type: loyaltyPointsTypeEnum("type").notNull(),
+  points: integer("points").notNull(), // siempre positivo; el signo lo da `type`
+  note: varchar("note", { length: 300 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Cupon de descuento generado al canjear puntos (ver redeemLoyaltyPoints en
+// src/lib/loyalty/actions.ts). Personal e intransferible: solo el userId
+// dueño lo puede aplicar en /checkout (ver checkoutCart en
+// src/lib/orders/actions.ts), y una sola vez (usedAt/usedOrderId se llenan
+// al usarlo). Sin fecha de vencimiento por ahora — mantenerlo simple hasta
+// que haya un motivo real para agregar una.
+export const discountCoupons = pgTable("discount_coupons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  userId: uuid("user_id").notNull().references(() => users.id),
+  code: varchar("code", { length: 30 }).notNull().unique(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  pointsSpent: integer("points_spent").notNull(),
+  usedAt: timestamp("used_at"),
+  usedOrderId: uuid("used_order_id").references((): AnyPgColumn => orders.id),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 
 // --- Newsletter -------------------------------------------------------
 
@@ -306,6 +392,11 @@ export const customOrders = pgTable("custom_orders", {
 
 // --- Pedidos confirmados / pagos ------------------------------------------
 
+// Pipeline de impresion (reemplaza el viejo "en_preparacion" unico por 4
+// pasos mas finos, aplicado tanto a compras de catalogo como a pedidos a
+// medida): pagado -> en_cola -> imprimiendo -> postprocesado -> enviado ->
+// entregado. El admin avanza el estado a mano desde /admin/pedidos (ver
+// ORDER_STATUS_TRANSITIONS en src/lib/orders/actions.ts), sin saltos.
 export const orderStatusEnum = pgEnum("order_status", [
   "pendiente_pago",
   // El cliente eligio un medio de pago manual (no Mercado Pago): la orden
@@ -316,27 +407,15 @@ export const orderStatusEnum = pgEnum("order_status", [
   // webhook que lo haga solo.
   "pendiente_confirmacion",
   "pagado",
-  "en_preparacion",
+  "en_cola",
+  "imprimiendo",
+  "postprocesado",
   "enviado",
   "entregado",
   "cancelado",
 ]);
 
 export const orderSourceEnum = pgEnum("order_source", ["catalogo", "pedido_custom"]);
-
-// "mercado_pago" confirma sola via webhook. El resto son medios
-// manuales/offline (sin integracion de API): el cliente elige uno, recibe
-// instrucciones (texto libre configurado en /admin/configuracion) por mail,
-// y un admin confirma el pago a mano cuando lo verifica.
-export const paymentMethodEnum = pgEnum("payment_method", [
-  "mercado_pago",
-  "transferencia",
-  "abitab",
-  "redpagos",
-  "mi_dinero",
-  "prex",
-  "contra_entrega",
-]);
 
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -356,6 +435,13 @@ export const orders = pgTable("orders", {
   total: numeric("total", { precision: 12, scale: 2 }).notNull(),
   shippingZoneId: uuid("shipping_zone_id").references(() => shippingZones.id),
   shippingCost: numeric("shipping_cost", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  // Descuento de un cupon de puntos aplicado en el checkout (ver
+  // checkoutCart) — ya restado de `total`, se guarda aparte solo para poder
+  // mostrarlo desglosado en /admin/pedidos y en /mi-cuenta/compras. Copia
+  // del codigo (no solo el id) para que siga siendo legible aunque el cupon
+  // se borre despues.
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  couponCode: varchar("coupon_code", { length: 30 }),
   shippingAddress: jsonb("shipping_address"),
   mpPreferenceId: varchar("mp_preference_id", { length: 100 }),
   mpPaymentId: varchar("mp_payment_id", { length: 100 }),
@@ -373,6 +459,11 @@ export const orderItems = pgTable("order_items", {
   variantId: uuid("variant_id").references(() => productVariants.id),
   productName: varchar("product_name", { length: 200 }).notNull(),
   variantLabel: varchar("variant_label", { length: 200 }),
+  // Copia del sku de la variante al momento de la compra (igual criterio que
+  // productName/variantLabel: si la variante despues se edita o se borra, la
+  // orden sigue mostrando con que codigo se identificaba en ese momento —
+  // clave para "quiero el mismo que compre la vez pasada").
+  variantSku: varchar("variant_sku", { length: 100 }),
   unitPrice: numeric("unit_price", { precision: 12, scale: 2 }).notNull(),
   quantity: integer("quantity").notNull(),
 });

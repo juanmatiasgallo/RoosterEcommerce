@@ -218,6 +218,22 @@ export async function archiveProduct(id: string) {
 
 // --- Variantes ----------------------------------------------------------
 
+// Codigo corto para identificar una variante en pedidos repetidos ("quiero
+// el mismo que compre la vez pasada") sin que el admin tenga que inventar
+// uno a mano: 3 letras del slug del producto + 6 caracteres del id de la
+// variante (ya es aleatorio por ser uuid, asi que alcanza para que no
+// choque). Solo se usa cuando no se cargo un sku manual — el campo sigue
+// siendo editable despues desde el admin si prefieren su propia numeracion.
+function generateVariantSku(productSlug: string, variantId: string): string {
+  const prefix =
+    productSlug
+      .replace(/[^a-z0-9]/gi, "")
+      .slice(0, 3)
+      .toUpperCase() || "VAR";
+  const suffix = variantId.replace(/-/g, "").slice(0, 6).toUpperCase();
+  return `${prefix}-${suffix}`;
+}
+
 export async function createVariant(input: z.infer<typeof createVariantSchema>) {
   const session = await requireStaff();
   const data = createVariantSchema.parse(input);
@@ -238,18 +254,30 @@ export async function createVariant(input: z.infer<typeof createVariantSchema>) 
     })
     .returning();
 
+  // Sin sku manual: generamos uno ahora que ya tenemos el id real de la
+  // variante (ver generateVariantSku arriba).
+  let finalVariant = created;
+  if (!data.sku) {
+    const [withSku] = await db
+      .update(productVariants)
+      .set({ sku: generateVariantSku(product.slug, created.id) })
+      .where(eq(productVariants.id, created.id))
+      .returning();
+    finalVariant = withSku;
+  }
+
   await logAudit({
     userId: session.user.id,
     storeId: session.user.storeId,
     action: "create",
     entityType: "product_variant",
-    entityId: created.id,
-    after: created,
+    entityId: finalVariant.id,
+    after: finalVariant,
   });
 
   revalidatePath(`/producto/${product.slug}`);
   revalidatePath("/admin/productos");
-  return created;
+  return finalVariant;
 }
 
 export async function updateVariant(id: string, input: z.infer<typeof updateVariantSchema>) {

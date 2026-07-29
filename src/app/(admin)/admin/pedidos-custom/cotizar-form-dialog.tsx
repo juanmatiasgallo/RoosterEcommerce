@@ -7,11 +7,11 @@ import { Dialog } from "@base-ui/react/dialog";
 import { toast } from "sonner";
 import type { z } from "zod";
 import { quoteCustomOrderSchema } from "@/lib/custom-orders/schema";
-import { quoteCustomOrder, type CustomOrderRow } from "@/lib/custom-orders/actions";
+import { quoteCustomOrder, type AdminCustomOrderRow } from "@/lib/custom-orders/actions";
 
 type FormValues = z.infer<typeof quoteCustomOrderSchema>;
 
-export function CotizarFormDialog({ order, onClose }: { order: CustomOrderRow; onClose: () => void }) {
+export function CotizarFormDialog({ order, onClose }: { order: AdminCustomOrderRow; onClose: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {

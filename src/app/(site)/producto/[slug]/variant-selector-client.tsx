@@ -3,8 +3,9 @@
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
-import { addToCart } from "@/lib/cart/actions";
+import { addToCart, getCartItems, type CartRow } from "@/lib/cart/actions";
 import { Spinner } from "@/components/ui/spinner";
+import { CartDrawer } from "@/components/cart-drawer";
 
 type Variant = {
   id: string;
@@ -72,6 +73,13 @@ export function VariantSelectorClient({ variants, basePrice }: { variants: Varia
   const [quantity, setQuantity] = useState(1);
   const [isPending, startTransition] = useTransition();
 
+  // Se abre el panel lateral (CartDrawer) apenas se agrega algo, con el
+  // contenido actualizado del carrito — mas claro que solo un toast chico,
+  // y le da al usuario la decision explicita de seguir comprando o pagar ya.
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerItems, setDrawerItems] = useState<CartRow[]>([]);
+  const [drawerTotal, setDrawerTotal] = useState(0);
+
   const hasAnyStock = variants.some((v) => v.stock > 0);
   const canAddToCart = Boolean(selectedVariant) && (selectedVariant?.stock ?? 0) > 0 && quantity > 0;
 
@@ -81,8 +89,10 @@ export function VariantSelectorClient({ variants, basePrice }: { variants: Varia
     startTransition(async () => {
       try {
         await addToCart(selectedVariant.id, quantity);
-        const label = [material, color, size].filter(Boolean).join(" ");
-        toast.success(`Agregado al carrito: ${quantity} x ${label}`);
+        const fresh = await getCartItems();
+        setDrawerItems(fresh.items);
+        setDrawerTotal(fresh.total);
+        setDrawerOpen(true);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "No se pudo agregar al carrito.");
       }
@@ -192,6 +202,13 @@ export function VariantSelectorClient({ variants, basePrice }: { variants: Varia
         {isPending && <Spinner size={14} />}
         {isPending ? "Agregando..." : hasAnyStock ? "Agregar al carrito" : "Sin stock"}
       </button>
+
+      <CartDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        items={drawerItems}
+        total={drawerTotal}
+      />
     </div>
   );
 }

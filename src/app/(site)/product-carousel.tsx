@@ -8,7 +8,13 @@ import { ProductCard } from "./product-card";
 // Carrete horizontal con scroll-snap: se usa tanto para "Tambien te puede
 // interesar" (mismo rubro) como para "Productos que miraste antes"
 // (recently-viewed-carousel.tsx) — misma UI, distinta fuente de datos.
-export function ProductCarousel({ products }: { products: ProductListItem[] }) {
+export function ProductCarousel({
+  products,
+  favoritedIds = [],
+}: {
+  products: ProductListItem[];
+  favoritedIds?: string[];
+}) {
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   function scrollByAmount(direction: 1 | -1) {
@@ -25,7 +31,7 @@ export function ProductCarousel({ products }: { products: ProductListItem[] }) {
       >
         {products.map((product) => (
           <div key={product.id} className="w-40 shrink-0 snap-start sm:w-48">
-            <ProductCard product={product} />
+            <ProductCard product={product} favorited={favoritedIds.includes(product.id)} />
           </div>
         ))}
       </div>

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { OrderStatusTracker } from "@/components/order-status-tracker";
 import {
   PaymentMethodPicker,
   type ManualPaymentMethodOption,
@@ -96,17 +97,29 @@ export function PedidosClient({
       {orders.map((order) => {
         const status = STATUS_LABELS[order.status] ?? { label: order.status, variant: "neutral" as const };
         const specs = [order.material, order.color, order.approxSize].filter(Boolean).join(" · ");
+        // Una vez pagado, el progreso real vive en la orden vinculada (ver
+        // getMyCustomOrders en custom-orders/actions.ts) — customOrders.status
+        // se queda fijo en "pagado" para siempre, asi que preferimos mostrar
+        // el tracker en vez del badge plano cuando hay una orden linkeada.
+        const hasLinkedOrder = Boolean(order.linkedOrderStatus);
 
         return (
           <div key={order.id} className="rounded border border-neutral-200 p-4 dark:border-neutral-800">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <p className="font-medium">{order.fileName}</p>
+                <p className="font-medium">
+                  {order.fileName}
+                  {order.linkedOrderNumber && (
+                    <span className="ml-1.5 text-xs font-normal text-neutral-400">#{order.linkedOrderNumber}</span>
+                  )}
+                </p>
                 <p className="text-xs text-neutral-500">{formatDate(order.createdAt)}</p>
               </div>
-              <Badge variant={status.variant} className="shrink-0">
-                {status.label}
-              </Badge>
+              {!hasLinkedOrder && (
+                <Badge variant={status.variant} className="shrink-0">
+                  {status.label}
+                </Badge>
+              )}
             </div>
 
             <p className="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
@@ -114,6 +127,12 @@ export function PedidosClient({
             </p>
 
             {order.notes && <p className="mt-1 text-xs text-neutral-500">Notas: {order.notes}</p>}
+
+            {hasLinkedOrder && (
+              <div className="mt-4">
+                <OrderStatusTracker status={order.linkedOrderStatus!} />
+              </div>
+            )}
 
             {order.status === "cotizado" && (
               <div className="mt-3 rounded bg-blue-50 p-3 dark:bg-blue-950/50">

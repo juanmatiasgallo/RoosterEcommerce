@@ -4,8 +4,15 @@ import { formatCurrency } from "@/lib/format";
 import type { ProductListItem } from "@/lib/catalog/queries";
 import { Badge } from "@/components/ui/badge";
 import { ProductPlaceholder } from "@/components/product-placeholder";
+import { FavoriteButton } from "@/components/favorite-button";
 
-export function ProductCard({ product }: { product: ProductListItem }) {
+export function ProductCard({
+  product,
+  favorited = false,
+}: {
+  product: ProductListItem;
+  favorited?: boolean;
+}) {
   const price = product.minVariantPrice ?? Number(product.basePrice);
 
   return (
@@ -14,6 +21,7 @@ export function ProductCard({ product }: { product: ProductListItem }) {
       className="group flex flex-col overflow-hidden rounded-lg border border-neutral-200 transition-all duration-300 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-lg dark:border-neutral-800 dark:hover:border-neutral-700"
     >
       <div className="relative aspect-square overflow-hidden bg-neutral-100 dark:bg-neutral-900">
+        <FavoriteButton productId={product.id} initialFavorited={favorited} />
         {product.thumbnailUrl ? (
           <Image
             src={product.thumbnailUrl}

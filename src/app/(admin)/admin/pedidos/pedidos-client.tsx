@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { confirmManualPayment, updateOrderStatus, type AdminOrderRow } from "@/lib/orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { OrderStatusTracker } from "@/components/order-status-tracker";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mercado_pago: "Mercado Pago",
@@ -19,15 +20,23 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
   pendiente_confirmacion: { label: "Orden de servicio — sin confirmar", variant: "warning" },
   pagado: { label: "Pagado", variant: "info" },
-  en_preparacion: { label: "En preparacion", variant: "warning" },
+  en_cola: { label: "En cola", variant: "warning" },
+  imprimiendo: { label: "Imprimiendo", variant: "warning" },
+  postprocesado: { label: "Postprocesado", variant: "warning" },
   enviado: { label: "Enviado", variant: "accent" },
   entregado: { label: "Entregado", variant: "success" },
   cancelado: { label: "Cancelado", variant: "neutral" },
 };
 
-const NEXT_STATUS: Record<string, { value: "en_preparacion" | "enviado" | "entregado"; label: string } | undefined> = {
-  pagado: { value: "en_preparacion", label: "Marcar en preparacion" },
-  en_preparacion: { value: "enviado", label: "Marcar enviado" },
+type AdvanceableStatus = "en_cola" | "imprimiendo" | "postprocesado" | "enviado" | "entregado";
+
+const PIPELINE_STATUSES = new Set(["pagado", "en_cola", "imprimiendo", "postprocesado", "enviado", "entregado"]);
+
+const NEXT_STATUS: Record<string, { value: AdvanceableStatus; label: string } | undefined> = {
+  pagado: { value: "en_cola", label: "Marcar en cola" },
+  en_cola: { value: "imprimiendo", label: "Marcar imprimiendo" },
+  imprimiendo: { value: "postprocesado", label: "Marcar postprocesado" },
+  postprocesado: { value: "enviado", label: "Marcar enviado" },
   enviado: { value: "entregado", label: "Marcar entregado" },
 };
 
@@ -50,7 +59,7 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
   const [isPending, startTransition] = useTransition();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  function handleAdvance(id: string, next: "en_preparacion" | "enviado" | "entregado") {
+  function handleAdvance(id: string, next: AdvanceableStatus) {
     setUpdatingId(id);
     startTransition(async () => {
       try {
@@ -120,6 +129,11 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
                 <li key={item.id} className="text-sm text-neutral-600 dark:text-neutral-400">
                   {item.quantity}x {item.productName}
                   {item.variantLabel ? ` (${item.variantLabel})` : ""}
+                  {item.variantSku && (
+                    <code className="ml-1.5 rounded bg-neutral-100 px-1 py-0.5 text-xs text-neutral-500 dark:bg-neutral-800">
+                      {item.variantSku}
+                    </code>
+                  )}
                 </li>
               ))}
             </ul>
@@ -128,6 +142,13 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
               <p className="mt-2 text-xs text-neutral-500">
                 Envio: {formatShippingAddress(row.order.shippingAddress)}
                 {Number(row.order.shippingCost) > 0 && ` · ${formatCurrency(Number(row.order.shippingCost))}`}
+              </p>
+            )}
+
+            {Number(row.order.discountAmount) > 0 && (
+              <p className="mt-1 text-xs text-green-700 dark:text-green-400">
+                Descuento aplicado: -{formatCurrency(Number(row.order.discountAmount))}
+                {row.order.couponCode && ` (cupon ${row.order.couponCode})`}
               </p>
             )}
 
@@ -140,6 +161,12 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
               >
                 Ver comprobante subido
               </a>
+            )}
+
+            {PIPELINE_STATUSES.has(row.order.status) && (
+              <div className="mt-3">
+                <OrderStatusTracker status={row.order.status} />
+              </div>
             )}
 
             <div className="mt-3 flex items-center justify-between">

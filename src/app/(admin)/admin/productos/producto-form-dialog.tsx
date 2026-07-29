@@ -347,7 +347,7 @@ export function ProductoFormDialog(props: Props) {
                   {fields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="grid grid-cols-6 items-end gap-2 rounded border border-neutral-200 p-2 dark:border-neutral-800"
+                      className="grid grid-cols-7 items-end gap-2 rounded border border-neutral-200 p-2 dark:border-neutral-800"
                     >
                       <div className="col-span-2">
                         <label className="mb-0.5 block text-xs text-neutral-500">Material</label>
@@ -379,12 +379,20 @@ export function ProductoFormDialog(props: Props) {
                           className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
                         />
                       </div>
+                      <div>
+                        <label className="mb-0.5 block text-xs text-neutral-500">Stock</label>
+                        <input
+                          type="number"
+                          {...register(`variants.${index}.stock`)}
+                          className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                        />
+                      </div>
                       <div className="flex items-end gap-1">
                         <div className="flex-1">
-                          <label className="mb-0.5 block text-xs text-neutral-500">Stock</label>
+                          <label className="mb-0.5 block text-xs text-neutral-500">Codigo</label>
                           <input
-                            type="number"
-                            {...register(`variants.${index}.stock`)}
+                            placeholder="Auto"
+                            {...register(`variants.${index}.sku`)}
                             className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
                           />
                         </div>

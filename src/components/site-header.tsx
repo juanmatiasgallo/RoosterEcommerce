@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Menu, ShoppingCart, X } from "lucide-react";
+import { ChevronDown, Heart, Menu, ShoppingCart, X } from "lucide-react";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
@@ -27,15 +27,32 @@ function CartIcon({ cartItemCount }: { cartItemCount: number }) {
   );
 }
 
+function HeartIcon({ favoritesCount }: { favoritesCount: number }) {
+  return (
+    <Link
+      href="/mi-cuenta/favoritos"
+      aria-label="Favoritos"
+      className="relative flex items-center text-neutral-600 hover:text-accent dark:text-neutral-300"
+    >
+      <Heart size={20} />
+      {favoritesCount > 0 && (
+        <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-foreground">
+          {favoritesCount > 99 ? "99+" : favoritesCount}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 function UserAvatarMenu({
   user,
-  accountHref,
-  accountLabel,
+  isStaff,
 }: {
   user: { name?: string | null; email?: string | null };
-  accountHref: string;
-  accountLabel: string;
+  isStaff: boolean;
 }) {
+  const menuLinkClass = "rounded px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800";
+
   return (
     <details className="group relative">
       <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white transition-transform [&::-webkit-details-marker]:hidden hover:scale-105 dark:bg-neutral-100 dark:text-neutral-900">
@@ -43,13 +60,27 @@ function UserAvatarMenu({
       </summary>
       <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-10 mt-2 flex min-w-48 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
         <p className="truncate px-2 py-1 text-xs text-neutral-500">{user.name ?? user.email}</p>
-        <Link href={accountHref} className="rounded px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800">
-          {accountLabel}
-        </Link>
-        <Link
-          href="/mi-cuenta/cambiar-contrasena"
-          className="rounded px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
-        >
+        {isStaff ? (
+          <Link href="/admin/dashboard" className={menuLinkClass}>
+            Panel
+          </Link>
+        ) : (
+          <>
+            <Link href="/mi-cuenta/compras" className={menuLinkClass}>
+              Mis compras
+            </Link>
+            <Link href="/mi-cuenta/pedidos" className={menuLinkClass}>
+              Mis pedidos a medida
+            </Link>
+            <Link href="/mi-cuenta/favoritos" className={menuLinkClass}>
+              Mis favoritos
+            </Link>
+            <Link href="/mi-cuenta/puntos" className={menuLinkClass}>
+              Mis puntos
+            </Link>
+          </>
+        )}
+        <Link href="/mi-cuenta/cambiar-contrasena" className={menuLinkClass}>
           Cambiar contrasena
         </Link>
         <div className="px-2 py-1.5">
@@ -95,12 +126,14 @@ export function SiteHeader({
   categoryTree,
   user,
   cartItemCount,
+  favoritesCount = 0,
   notificationItems = [],
   notificationUnreadCount = 0,
 }: {
   categoryTree: CategoryTreeNode[];
   user: SessionUser;
   cartItemCount: number;
+  favoritesCount?: number;
   notificationItems?: (typeof notifications.$inferSelect)[];
   notificationUnreadCount?: number;
 }) {
@@ -109,8 +142,7 @@ export function SiteHeader({
   // No existe todavia un /admin (index) que redirija segun rol, por eso el
   // destino real es /admin/dashboard, que ya es el hub del panel de admin.
   const isStaff = user?.role === "admin" || user?.role === "empleado";
-  const accountHref = user ? (isStaff ? "/admin/dashboard" : "/mi-cuenta/pedidos") : null;
-  const accountLabel = isStaff ? "Panel" : "Mis pedidos";
+  const isCliente = user?.role === "cliente";
   const cartLabel = `Carrito${cartItemCount > 0 ? ` (${cartItemCount})` : ""}`;
 
   return (
@@ -151,10 +183,11 @@ export function SiteHeader({
 
         <div className="hidden items-center gap-4 sm:flex">
           {user && <NotificationBell initialItems={notificationItems} initialUnreadCount={notificationUnreadCount} />}
+          {isCliente && <HeartIcon favoritesCount={favoritesCount} />}
           <CartIcon cartItemCount={cartItemCount} />
 
-          {user && accountHref ? (
-            <UserAvatarMenu user={user} accountHref={accountHref} accountLabel={accountLabel} />
+          {user ? (
+            <UserAvatarMenu user={user} isStaff={isStaff} />
           ) : (
             <Link href="/login" className={linkClass}>
               Iniciar sesion
@@ -205,14 +238,46 @@ export function SiteHeader({
           >
             {cartLabel}
           </Link>
-          {accountHref && (
+          {isStaff && (
             <Link
-              href={accountHref}
+              href="/admin/dashboard"
               className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
               onClick={() => setMenuOpen(false)}
             >
-              {accountLabel}
+              Panel
             </Link>
+          )}
+          {isCliente && (
+            <>
+              <Link
+                href="/mi-cuenta/compras"
+                className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Mis compras
+              </Link>
+              <Link
+                href="/mi-cuenta/pedidos"
+                className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Mis pedidos a medida
+              </Link>
+              <Link
+                href="/mi-cuenta/favoritos"
+                className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Mis favoritos{favoritesCount > 0 ? ` (${favoritesCount})` : ""}
+              </Link>
+              <Link
+                href="/mi-cuenta/puntos"
+                className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Mis puntos
+              </Link>
+            </>
           )}
           {user && (
             <Link

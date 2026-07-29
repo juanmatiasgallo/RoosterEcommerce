@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
+  getLoyaltySettings,
   getMercadoPagoSettings,
   getPaymentInstructions,
   getSmtpSettings,
@@ -29,7 +30,7 @@ export default async function ConfiguracionAdminPage() {
     redirect("/");
   }
 
-  const [smtpSettings, mpSettings, paymentInstructions, storeInfo, vacationSettings, shippingZones] =
+  const [smtpSettings, mpSettings, paymentInstructions, storeInfo, vacationSettings, shippingZones, loyaltySettings] =
     await Promise.all([
       getSmtpSettings(),
       getMercadoPagoSettings(),
@@ -37,6 +38,7 @@ export default async function ConfiguracionAdminPage() {
       getStoreInfo(),
       getVacationSettings(),
       listShippingZonesForAdmin(),
+      getLoyaltySettings(),
     ]);
 
   return (
@@ -54,6 +56,7 @@ export default async function ConfiguracionAdminPage() {
           initialStoreInfo={storeInfo}
           initialVacation={vacationSettings}
           initialShippingZones={shippingZones}
+          initialLoyalty={loyaltySettings}
         />
       </div>
     </div>

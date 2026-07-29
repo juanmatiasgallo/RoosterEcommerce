@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import { listCategoryTree } from "@/lib/catalog/queries";
 import { getCartItemCount } from "@/lib/cart/actions";
 import { getNotificationSummary } from "@/lib/notifications/actions";
+import { getMyFavoriteProductIds } from "@/lib/favorites/actions";
 import { getPublicStoreContact, getVacationStatus } from "@/lib/settings/actions";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -21,9 +22,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     getPublicStoreContact(),
   ]);
 
-  // Solo se pide si hay sesion (getNotificationSummary devuelve vacio sin
-  // sesion, pero evitamos la query de mas para un visitante anonimo).
-  const notifications = session ? await getNotificationSummary() : { items: [], unreadCount: 0 };
+  // Solo se piden si hay sesion (las dos devuelven vacio sin sesion, pero
+  // evitamos la query de mas para un visitante anonimo).
+  const [notifications, favoriteIds] = session
+    ? await Promise.all([getNotificationSummary(), getMyFavoriteProductIds()])
+    : [{ items: [], unreadCount: 0 }, []];
 
   return (
     <>
@@ -36,6 +39,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         categoryTree={categoryTree}
         user={session?.user ?? null}
         cartItemCount={cartItemCount}
+        favoritesCount={favoriteIds.length}
         notificationItems={notifications.items}
         notificationUnreadCount={notifications.unreadCount}
       />

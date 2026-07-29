@@ -9,6 +9,7 @@ import { auditLogs, stores } from "@/lib/db/schema";
 import { encrypt } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
 import {
+  updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
   updatePaymentInstructionsSchema,
   updateSmtpSettingsSchema,
@@ -381,6 +382,68 @@ export async function updateVacationMode(input: z.infer<typeof updateVacationMod
   revalidatePath("/");
 
   return { vacationMode: updated.vacationMode, vacationMessage: updated.vacationMessage };
+}
+
+function toPublicLoyaltySettings(store: typeof stores.$inferSelect) {
+  return {
+    loyaltyPointsPer100: store.loyaltyPointsPer100,
+    loyaltyPointValue: Number(store.loyaltyPointValue),
+  };
+}
+
+export async function getLoyaltySettings() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return toPublicLoyaltySettings(store);
+}
+
+export type LoyaltySettings = Awaited<ReturnType<typeof getLoyaltySettings>>;
+
+// Publica (no admin-gated): /mi-cuenta/puntos necesita saber cuanto vale un
+// punto en pesos para mostrar el canje, sin requerir sesion de admin.
+export async function getPublicLoyaltyRates() {
+  const [store] = await db
+    .select({ loyaltyPointsPer100: stores.loyaltyPointsPer100, loyaltyPointValue: stores.loyaltyPointValue })
+    .from(stores)
+    .limit(1);
+
+  return store
+    ? { loyaltyPointsPer100: store.loyaltyPointsPer100, loyaltyPointValue: Number(store.loyaltyPointValue) }
+    : { loyaltyPointsPer100: 0, loyaltyPointValue: 0 };
+}
+
+export async function updateLoyaltySettings(input: z.infer<typeof updateLoyaltySettingsSchema>) {
+  const session = await requireAdmin();
+  const data = updateLoyaltySettingsSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      loyaltyPointsPer100: data.loyaltyPointsPer100,
+      loyaltyPointValue: data.loyaltyPointValue.toFixed(2),
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "loyalty_settings",
+    entityId: session.user.storeId,
+    before: toPublicLoyaltySettings(existing),
+    after: toPublicLoyaltySettings(updated),
+  });
+
+  revalidatePath("/admin/configuracion");
+
+  return toPublicLoyaltySettings(updated);
 }
 
 export async function sendTestEmail() {

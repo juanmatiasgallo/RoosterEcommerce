@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import type { z } from "zod";
 import {
+  updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
   updatePaymentInstructionsSchema,
   updateSmtpSettingsSchema,
@@ -14,11 +15,13 @@ import {
 } from "@/lib/settings/schema";
 import {
   sendTestEmail,
+  updateLoyaltySettings,
   updateMercadoPagoSettings,
   updatePaymentInstructions,
   updateSmtpSettings,
   updateStoreInfo,
   updateVacationMode,
+  type LoyaltySettings,
   type MercadoPagoSettings,
   type PaymentInstructionsSettings,
   type SmtpSettings,
@@ -42,6 +45,7 @@ type PaymentInstructionsFormValues = z.infer<typeof updatePaymentInstructionsSch
 type StoreInfoFormValues = z.infer<typeof updateStoreInfoSchema>;
 type VacationFormValues = z.infer<typeof updateVacationModeSchema>;
 type ShippingZoneFormValues = z.infer<typeof createShippingZoneSchema>;
+type LoyaltyFormValues = z.infer<typeof updateLoyaltySettingsSchema>;
 
 export function ConfiguracionClient({
   initialSmtp,
@@ -50,6 +54,7 @@ export function ConfiguracionClient({
   initialStoreInfo,
   initialVacation,
   initialShippingZones,
+  initialLoyalty,
 }: {
   initialSmtp: SmtpSettings;
   initialMp: MercadoPagoSettings;
@@ -57,6 +62,7 @@ export function ConfiguracionClient({
   initialStoreInfo: StoreInfoSettings;
   initialVacation: { vacationMode: boolean; vacationMessage: string | null };
   initialShippingZones: ShippingZoneRow[];
+  initialLoyalty: LoyaltySettings;
 }) {
   return (
     <div className="flex flex-col gap-10">
@@ -92,6 +98,17 @@ export function ConfiguracionClient({
         </p>
         <div className="mt-4">
           <VacationModeForm initial={initialVacation} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">Puntos y recompensas</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Cuantos puntos gana un cliente por cada compra confirmada, y cuanto vale 1 punto al canjearlo por un
+          cupon de descuento. En 0 el sistema queda apagado (no se otorgan puntos nuevos).
+        </p>
+        <div className="mt-4">
+          <LoyaltySettingsForm initial={initialLoyalty} />
         </div>
       </section>
 
@@ -275,6 +292,91 @@ function PaymentInstructionsForm({ initial }: { initial: PaymentInstructionsSett
               className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </div>
+
+          <Button type="submit" disabled={isSubmitting} className="self-start">
+            {isSubmitting ? "Guardando..." : "Guardar"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LoyaltySettingsForm({ initial }: { initial: LoyaltySettings }) {
+  const [settings, setSettings] = useState(initial);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoyaltyFormValues>({
+    resolver: zodResolver(updateLoyaltySettingsSchema),
+    defaultValues: {
+      loyaltyPointsPer100: settings.loyaltyPointsPer100,
+      loyaltyPointValue: settings.loyaltyPointValue,
+    },
+  });
+
+  const isActive = settings.loyaltyPointsPer100 > 0;
+
+  async function onSubmit(values: LoyaltyFormValues) {
+    try {
+      const updated = await updateLoyaltySettings(values);
+      setSettings(updated);
+      toast.success("Configuracion de puntos guardada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar.");
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            {isActive ? <Badge variant="success">Activo</Badge> : <Badge variant="neutral">Apagado</Badge>}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="loyaltyPointsPer100" className="mb-1 block text-sm font-medium">
+                Puntos por cada $100 gastados
+              </label>
+              <input
+                id="loyaltyPointsPer100"
+                type="number"
+                min={0}
+                {...register("loyaltyPointsPer100", { valueAsNumber: true })}
+                placeholder="0"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.loyaltyPointsPer100 && (
+                <p className="mt-1 text-xs text-red-600">{errors.loyaltyPointsPer100.message}</p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="loyaltyPointValue" className="mb-1 block text-sm font-medium">
+                Valor de 1 punto al canjear ($)
+              </label>
+              <input
+                id="loyaltyPointValue"
+                type="number"
+                min={0}
+                step="0.01"
+                {...register("loyaltyPointValue", { valueAsNumber: true })}
+                placeholder="0.00"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.loyaltyPointValue && (
+                <p className="mt-1 text-xs text-red-600">{errors.loyaltyPointValue.message}</p>
+              )}
+            </div>
+          </div>
+
+          <p className="-mt-2 text-xs text-neutral-500">
+            Los puntos se otorgan cuando una orden pasa a pagado, con la tasa vigente en ese momento — cambiar la
+            tasa despues no afecta puntos ya otorgados.
+          </p>
 
           <Button type="submit" disabled={isSubmitting} className="self-start">
             {isSubmitting ? "Guardando..." : "Guardar"}

@@ -11,7 +11,7 @@ import type { z } from "zod";
 // Una orden cuenta como "compra" habilitante para reseñar recien cuando el
 // pago esta confirmado (pagado en adelante) — "pendiente_pago" y
 // "pendiente_confirmacion" no cuentan, "cancelado" tampoco.
-const PURCHASED_STATUSES = ["pagado", "en_preparacion", "enviado", "entregado"] as const;
+const PURCHASED_STATUSES = ["pagado", "en_cola", "imprimiendo", "postprocesado", "enviado", "entregado"] as const;
 
 async function logAudit(params: {
   userId: string;

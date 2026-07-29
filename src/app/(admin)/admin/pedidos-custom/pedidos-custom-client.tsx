@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatCurrency } from "@/lib/format";
-import type { CustomOrderRow } from "@/lib/custom-orders/actions";
+import type { AdminCustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge } from "@/components/ui/badge";
 import { CotizarFormDialog } from "./cotizar-form-dialog";
 
@@ -10,7 +10,7 @@ function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
 }
 
-function FileLink({ order }: { order: CustomOrderRow }) {
+function FileLink({ order }: { order: AdminCustomOrderRow }) {
   return (
     <a
       href={order.fileUrl}
@@ -28,10 +28,10 @@ export function PedidosCustomClient({
   pendientes,
   cotizados,
 }: {
-  pendientes: CustomOrderRow[];
-  cotizados: CustomOrderRow[];
+  pendientes: AdminCustomOrderRow[];
+  cotizados: AdminCustomOrderRow[];
 }) {
-  const [cotizando, setCotizando] = useState<CustomOrderRow | null>(null);
+  const [cotizando, setCotizando] = useState<AdminCustomOrderRow | null>(null);
 
   return (
     <div className="flex flex-col gap-10">

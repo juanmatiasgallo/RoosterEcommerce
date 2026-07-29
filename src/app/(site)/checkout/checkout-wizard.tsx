@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ import { loginSchema, registerSchema } from "@/lib/auth/schema";
 import { getCartItems, mergeGuestCartIntoUser, type CartRow } from "@/lib/cart/actions";
 import { checkoutCart, uploadPaymentReceipt } from "@/lib/orders/actions";
 import { shippingAddressSchema, type ShippingAddress } from "@/lib/orders/schema";
+import { getMyCoupons, type CouponRow } from "@/lib/loyalty/actions";
+import type { PaymentMethod } from "@/lib/orders/actions";
 import {
   PaymentMethodPicker,
   type ManualPaymentMethodOption,
@@ -53,6 +55,7 @@ export function CheckoutWizard({
   initialUserEmail,
   initialShippingAddress = null,
   initialShippingZoneId = null,
+  initialPaymentMethod = null,
   manualPaymentMethods,
   shippingZones,
 }: {
@@ -61,6 +64,7 @@ export function CheckoutWizard({
   initialUserEmail: string | null;
   initialShippingAddress?: ShippingAddress | null;
   initialShippingZoneId?: string | null;
+  initialPaymentMethod?: PaymentMethod | null;
   manualPaymentMethods: ManualPaymentMethodOption[];
   shippingZones: ShippingZoneOption[];
 }) {
@@ -78,13 +82,35 @@ export function CheckoutWizard({
     () => shippingZones.find((zone) => zone.id === initialShippingZoneId) ?? null,
   );
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue>("mercado_pago");
+  // Precarga el medio de pago de la ultima compra exitosa (ver
+  // getMyLastPaymentMethod en lib/orders/actions.ts), mismo criterio que la
+  // direccion de envio de arriba — si nunca compro, arranca en Mercado Pago.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue>(initialPaymentMethod ?? "mercado_pago");
+
+  // Cupones de puntos (ver /mi-cuenta/puntos): solo tiene sentido buscarlos
+  // una vez identificado (getMyCoupons devuelve vacio sin sesion). Se
+  // eligen del listado, no se tipean a mano, para evitar errores de
+  // tipeo/codigos ajenos.
+  const [coupons, setCoupons] = useState<CouponRow[]>([]);
+  const [selectedCouponCode, setSelectedCouponCode] = useState<string | null>(null);
 
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [manualResult, setManualResult] = useState<ManualResult | null>(null);
 
   const shippingCost = shippingZone ? Number(shippingZone.cost) : 0;
-  const total = subtotal + shippingCost;
+  const selectedCoupon = coupons.find((c) => c.code === selectedCouponCode) ?? null;
+  const discountAmount = selectedCoupon ? Math.min(Number(selectedCoupon.amount), subtotal) : 0;
+  const total = Math.max(0, subtotal - discountAmount) + shippingCost;
+
+  useEffect(() => {
+    if (!startedLoggedIn) return;
+    getMyCoupons()
+      .then(setCoupons)
+      .catch(() => {
+        // no-op: el checkout sigue andando sin cupones si esto falla
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleIdentified(email: string) {
     try {
@@ -97,6 +123,11 @@ export function CheckoutWizard({
       // (los items de invitado siguen en la DB, no se pierden) — no vale
       // la pena bloquear el checkout por esto.
     }
+    try {
+      setCoupons(await getMyCoupons());
+    } catch {
+      // no-op
+    }
     setIdentifiedEmail(email);
     setStep(2);
   }
@@ -108,6 +139,7 @@ export function CheckoutWizard({
         paymentMethod,
         shippingZoneId: shippingZone?.id,
         shippingAddress: shippingAddress ?? undefined,
+        couponCode: selectedCouponCode ?? undefined,
       });
       if (result.type === "manual") {
         setManualResult(result);
@@ -175,6 +207,9 @@ export function CheckoutWizard({
               manualPaymentMethods={manualPaymentMethods}
               value={paymentMethod}
               onChange={setPaymentMethod}
+              coupons={coupons}
+              selectedCouponCode={selectedCouponCode}
+              onCouponChange={setSelectedCouponCode}
               onContinue={() => setStep(4)}
               onBack={() => setStep(2)}
             />
@@ -194,7 +229,13 @@ export function CheckoutWizard({
         </div>
       </div>
 
-      <OrderSummary items={items} subtotal={subtotal} shippingCost={shippingCost} total={total} />
+      <OrderSummary
+        items={items}
+        subtotal={subtotal}
+        shippingCost={shippingCost}
+        discountAmount={discountAmount}
+        total={total}
+      />
     </div>
   );
 }
@@ -618,18 +659,45 @@ function PaymentStep({
   manualPaymentMethods,
   value,
   onChange,
+  coupons,
+  selectedCouponCode,
+  onCouponChange,
   onContinue,
   onBack,
 }: {
   manualPaymentMethods: ManualPaymentMethodOption[];
   value: PaymentMethodValue;
   onChange: (value: PaymentMethodValue) => void;
+  coupons: CouponRow[];
+  selectedCouponCode: string | null;
+  onCouponChange: (code: string | null) => void;
   onContinue: () => void;
   onBack: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4 rounded border border-neutral-200 p-4 dark:border-neutral-800">
       <h2 className="font-medium">Medio de pago</h2>
+
+      {coupons.length > 0 && (
+        <div>
+          <label htmlFor="coupon-select" className="mb-1 block text-sm font-medium">
+            Cupon de puntos (opcional)
+          </label>
+          <select
+            id="coupon-select"
+            value={selectedCouponCode ?? ""}
+            onChange={(e) => onCouponChange(e.target.value || null)}
+            className={inputClass}
+          >
+            <option value="">Sin cupon</option>
+            {coupons.map((coupon) => (
+              <option key={coupon.id} value={coupon.code}>
+                {coupon.code} — {formatCurrency(Number(coupon.amount))} de descuento
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {manualPaymentMethods.length === 0 ? (
         <p className="text-sm text-neutral-500">
@@ -737,11 +805,13 @@ function OrderSummary({
   items,
   subtotal,
   shippingCost,
+  discountAmount,
   total,
 }: {
   items: CartRow[];
   subtotal: number;
   shippingCost: number;
+  discountAmount: number;
   total: number;
 }) {
   return (
@@ -767,6 +837,12 @@ function OrderSummary({
           <span>Subtotal</span>
           <span>{formatCurrency(subtotal)}</span>
         </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-green-700 dark:text-green-400">
+            <span>Descuento (cupon de puntos)</span>
+            <span>-{formatCurrency(discountAmount)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-neutral-500">
           <span>Envio</span>
           <span>{shippingCost > 0 ? formatCurrency(shippingCost) : "A coordinar"}</span>
