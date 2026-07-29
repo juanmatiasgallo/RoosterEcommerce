@@ -10,7 +10,7 @@ import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
 import { auditLogs, categories, productImages, products, productVariants } from "@/lib/db/schema";
-import { listProductsByIds } from "./queries";
+import { listProducts, listProductsByIds } from "./queries";
 import {
   createCategorySchema,
   createProductSchema,
@@ -638,4 +638,18 @@ export async function reorderProductImages(input: z.infer<typeof reorderProductI
 export async function getRecentlyViewedProducts(ids: string[]) {
   const safeIds = ids.filter((id) => typeof id === "string" && id.length > 0).slice(0, 12);
   return listProductsByIds(safeIds);
+}
+
+// Buscador del header (task #12): resultados en vivo mientras se tipea.
+// Publico, sin guard de rol (mismo criterio que el catalogo). Se acota a 6
+// resultados -- es un preview para saltar directo al producto, no un
+// listado completo (para eso ya esta "/" con ?search=).
+const SEARCH_PREVIEW_LIMIT = 6;
+
+export async function searchProductsPreview(query: string) {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const results = await listProducts({ search: trimmed, sort: "relevancia" });
+  return results.slice(0, SEARCH_PREVIEW_LIMIT);
 }

@@ -49,9 +49,38 @@
   --foreground: var(--color-neutral-900);
 }
 
+/*
+ * Modo oscuro con identidad propia (no solo "invertir" los mismos colores
+ * del claro): fondo azul-navy en vez de carbon calido, acento celeste en
+ * vez de cobre. Se pisa toda la rampa "neutral" otra vez, esta vez con tinte
+ * frio -- mismo mecanismo que la paleta clara (@theme arriba), pero
+ * scopeado a .dark en vez de :root, asi las utilidades bg-neutral-*
+ * cambian de tinte segun el tema sin tocar ningun componente. El acento
+ * tambien se pisa aca (--color-accent es una custom property real, no solo
+ * un valor de @theme, asi que es valido re-declararla dentro de un
+ * selector) -- inspirado en referencias de la industria (dark navy + azul
+ * electrico), pero con un tono propio (celeste, no el azul exacto de la
+ * referencia) para no calcarlo.
+ */
 .dark {
-  --background: #17130f;
+  --background: #0a0e1a;
   --foreground: var(--color-neutral-100);
+
+  --color-accent: #0ea5e9;
+  --color-accent-hover: #0284c7;
+  --color-accent-foreground: #ffffff;
+
+  --color-neutral-50: #f4f5f9;
+  --color-neutral-100: #e3e6ef;
+  --color-neutral-200: #c7ccdd;
+  --color-neutral-300: #9ba3bd;
+  --color-neutral-400: #707aa0;
+  --color-neutral-500: #545e80;
+  --color-neutral-600: #3d4661;
+  --color-neutral-700: #2a3147;
+  --color-neutral-800: #1a2032;
+  --color-neutral-900: #111623;
+  --color-neutral-950: #0a0e1a;
 }
 
 html {

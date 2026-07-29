@@ -1,6 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { auth } from "@/auth";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS } from "@/lib/custom-orders/schema";
+import { PrinterGridBackground } from "@/components/printer-grid-background";
 import { PedidoAMedidaWizard } from "./pedido-a-medida-wizard";
 
 // Ya no requiere sesion antes de renderizar (ver proxy.ts, task #111): un
@@ -22,9 +23,8 @@ export default async function PedidoAMedidaPage() {
           contenedor centrado para dar mas presencia visual a esta pagina,
           que ahora es la puerta de entrada tanto para clientes como para
           gente sin cuenta todavia. */}
-      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-950 px-6 py-14 text-center text-white sm:py-20">
-        <div className="pointer-events-none absolute -top-16 -left-10 h-56 w-56 rounded-full bg-accent/25 blur-3xl" />
-        <div className="pointer-events-none absolute -right-10 -bottom-16 h-56 w-56 rounded-full bg-accent/15 blur-3xl" />
+      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-100 px-6 py-14 text-center text-neutral-900 sm:py-20 dark:bg-neutral-950 dark:text-white">
+        <PrinterGridBackground />
 
         <div className="relative mx-auto max-w-xl">
           <div className="mx-auto flex w-fit items-center gap-1.5 rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-accent">
@@ -32,7 +32,7 @@ export default async function PedidoAMedidaPage() {
             Cotizacion antes de pagar
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Pedi tu pieza a medida</h1>
-          <p className="mx-auto mt-3 max-w-md text-balance text-neutral-300">
+          <p className="mx-auto mt-3 max-w-md text-balance text-neutral-600 dark:text-neutral-300">
             Subi tu archivo .stl o .obj y nuestro equipo de diseno te manda una cotizacion antes de cobrarte nada.
           </p>
         </div>

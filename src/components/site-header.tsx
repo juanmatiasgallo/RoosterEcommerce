@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Heart, Menu, ShoppingCart, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, Heart, Menu, Search, ShoppingCart, X } from "lucide-react";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
 import { LogoutButton } from "@/components/logout-button";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { SearchBar } from "@/components/search-bar";
 
 function initialsOf(name?: string | null, email?: string | null): string {
   const source = name?.trim() || email?.trim() || "?";
@@ -157,6 +159,35 @@ function CategoriesDropdown({ categoryTree }: { categoryTree: CategoryTreeNode[]
   );
 }
 
+// Version simple para el menu mobile (sin dropdown de resultados en vivo,
+// solo espacio como para un input): buscar navega directo al catalogo
+// filtrado, mismo destino que "Ver todos" del buscador de escritorio.
+function MobileSearchForm({ onSubmitted }: { onSubmitted: () => void }) {
+  const router = useRouter();
+  const [value, setValue] = useState("");
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    router.push(`/?q=${encodeURIComponent(trimmed)}#catalogo`);
+    onSubmitted();
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="relative mb-2">
+      <Search size={16} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-neutral-400" />
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        placeholder="Buscar productos..."
+        className="w-full rounded border border-neutral-300 bg-white py-1.5 pr-3 pl-8 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+      />
+    </form>
+  );
+}
+
 function CategoryLinks({ categoryTree, onSelect }: { categoryTree: CategoryTreeNode[]; onSelect?: () => void }) {
   if (categoryTree.length === 0) {
     return <span className="px-2 py-1 text-sm text-neutral-500">Sin categorias todavia</span>;
@@ -229,6 +260,7 @@ export function SiteHeader({
         </nav>
 
         <div className="hidden items-center gap-4 sm:flex">
+          <SearchBar />
           <ThemeToggle />
           {user && <NotificationBell initialItems={notificationItems} initialUnreadCount={notificationUnreadCount} />}
           {isCliente && <HeartIcon favoritesCount={favoritesCount} />}
@@ -256,6 +288,8 @@ export function SiteHeader({
 
       {menuOpen && (
         <nav className="animate-in fade-in-0 slide-in-from-top-2 flex flex-col gap-1 border-t border-neutral-200 px-4 py-3 duration-150 sm:hidden dark:border-neutral-800">
+          <MobileSearchForm onSubmitted={() => setMenuOpen(false)} />
+
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-1 py-1 text-sm text-neutral-600 [&::-webkit-details-marker]:hidden dark:text-neutral-300">
               Categorias

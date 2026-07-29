@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { and, asc, avg, count, desc, eq, exists, gte, ilike, inArray, lte } from "drizzle-orm";
+import { and, asc, avg, count, desc, eq, exists, gte, ilike, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, productImages, productReviews, products, productVariants } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
@@ -75,7 +75,13 @@ export async function listProducts(params: ListProductsParams = {}) {
       variantConditions.push(inArray(productVariants.material, params.material));
     }
     if (params.color?.length) {
-      variantConditions.push(inArray(productVariants.color, params.color));
+      // Case-insensitive: el catalogo tenia variantes cargadas como "Azul"
+      // y "azul" por separado (typeo del admin al no reusar el mismo
+      // valor) — listAvailableFilters ya las agrupa en una sola opcion de
+      // checkbox, pero si el filtro comparara con inArray exacto, tildar
+      // "Azul" seguiria sin traer los productos cargados como "azul".
+      const lowerColors = params.color.map((color) => color.toLowerCase());
+      variantConditions.push(inArray(sql`lower(${productVariants.color})`, lowerColors));
     }
     conditions.push(
       exists(
@@ -244,15 +250,24 @@ export async function listAvailableFilters(): Promise<AvailableFilters> {
     .where(and(eq(products.storeId, storeId), eq(products.active, true), eq(productVariants.active, true)));
 
   const materials = new Set<string>();
-  const colors = new Set<string>();
+  // Case-insensitive: si el admin cargo "Azul" en una variante y "azul" en
+  // otra, antes aparecian como 2 checkboxes separados en el filtro. Se
+  // agrupan por su forma en minuscula y se muestra una unica etiqueta
+  // canonica (Primera letra mayuscula) por grupo.
+  const colorsByKey = new Map<string, string>();
   for (const row of rows) {
     materials.add(row.material);
-    if (row.color) colors.add(row.color);
+    if (row.color) {
+      const key = row.color.toLowerCase();
+      if (!colorsByKey.has(key)) {
+        colorsByKey.set(key, key.charAt(0).toUpperCase() + key.slice(1));
+      }
+    }
   }
 
   return {
     materials: [...materials].sort(),
-    colors: [...colors].sort(),
+    colors: [...colorsByKey.values()].sort(),
   };
 }
 

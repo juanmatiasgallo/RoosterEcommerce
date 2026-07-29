@@ -1,15 +1,48 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { Box, Cog, Layers3, Ruler } from "lucide-react";
 import type { ReactNode } from "react";
 
-// Fondo animado para login/crear-cuenta (a pedido del owner: "necesito que
-// sea mucho mejor... con animacion y un fondo animado"). Tres glows
-// difuminados que derivan lentamente en loop (Framer Motion) sobre
-// neutral-950, mismo lenguaje visual que el Hero/Footer (full-bleed
-// oscuro + acento cobre), pero en movimiento continuo en vez de estatico
-// para que la pantalla de acceso se sienta mas "viva"/premium. La tarjeta
-// del formulario entra con spring (fade + scale) al montar.
+// Fondo animado para login/crear-cuenta (a pedido del owner, con una
+// referencia visual propia: grilla + formas de linea flotando lento). Se
+// tomo la idea general (grilla + iconos sueltos en movimiento) pero con
+// paleta, tipografia e iconos propios del rubro (impresion 3D: cubo
+// wireframe, capas, calibre, engranaje) en vez de calcar la referencia.
+// className="dark" fuerza el tema oscuro en este bloque sin importar el
+// toggle del sitio -- el login es una pantalla de marca aparte, como en la
+// referencia, no debe cambiar de paleta con el modo claro/oscuro del resto.
+const FLOATING_ICONS = [
+  { Icon: Box, className: "top-[14%] left-[10%] h-16 w-16 text-accent/40", duration: 9, delay: 0 },
+  { Icon: Layers3, className: "top-[62%] left-[16%] h-12 w-12 text-white/15", duration: 11, delay: 0.6 },
+  { Icon: Ruler, className: "top-[22%] right-[14%] h-14 w-14 text-white/15", duration: 10, delay: 1.1 },
+  { Icon: Cog, className: "bottom-[12%] right-[20%] h-20 w-20 text-accent/25", duration: 13, delay: 0.3 },
+];
+
+function HexGrid() {
+  return (
+    <svg aria-hidden="true" className="absolute inset-0 h-full w-full opacity-[0.15]">
+      <defs>
+        <pattern id="auth-hex" width="44" height="76" patternUnits="userSpaceOnUse" patternTransform="scale(1)">
+          <path
+            d="M22 0 44 12.7 44 38 22 50.7 0 38 0 12.7Z"
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth="1"
+          />
+          <path
+            d="M22 50.7 44 63.3 44 88.7 22 101.3 0 88.7 0 63.3Z"
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeWidth="1"
+          />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#auth-hex)" />
+    </svg>
+  );
+}
+
 export function AuthShell({
   title,
   subtitle,
@@ -20,23 +53,28 @@ export function AuthShell({
   children: ReactNode;
 }) {
   return (
-    <div className="relative left-1/2 right-1/2 -mx-[50vw] flex min-h-[75vh] w-screen items-center justify-center overflow-hidden bg-neutral-950 px-4 py-16">
+    <div className="dark relative left-1/2 right-1/2 -mx-[50vw] flex min-h-[75vh] w-screen items-center justify-center overflow-hidden bg-neutral-950 px-4 py-16">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute -top-24 -left-20 h-80 w-80 rounded-full bg-accent/20 blur-3xl"
-          animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
-          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute -right-24 top-1/3 h-96 w-96 rounded-full bg-accent/10 blur-3xl"
-          animate={{ x: [0, -30, 0], y: [0, 40, 0] }}
-          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        />
-        <motion.div
-          className="absolute bottom-[-6rem] left-1/3 h-72 w-72 rounded-full bg-white/5 blur-3xl"
-          animate={{ x: [0, 25, 0], y: [0, -20, 0] }}
-          transition={{ duration: 16, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-        />
+          animate={{ x: [0, 14, 0], y: [0, 10, 0] }}
+          transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+          className="absolute inset-0"
+        >
+          <HexGrid />
+        </motion.div>
+
+        <div className="absolute top-1/2 left-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl" />
+
+        {FLOATING_ICONS.map(({ Icon, className, duration, delay }, index) => (
+          <motion.div
+            key={index}
+            className={`absolute ${className}`}
+            animate={{ y: [0, -14, 0], rotate: [0, 4, 0] }}
+            transition={{ duration, repeat: Infinity, ease: "easeInOut", delay }}
+          >
+            <Icon strokeWidth={1.25} className="h-full w-full" />
+          </motion.div>
+        ))}
       </div>
 
       <motion.div
