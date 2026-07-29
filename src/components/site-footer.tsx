@@ -39,6 +39,11 @@ export function SiteFooter({ categoryTree }: { categoryTree: CategoryTreeNode[] 
                 Quienes somos
               </Link>
             </li>
+            <li>
+              <Link href="/ayuda" className="hover:text-accent">
+                Ayuda
+              </Link>
+            </li>
           </ul>
         </div>
       </div>
