@@ -97,16 +97,19 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       <ProductDetailsTabs description={product.description} specs={product.specs} technicalSpecs={product.technicalSpecs} />
 
-      {related.length > 0 && (
-        <section className="mt-14">
-          <h2 className="mb-4 text-lg font-semibold">Tambien te puede interesar</h2>
-          <ProductCarousel products={related} favoritedIds={favoritedIds} isLoggedIn={isLoggedIn} />
-        </section>
-      )}
-
       <RecentlyViewedCarousel productId={product.id} isLoggedIn={isLoggedIn} />
 
       <ProductReviews productId={product.id} productSlug={product.slug} />
+
+      {/* Productos similares (task #7): a pedido del owner, va despues de
+          los comentarios -- antes ("Tambien te puede interesar") quedaba
+          arriba de todo, entre las solapas y las resenas. */}
+      {related.length > 0 && (
+        <section className="mt-14">
+          <h2 className="mb-4 text-lg font-semibold">Productos similares</h2>
+          <ProductCarousel products={related} favoritedIds={favoritedIds} isLoggedIn={isLoggedIn} />
+        </section>
+      )}
     </main>
   );
 }

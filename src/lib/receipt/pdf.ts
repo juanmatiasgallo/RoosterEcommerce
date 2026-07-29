@@ -1,6 +1,8 @@
 import QRCode from "qrcode";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { formatCurrency } from "@/lib/format";
+import { orderReferenceCode } from "@/lib/orders/reference-code";
+import type { ShippingAddress } from "@/lib/orders/schema";
 
 // Talon-comprobante en PDF con codigo QR — generado 100% en el server con
 // librerias puramente JS (qrcode + pdf-lib), sin depender de ningun servicio
@@ -30,6 +32,7 @@ export type ReceiptData = {
   total: string;
   customerName: string;
   storeName: string;
+  shippingAddress: ShippingAddress | null;
 };
 
 export function getReceiptUrl(orderId: string): string {
@@ -79,11 +82,19 @@ export async function generateReceiptPdf(orderId: string, data: ReceiptData): Pr
 
   text(data.storeName, { size: 16, bold: true });
   text(`Comprobante de compra - Orden #${data.orderNumber}`, { size: 12, bold: true });
+  text(`Codigo de referencia: ${orderReferenceCode(orderId)}`, { size: 10, bold: true, color: [0.85, 0.34, 0.05] });
   y -= 4;
   text(`Fecha: ${data.createdAt.toLocaleDateString("es-UY", { year: "numeric", month: "long", day: "numeric" })}`);
   text(`Cliente: ${data.customerName}`);
   text(`Medio de pago: ${data.paymentMethodLabel}`);
   text(`Estado: ${data.statusLabel}`);
+  if (data.shippingAddress) {
+    const a = data.shippingAddress;
+    text(
+      `Envio: ${a.calle} ${a.numero}${a.piso ? `, ${a.piso}` : ""}, ${a.ciudad}, ${a.departamento} (CP ${a.cp})`,
+      { size: 9 },
+    );
+  }
   y -= 6;
 
   page.drawLine({ start: { x: margin, y }, end: { x: width - margin, y }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) });

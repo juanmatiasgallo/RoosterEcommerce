@@ -13,35 +13,35 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Color de acento unico del sitio (CTAs y estados activos): un naranja
- * "taller/fabricacion" a proposito, no el azul/violeta tipico de SaaS.
- * Se usa via las utilidades de Tailwind bg-accent/text-accent/etc, nunca
- * hardcodeado como hex suelto en un componente.
+ * Paleta "Carbon y cobre" (task #9 -- 2da ronda de paleta, la 1ra
+ * ["Taller claro"] resulto de bajo contraste y no convencio). Marfil real
+ * (no crema lavado) + negro carbon para el texto en claro: contraste alto a
+ * proposito. Acento cobre en vez de naranja plano -- mismo rol (CTAs,
+ * estados activos), se sigue usando via bg-accent/text-accent/etc, nunca
+ * hardcodeado suelto en un componente.
  *
- * Ramp de "neutral" con temperatura calida ("Taller claro", elegida entre 3
- * propuestas -- ver mockups task #120): Tailwind trae un gris neutro puro
- * por defecto, que es justo lo que el owner sintio "frio"/poco confiable.
- * Se pisan los 11 stops con la misma progresion de luminosidad pero con un
- * leve tinte calido (R > G > B), asi TODAS las utilidades bg-neutral-*,
- * border-neutral-*, text-neutral-* que ya existen en el resto del codigo
- * (decenas de archivos) heredan el cambio sin tocarlas una por una.
+ * La rampa "neutral" completa se pisa (11 stops, misma progresion de
+ * luminosidad que trae Tailwind por defecto) para que TODAS las utilidades
+ * bg-neutral-*, border-neutral-*, text-neutral-* que ya existen en el resto
+ * del codigo (decenas de archivos) hereden el cambio sin tocarlas una por
+ * una.
  */
 @theme {
-  --color-accent: #ea580c;
-  --color-accent-hover: #c2410c;
+  --color-accent: #b45309;
+  --color-accent-hover: #92400e;
   --color-accent-foreground: #ffffff;
 
-  --color-neutral-50: #faf9f6;
-  --color-neutral-100: #f3f1eb;
-  --color-neutral-200: #e7e4dc;
-  --color-neutral-300: #d3cfc3;
-  --color-neutral-400: #a9a399;
-  --color-neutral-500: #857f74;
-  --color-neutral-600: #635e55;
-  --color-neutral-700: #4a453d;
-  --color-neutral-800: #322e28;
-  --color-neutral-900: #211e1a;
-  --color-neutral-950: #171412;
+  --color-neutral-50: #fffdf8;
+  --color-neutral-100: #f7f3ec;
+  --color-neutral-200: #eae3d6;
+  --color-neutral-300: #d2c7b4;
+  --color-neutral-400: #a99c86;
+  --color-neutral-500: #857a68;
+  --color-neutral-600: #665c4c;
+  --color-neutral-700: #4a4137;
+  --color-neutral-800: #332c25;
+  --color-neutral-900: #1a1512;
+  --color-neutral-950: #14100d;
 }
 
 :root {
@@ -50,7 +50,7 @@
 }
 
 .dark {
-  --background: #14110d;
+  --background: #17130f;
   --foreground: var(--color-neutral-100);
 }
 

@@ -11,6 +11,7 @@ import { getMyCoupons, type CouponRow } from "@/lib/loyalty/actions";
 import { mergeGuestFavoritesIntoUser } from "@/lib/favorites/actions";
 import { getGuestFavoriteIds, clearGuestFavorites } from "@/lib/favorites/guest-favorites";
 import type { PaymentMethod } from "@/lib/orders/actions";
+import { getReceiptView } from "@/lib/receipt/actions";
 import {
   PaymentMethodPicker,
   type ManualPaymentMethodOption,
@@ -19,6 +20,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { PostPurchaseFollow } from "@/components/post-purchase-follow";
 import { IdentifyStep } from "@/components/identify-step";
+import { OrderReceiptCard, type OrderReceiptCardProps } from "@/components/order-receipt-card";
 
 type ShippingZoneOption = { id: string; name: string; description: string | null; cost: string };
 type Step = 1 | 2 | 3 | 4;
@@ -173,29 +175,12 @@ export function CheckoutWizard({
 
   if (manualResult) {
     return (
-      <div className="flex flex-col gap-4 rounded border border-neutral-200 p-6 dark:border-neutral-800">
-        <h2 className="text-lg font-semibold">Orden de servicio #{manualResult.orderNumber} creada</h2>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Te mandamos un mail con estos mismos datos. En cuanto confirmemos que el pago llego, te avisamos por mail
-          que nos vamos a poner en contacto para coordinar la entrega.
-        </p>
-        <div className="rounded bg-neutral-100 p-3 text-sm dark:bg-neutral-900">
-          <p className="font-medium">{manualResult.methodLabel}</p>
-          <p className="mt-1 whitespace-pre-line text-neutral-600 dark:text-neutral-400">
-            {manualResult.instructions}
-          </p>
-        </div>
-
-        {manualResult.receiptEligible && (
-          <ReceiptUpload orderId={manualResult.orderId} />
-        )}
-
-        <Link href="/mi-cuenta/pedidos" className="text-sm underline">
-          Ver mis pedidos
-        </Link>
-
-        <PostPurchaseFollow instagramUrl={instagramUrl} facebookUrl={facebookUrl} whatsappHref={whatsappHref} />
-      </div>
+      <ManualOrderResult
+        manualResult={manualResult}
+        instagramUrl={instagramUrl}
+        facebookUrl={facebookUrl}
+        whatsappHref={whatsappHref}
+      />
     );
   }
 
@@ -623,6 +608,74 @@ function OrderSummary({
         <span>{formatCurrency(total)}</span>
       </div>
     </aside>
+  );
+}
+
+// Pantalla de "orden de servicio creada" (task #6): antes era una cajita de
+// texto minima. El owner mando de referencia el comprobante de Tata.com.uy
+// (codigo grande, QR, direccion, articulos) para que este momento -- justo
+// despues de comprometerse a pagar por fuera de Mercado Pago -- transmita
+// mas confianza. El resumen (OrderReceiptCard) se pide en un segundo viaje
+// al server porque manualResult no trae items/direccion (checkoutCart no
+// los devuelve para no duplicar el payload) -- se busca por orderId apenas
+// se conoce, reusando el mismo getReceiptView que arma el comprobante
+// permanente de /mi-cuenta/compras/[id].
+function ManualOrderResult({
+  manualResult,
+  instagramUrl,
+  facebookUrl,
+  whatsappHref,
+}: {
+  manualResult: ManualResult;
+  instagramUrl: string | null;
+  facebookUrl: string | null;
+  whatsappHref: string | null;
+}) {
+  const [receipt, setReceipt] = useState<OrderReceiptCardProps | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getReceiptView(manualResult.orderId)
+      .then((data) => {
+        if (!cancelled && data) setReceipt(data);
+      })
+      .catch(() => {
+        // no-op: si falla, igual mostramos las instrucciones de pago abajo
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [manualResult.orderId]);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-lg font-semibold">Orden de servicio creada</h2>
+        <p className="text-sm text-neutral-600 dark:text-neutral-400">
+          Te mandamos un mail con estos mismos datos. En cuanto confirmemos que el pago llego, te avisamos por mail
+          que nos vamos a poner en contacto para coordinar la entrega.
+        </p>
+      </div>
+
+      {receipt ? (
+        <OrderReceiptCard {...receipt} />
+      ) : (
+        <div className="h-64 animate-pulse rounded-xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900" />
+      )}
+
+      <div className="rounded bg-neutral-100 p-3 text-sm dark:bg-neutral-900">
+        <p className="font-medium">{manualResult.methodLabel}</p>
+        <p className="mt-1 whitespace-pre-line text-neutral-600 dark:text-neutral-400">{manualResult.instructions}</p>
+      </div>
+
+      {manualResult.receiptEligible && <ReceiptUpload orderId={manualResult.orderId} />}
+
+      <Link href="/mi-cuenta/pedidos" className="text-sm underline">
+        Ver mis pedidos
+      </Link>
+
+      <PostPurchaseFollow instagramUrl={instagramUrl} facebookUrl={facebookUrl} whatsappHref={whatsappHref} />
+    </div>
   );
 }
 

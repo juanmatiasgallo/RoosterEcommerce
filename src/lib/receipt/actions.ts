@@ -4,7 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { orderItems, orders, stores, users } from "@/lib/db/schema";
-import type { ReceiptData, ReceiptItem } from "@/lib/receipt/pdf";
+import { generateReceiptQrDataUrl, type ReceiptData, type ReceiptItem } from "@/lib/receipt/pdf";
+import type { ShippingAddress } from "@/lib/orders/schema";
 
 // Mismas labels que /mi-cuenta/compras y /admin/pedidos (duplicadas ahi
 // tambien) — no vale la pena centralizarlas en un modulo compartido todavia,
@@ -75,5 +76,23 @@ export async function getReceiptData(orderId: string): Promise<(ReceiptData & { 
     total: row.order.total,
     customerName: row.customerName,
     storeName: row.storeName,
+    // jsonb sin $type<> en el schema (ver schema.ts) -> Drizzle lo tipa
+    // unknown; se castea aca, no en el schema, para no afectar el resto de
+    // los usos de `orders.shippingAddress` en el codigo.
+    shippingAddress: (row.order.shippingAddress as ShippingAddress | null) ?? null,
   };
+}
+
+/**
+ * Mismo comprobante que getReceiptData, pero ademas trae el QR ya generado
+ * (data URL) en un solo viaje -- pensado para el componente cliente que se
+ * muestra apenas se genera una orden de servicio (checkout-wizard.tsx), que
+ * no puede llamar a generateReceiptQrDataUrl directo por ser una funcion
+ * "server-only" fuera de un Server Action.
+ */
+export async function getReceiptView(orderId: string) {
+  const data = await getReceiptData(orderId);
+  if (!data) return null;
+  const qrDataUrl = await generateReceiptQrDataUrl(orderId);
+  return { ...data, qrDataUrl };
 }

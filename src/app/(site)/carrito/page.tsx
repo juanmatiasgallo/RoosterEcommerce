@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCartItems } from "@/lib/cart/actions";
 import { getVacationStatus } from "@/lib/settings/actions";
+import { NewsletterSection } from "../newsletter-section";
 import { CarritoClient } from "./carrito-client";
 
 // Consulta la DB (via getCartItems): sin esto, el build de Docker en
@@ -31,6 +32,11 @@ export default async function CarritoPage() {
           vacationMessage={vacation.vacationMessage}
         />
       )}
+
+      {/* Suscripcion tambien en el carrito (task #4): mismo bloque animado
+          que la home, para que aparezca en el proceso de compra y no solo
+          ahi -- pedido explicito del owner. */}
+      <NewsletterSection />
     </main>
   );
 }
