@@ -20,3 +20,23 @@ export const registerSchema = z
   });
 
 export type Role = "admin" | "empleado" | "cliente";
+
+export const forgotPasswordSchema = z.object({
+  email: z.email(),
+});
+
+export const changePasswordSchema = z
+  .object({
+    // Vacio si el cambio es obligatorio (vino de una contrasena temporal):
+    // no tiene sentido pedirle "tu contrasena actual" cuando esa contrasena
+    // actual es justamente la temporal que esta por reemplazar. Cuando el
+    // cambio es voluntario (desde /mi-cuenta), currentPassword es
+    // obligatorio (se valida aparte en la Server Action).
+    currentPassword: z.string().optional(),
+    newPassword: z.string().min(8, "Minimo 8 caracteres"),
+    confirmNewPassword: z.string(),
+  })
+  .refine((data) => data.newPassword === data.confirmNewPassword, {
+    message: "Las contrasenas no coinciden",
+    path: ["confirmNewPassword"],
+  });

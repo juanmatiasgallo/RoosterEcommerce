@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { listCategoryTree } from "@/lib/catalog/queries";
 import { getCartItemCount } from "@/lib/cart/actions";
+import { getNotificationSummary } from "@/lib/notifications/actions";
 import { getPublicStoreContact, getVacationStatus } from "@/lib/settings/actions";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
@@ -19,6 +20,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     getPublicStoreContact(),
   ]);
 
+  // Solo se pide si hay sesion (getNotificationSummary devuelve vacio sin
+  // sesion, pero evitamos la query de mas para un visitante anonimo).
+  const notifications = session ? await getNotificationSummary() : { items: [], unreadCount: 0 };
+
   return (
     <>
       {vacation.vacationMode && (
@@ -26,7 +31,13 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           {vacation.vacationMessage || "Estamos en pausa: por ahora no se pueden realizar nuevos pedidos."}
         </div>
       )}
-      <SiteHeader categoryTree={categoryTree} user={session?.user ?? null} cartItemCount={cartItemCount} />
+      <SiteHeader
+        categoryTree={categoryTree}
+        user={session?.user ?? null}
+        cartItemCount={cartItemCount}
+        notificationItems={notifications.items}
+        notificationUnreadCount={notifications.unreadCount}
+      />
       {children}
       <SiteFooter categoryTree={categoryTree} contactEmail={contact.contactEmail} contactPhone={contact.contactPhone} />
     </>

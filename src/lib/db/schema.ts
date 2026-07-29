@@ -58,6 +58,7 @@ export const stores = pgTable("stores", {
   paymentInstructionsRedpagos: text("payment_instructions_redpagos"),
   paymentInstructionsMiDinero: text("payment_instructions_mi_dinero"),
   paymentInstructionsPrex: text("payment_instructions_prex"),
+  paymentInstructionsContraentrega: text("payment_instructions_contraentrega"),
   // Datos de la tienda + fiscales: descriptivos por ahora (se muestran en
   // /quienes-somos, footer, mail de orden de servicio, etc.) — todavia no
   // hay un motor de facturacion real, invoicePrefix/nextInvoiceNumber son
@@ -94,6 +95,14 @@ export const users = pgTable("users", {
   // crear la cuenta) — nulo para cuentas creadas antes de que existiera
   // este campo (admin/empleado creados por seed, clientes viejos).
   termsAcceptedAt: timestamp("terms_accepted_at"),
+  // "Olvide mi contrasena": en vez de un link con token, se le manda al
+  // usuario una contrasena nueva generada por el server, que solo es valida
+  // hasta tempPasswordExpiresAt (ver requestPasswordReset en
+  // src/lib/auth/actions.ts). mustChangePassword fuerza el redirect a
+  // /mi-cuenta/cambiar-contrasena la primera vez que entra con esa
+  // temporal, para que no se quede usandola.
+  tempPasswordExpiresAt: timestamp("temp_password_expires_at"),
+  mustChangePassword: boolean("must_change_password").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -181,6 +190,27 @@ export const newsletterSubscribers = pgTable(
   },
   (table) => [unique("newsletter_subscribers_store_email_unique").on(table.storeId, table.email)],
 );
+
+// --- Notificaciones ---------------------------------------------------
+
+// recipientUserId nulo = notificacion "para todo el staff" de la tienda
+// (admin+empleado), no de un usuario puntual — mas simple que insertar una
+// fila por cada empleado (y sigue andando si se suma un empleado nuevo
+// despues). Con recipientUserId seteado, es para ese cliente puntual (sus
+// propios pedidos). No hay tiempo real (websockets/SSE): se lee al navegar,
+// mismo criterio de simplicidad que el resto del proyecto (gastos
+// operativos = solo el VPS).
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  recipientUserId: uuid("recipient_user_id").references(() => users.id, { onDelete: "cascade" }),
+  type: varchar("type", { length: 50 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  body: text("body"),
+  link: varchar("link", { length: 300 }),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
 
 // --- Envios -----------------------------------------------------------
 
@@ -286,6 +316,7 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "redpagos",
   "mi_dinero",
   "prex",
+  "contra_entrega",
 ]);
 
 export const orders = pgTable("orders", {
@@ -309,6 +340,11 @@ export const orders = pgTable("orders", {
   shippingAddress: jsonb("shipping_address"),
   mpPreferenceId: varchar("mp_preference_id", { length: 100 }),
   mpPaymentId: varchar("mp_payment_id", { length: 100 }),
+  // Comprobante de pago (ej. captura de la transferencia) que el cliente
+  // puede subir despues de crear una orden de servicio, para que el admin
+  // lo revise antes de confirmar el pago en /admin/pedidos.
+  receiptUrl: varchar("receipt_url", { length: 300 }),
+  receiptUploadedAt: timestamp("receipt_uploaded_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

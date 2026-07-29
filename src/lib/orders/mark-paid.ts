@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { auditLogs, customOrders, orderItems, orders, productVariants } from "@/lib/db/schema";
+import { notify } from "@/lib/notifications/notify";
 
 /**
  * Unico lugar donde una orden pasa de verdad a "pagado" — lo usan el
@@ -60,6 +61,14 @@ export async function markOrderAsPaid(params: {
     });
 
     return result;
+  });
+
+  await notify({
+    storeId: order.storeId,
+    recipientUserId: order.userId,
+    type: "order_paid",
+    title: `Confirmamos el pago de tu pedido #${order.orderNumber}`,
+    link: "/mi-cuenta/pedidos",
   });
 
   return updated;

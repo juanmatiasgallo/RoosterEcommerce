@@ -1,5 +1,8 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
@@ -10,6 +13,7 @@ import { getCartItems } from "@/lib/cart/actions";
 import { createPreference } from "@/lib/mercadopago/client";
 import { markOrderAsPaid } from "@/lib/orders/mark-paid";
 import { shippingAddressSchema, type ShippingAddress } from "@/lib/orders/schema";
+import { notify, notifyStaff } from "@/lib/notifications/notify";
 import { sendMail } from "@/lib/mail";
 import { formatCurrency } from "@/lib/format";
 import { getVacationStatus } from "@/lib/settings/actions";
@@ -24,7 +28,7 @@ async function requireStaff() {
   return session;
 }
 
-export type ManualPaymentMethod = "transferencia" | "abitab" | "redpagos" | "mi_dinero" | "prex";
+export type ManualPaymentMethod = "transferencia" | "abitab" | "redpagos" | "mi_dinero" | "prex" | "contra_entrega";
 export type PaymentMethod = "mercado_pago" | ManualPaymentMethod;
 
 const MANUAL_METHOD_LABELS: Record<ManualPaymentMethod, string> = {
@@ -33,6 +37,7 @@ const MANUAL_METHOD_LABELS: Record<ManualPaymentMethod, string> = {
   redpagos: "Red Pagos",
   mi_dinero: "Debito Mi Dinero",
   prex: "Prex",
+  contra_entrega: "Pago contra entrega",
 };
 
 // Una entrada por medio manual: que columna de `stores` tiene sus
@@ -44,7 +49,12 @@ const MANUAL_METHOD_COLUMNS = {
   redpagos: "paymentInstructionsRedpagos",
   mi_dinero: "paymentInstructionsMiDinero",
   prex: "paymentInstructionsPrex",
+  contra_entrega: "paymentInstructionsContraentrega",
 } as const satisfies Record<ManualPaymentMethod, keyof typeof stores.$inferSelect>;
+
+// Los medios que involucran plata que el cliente ya mando (no contra
+// entrega) son los unicos donde tiene sentido pedir/subir un comprobante.
+const RECEIPT_ELIGIBLE_METHODS: ManualPaymentMethod[] = ["transferencia", "abitab", "redpagos", "mi_dinero", "prex"];
 
 // Publico (no admin-gated a proposito): el checkout necesita saber que
 // medios de pago manuales estan configurados (tienen instrucciones
@@ -272,6 +282,13 @@ export async function checkoutCart(params: {
   await db.delete(cartItems).where(eq(cartItems.userId, session.user.id));
   revalidatePath("/carrito");
 
+  await notifyStaff({
+    storeId: session.user.storeId,
+    type: manualMethod ? "new_service_order" : "new_order",
+    title: manualMethod ? `Nueva orden de servicio #${order.orderNumber}` : `Nuevo pedido #${order.orderNumber}`,
+    link: "/admin/pedidos",
+  });
+
   if (manualMethod) {
     if (session.user.email) {
       await sendManualPaymentInstructions({
@@ -294,9 +311,11 @@ export async function checkoutCart(params: {
 
     return {
       type: "manual" as const,
+      orderId: order.id,
       orderNumber: order.orderNumber,
       methodLabel: manualMethod.label,
       instructions: manualMethod.instructions,
+      receiptEligible: RECEIPT_ELIGIBLE_METHODS.includes(manualMethod.value),
     };
   }
 
@@ -401,6 +420,19 @@ export async function updateOrderStatus(id: string, nextStatus: "en_preparacion"
     after: { status: nextStatus },
   });
 
+  const STATUS_NOTIFICATION_LABELS: Record<string, string> = {
+    en_preparacion: "esta en preparacion",
+    enviado: "fue enviado",
+    entregado: "fue entregado",
+  };
+  await notify({
+    storeId: session.user.storeId,
+    recipientUserId: existing.userId,
+    type: "order_status_changed",
+    title: `Tu pedido #${existing.orderNumber} ${STATUS_NOTIFICATION_LABELS[nextStatus] ?? `paso a ${nextStatus}`}`,
+    link: "/mi-cuenta/pedidos",
+  });
+
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/dashboard");
 
@@ -428,8 +460,95 @@ export async function confirmManualPayment(id: string) {
 
   const updated = await markOrderAsPaid({ orderId: id, actorUserId: session.user.id });
 
+  // Aviso al cliente de que su pago manual quedo confirmado — antes de esto
+  // el unico mail que recibia era el de instrucciones al crear la orden, no
+  // habia ninguna confirmacion de que el admin ya lo verifico. Resiliente
+  // (no bloquea la confirmacion si el mail falla).
+  try {
+    const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
+    if (customer) {
+      await sendMail({
+        storeId: session.user.storeId,
+        to: customer.email,
+        subject: `Pago confirmado — orden #${updated.orderNumber}`,
+        text: [
+          `Confirmamos que recibimos el pago de tu orden #${updated.orderNumber} por ${formatCurrency(Number(updated.total))}.`,
+          "Nos vamos a poner en contacto para coordinar la entrega.",
+        ].join("\n\n"),
+      });
+    }
+  } catch {
+    // No-op: mismo criterio de resiliencia que el resto de los mails.
+  }
+
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/dashboard");
 
   return updated;
+}
+
+// El cliente sube un comprobante (foto/captura de la transferencia, PDF,
+// etc.) despues de crear la orden de servicio, para que el admin lo revise
+// antes de confirmar el pago. No es obligatorio ni bloquea nada — es una
+// ayuda para el admin, la confirmacion sigue siendo manual.
+export async function uploadPaymentReceipt(orderId: string, file: File) {
+  const session = await auth();
+  if (!session) throw new Error("Debes iniciar sesion.");
+
+  const [existing] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), eq(orders.userId, session.user.id)))
+    .limit(1);
+  if (!existing) throw new Error("Orden no encontrada.");
+  if (existing.status !== "pendiente_confirmacion") {
+    throw new Error("Esta orden ya no esta esperando confirmacion de pago.");
+  }
+  if (!RECEIPT_ELIGIBLE_METHODS.includes(existing.paymentMethod as ManualPaymentMethod)) {
+    throw new Error("Este medio de pago no admite subir un comprobante.");
+  }
+
+  const allowedExtensions = ["jpg", "jpeg", "png", "webp", "pdf"];
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (!allowedExtensions.includes(ext)) {
+    throw new Error(`Extension no permitida. Usa: ${allowedExtensions.join(", ")}.`);
+  }
+  const maxSizeMb = Number(process.env.UPLOADS_MAX_SIZE_MB ?? 20);
+  if (file.size > maxSizeMb * 1024 * 1024) {
+    throw new Error(`El archivo supera el tamano maximo permitido (${maxSizeMb} MB).`);
+  }
+
+  const uploadsDir = process.env.UPLOADS_DIR ?? "./public/uploads";
+  const receiptsDir = path.resolve(uploadsDir, "receipts");
+  await mkdir(receiptsDir, { recursive: true });
+
+  const filename = `${randomUUID()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await writeFile(path.join(receiptsDir, filename), buffer);
+
+  const [updated] = await db
+    .update(orders)
+    .set({ receiptUrl: `/uploads/receipts/${filename}`, receiptUploadedAt: new Date() })
+    .where(eq(orders.id, orderId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "upload_receipt",
+    entityType: "order",
+    entityId: orderId,
+    after: { receiptUrl: updated.receiptUrl },
+  });
+
+  await notifyStaff({
+    storeId: session.user.storeId,
+    type: "receipt_uploaded",
+    title: `Comprobante subido para la orden #${existing.orderNumber}`,
+    link: "/admin/pedidos",
+  });
+
+  revalidatePath("/admin/pedidos");
+
+  return { receiptUrl: updated.receiptUrl };
 }

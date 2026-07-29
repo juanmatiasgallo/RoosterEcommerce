@@ -150,6 +150,7 @@ function PaymentInstructionsForm({ initial }: { initial: PaymentInstructionsSett
       paymentInstructionsRedpagos: settings.paymentInstructionsRedpagos ?? "",
       paymentInstructionsMiDinero: settings.paymentInstructionsMiDinero ?? "",
       paymentInstructionsPrex: settings.paymentInstructionsPrex ?? "",
+      paymentInstructionsContraentrega: settings.paymentInstructionsContraentrega ?? "",
     },
   });
 
@@ -253,6 +254,24 @@ function PaymentInstructionsForm({ initial }: { initial: PaymentInstructionsSett
               rows={3}
               {...register("paymentInstructionsPrex")}
               placeholder="Ej: Manda a mi alias de Prex @xxxxx..."
+              className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="paymentInstructionsContraentrega" className="mb-1 flex items-center gap-2 text-sm font-medium">
+              Pago contra entrega
+              {settings.paymentInstructionsContraentrega ? (
+                <Badge variant="success">Activo</Badge>
+              ) : (
+                <Badge variant="neutral">No se ofrece</Badge>
+              )}
+            </label>
+            <textarea
+              id="paymentInstructionsContraentrega"
+              rows={3}
+              {...register("paymentInstructionsContraentrega")}
+              placeholder="Ej: Pagas en efectivo o con tarjeta (debito/credito) al momento de que te entreguemos el pedido..."
               className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
             />
           </div>

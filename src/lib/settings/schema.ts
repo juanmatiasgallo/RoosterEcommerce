@@ -28,6 +28,7 @@ export const updatePaymentInstructionsSchema = z.object({
   paymentInstructionsRedpagos: z.string().max(2000).optional(),
   paymentInstructionsMiDinero: z.string().max(2000).optional(),
   paymentInstructionsPrex: z.string().max(2000).optional(),
+  paymentInstructionsContraentrega: z.string().max(2000).optional(),
 });
 
 // Texto libre no sensible, mismo criterio que instructions arriba: vacio SI

@@ -13,6 +13,7 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
   redpagos: "Red Pagos",
   mi_dinero: "Debito Mi Dinero",
   prex: "Prex",
+  contra_entrega: "Pago contra entrega",
 };
 
 const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
@@ -128,6 +129,17 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
                 Envio: {formatShippingAddress(row.order.shippingAddress)}
                 {Number(row.order.shippingCost) > 0 && ` · ${formatCurrency(Number(row.order.shippingCost))}`}
               </p>
+            )}
+
+            {row.order.receiptUrl && (
+              <a
+                href={row.order.receiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block text-xs text-accent underline"
+              >
+                Ver comprobante subido
+              </a>
             )}
 
             <div className="mt-3 flex items-center justify-between">

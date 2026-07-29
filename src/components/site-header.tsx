@@ -2,10 +2,63 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, ShoppingCart } from "lucide-react";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import type { Role } from "@/lib/auth/schema";
+import type { notifications } from "@/lib/db/schema";
 import { LogoutButton } from "@/components/logout-button";
+import { NotificationBell } from "@/components/notification-bell";
+
+function initialsOf(name?: string | null, email?: string | null): string {
+  const source = name?.trim() || email?.trim() || "?";
+  return source.charAt(0).toUpperCase();
+}
+
+function CartIcon({ cartItemCount }: { cartItemCount: number }) {
+  return (
+    <Link href="/carrito" aria-label="Carrito" className="relative flex items-center text-neutral-600 hover:text-accent dark:text-neutral-300">
+      <ShoppingCart size={20} />
+      {cartItemCount > 0 && (
+        <span className="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-foreground">
+          {cartItemCount > 99 ? "99+" : cartItemCount}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function UserAvatarMenu({
+  user,
+  accountHref,
+  accountLabel,
+}: {
+  user: { name?: string | null; email?: string | null };
+  accountHref: string;
+  accountLabel: string;
+}) {
+  return (
+    <details className="relative">
+      <summary className="flex h-8 w-8 cursor-pointer list-none items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white [&::-webkit-details-marker]:hidden dark:bg-neutral-100 dark:text-neutral-900">
+        {initialsOf(user.name, user.email)}
+      </summary>
+      <div className="absolute top-full right-0 z-10 mt-2 flex min-w-48 flex-col gap-1 rounded border border-neutral-200 bg-white p-2 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+        <p className="truncate px-2 py-1 text-xs text-neutral-500">{user.name ?? user.email}</p>
+        <Link href={accountHref} className="rounded px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800">
+          {accountLabel}
+        </Link>
+        <Link
+          href="/mi-cuenta/cambiar-contrasena"
+          className="rounded px-2 py-1.5 text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+        >
+          Cambiar contrasena
+        </Link>
+        <div className="px-2 py-1.5">
+          <LogoutButton />
+        </div>
+      </div>
+    </details>
+  );
+}
 
 type SessionUser = {
   name?: string | null;
@@ -42,10 +95,14 @@ export function SiteHeader({
   categoryTree,
   user,
   cartItemCount,
+  notificationItems = [],
+  notificationUnreadCount = 0,
 }: {
   categoryTree: CategoryTreeNode[];
   user: SessionUser;
   cartItemCount: number;
+  notificationItems?: (typeof notifications.$inferSelect)[];
+  notificationUnreadCount?: number;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -93,21 +150,11 @@ export function SiteHeader({
         </nav>
 
         <div className="hidden items-center gap-4 sm:flex">
-          <Link href="/carrito" className={linkClass}>
-            {cartLabel}
-          </Link>
+          {user && <NotificationBell initialItems={notificationItems} initialUnreadCount={notificationUnreadCount} />}
+          <CartIcon cartItemCount={cartItemCount} />
 
-          {accountHref && (
-            <Link href={accountHref} className={linkClass}>
-              {accountLabel}
-            </Link>
-          )}
-
-          {user ? (
-            <span className="flex items-center gap-2 text-sm text-neutral-500">
-              {user.name ?? user.email}
-              <LogoutButton />
-            </span>
+          {user && accountHref ? (
+            <UserAvatarMenu user={user} accountHref={accountHref} accountLabel={accountLabel} />
           ) : (
             <Link href="/login" className={linkClass}>
               Iniciar sesion
@@ -165,6 +212,15 @@ export function SiteHeader({
               onClick={() => setMenuOpen(false)}
             >
               {accountLabel}
+            </Link>
+          )}
+          {user && (
+            <Link
+              href="/mi-cuenta/cambiar-contrasena"
+              className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+              onClick={() => setMenuOpen(false)}
+            >
+              Cambiar contrasena
             </Link>
           )}
           {user ? (

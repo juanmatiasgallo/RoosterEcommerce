@@ -32,6 +32,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user || !user.active) return null;
 
+        // Una contrasena temporal (de "olvide mi contrasena") solo sirve
+        // dentro de su ventana de validez — vencida, se rechaza el login
+        // aunque el hash siga siendo el de la temporal (el usuario tiene
+        // que pedir una nueva desde /olvide-password).
+        if (user.tempPasswordExpiresAt && user.tempPasswordExpiresAt.getTime() < Date.now()) return null;
+
         const passwordMatches = await bcrypt.compare(password, user.passwordHash);
         if (!passwordMatches) return null;
 
@@ -41,6 +47,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           role: user.role,
           storeId: user.storeId,
+          mustChangePassword: user.mustChangePassword,
         };
       },
     }),
@@ -50,6 +57,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.role = user.role;
         token.storeId = user.storeId;
+        token.mustChangePassword = user.mustChangePassword;
       }
       return token;
     },
@@ -58,6 +66,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.sub as string;
         session.user.role = token.role as Role;
         session.user.storeId = token.storeId as string;
+        session.user.mustChangePassword = Boolean(token.mustChangePassword);
       }
       return session;
     },

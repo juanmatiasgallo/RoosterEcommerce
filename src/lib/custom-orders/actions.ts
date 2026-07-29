@@ -15,6 +15,7 @@ import { sendMail } from "@/lib/mail";
 import { createPreference } from "@/lib/mercadopago/client";
 import { getAvailableManualPaymentMethods, type ManualPaymentMethod, type PaymentMethod } from "@/lib/orders/actions";
 import { getVacationStatus } from "@/lib/settings/actions";
+import { notify, notifyStaff } from "@/lib/notifications/notify";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS, createCustomOrderSchema, quoteCustomOrderSchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -100,6 +101,13 @@ export async function createCustomOrder(input: z.infer<typeof createCustomOrderS
     entityType: "custom_order",
     entityId: created.id,
     after: created,
+  });
+
+  await notifyStaff({
+    storeId: session.user.storeId,
+    type: "new_custom_order",
+    title: `Nuevo pedido a medida: ${created.fileName}`,
+    link: "/admin/pedidos-custom",
   });
 
   revalidatePath("/mi-cuenta/pedidos");
@@ -210,6 +218,14 @@ export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCu
     emailSent = false;
   }
 
+  await notify({
+    storeId: session.user.storeId,
+    recipientUserId: existing.userId,
+    type: "custom_order_quoted",
+    title: `Tu pedido a medida "${updated.fileName}" ya tiene cotizacion`,
+    link: "/mi-cuenta/pedidos",
+  });
+
   return { ...updated, emailSent };
 }
 
@@ -305,6 +321,15 @@ export async function initiateCustomOrderPayment(id: string, paymentMethod: Paym
       entityType: "order",
       entityId: order.id,
       after: order,
+    });
+
+    await notifyStaff({
+      storeId: session.user.storeId,
+      type: manualMethod ? "new_service_order" : "new_order",
+      title: manualMethod
+        ? `Nueva orden de servicio #${order.orderNumber} (pedido a medida)`
+        : `Nuevo pedido #${order.orderNumber} (pedido a medida)`,
+      link: "/admin/pedidos",
     });
   }
 

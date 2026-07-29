@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Role } from "@/lib/auth/schema";
+import type { notifications } from "@/lib/db/schema";
 import { LogoutButton } from "@/components/logout-button";
+import { NotificationBell } from "@/components/notification-bell";
 
 type SessionUser = {
   name?: string | null;
@@ -30,7 +32,15 @@ const ADMIN_ONLY_ITEMS = [
   { href: "/admin/configuracion", label: "Configuracion" },
 ];
 
-export function AdminSidebar({ user }: { user: SessionUser }) {
+export function AdminSidebar({
+  user,
+  notificationItems = [],
+  notificationUnreadCount = 0,
+}: {
+  user: SessionUser;
+  notificationItems?: (typeof notifications.$inferSelect)[];
+  notificationUnreadCount?: number;
+}) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -51,15 +61,18 @@ export function AdminSidebar({ user }: { user: SessionUser }) {
         <Link href="/" className="text-sm font-semibold">
           Tienda 3D
         </Link>
-        <button
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-          aria-label="Abrir menu"
-          className="text-sm text-neutral-600 sm:hidden dark:text-neutral-300"
-        >
-          Menu
-        </button>
+        <div className="flex items-center gap-3">
+          <NotificationBell initialItems={notificationItems} initialUnreadCount={notificationUnreadCount} />
+          <button
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-expanded={menuOpen}
+            aria-label="Abrir menu"
+            className="text-sm text-neutral-600 sm:hidden dark:text-neutral-300"
+          >
+            Menu
+          </button>
+        </div>
       </div>
 
       <nav className={`flex-col gap-1 px-3 pb-4 sm:flex ${menuOpen ? "flex" : "hidden"}`}>

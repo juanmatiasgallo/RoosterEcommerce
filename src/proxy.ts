@@ -21,6 +21,13 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  // Entro con una contrasena temporal (ver requestPasswordReset en
+  // src/lib/auth/actions.ts): no lo dejamos navegar a ningun lado hasta que
+  // elija una definitiva, para que no se quede usando la temporal.
+  if (isLoggedIn && req.auth!.user.mustChangePassword && pathname !== "/mi-cuenta/cambiar-contrasena") {
+    return NextResponse.redirect(new URL("/mi-cuenta/cambiar-contrasena", nextUrl));
+  }
+
   if (pathname.startsWith("/admin")) {
     if (!isLoggedIn) {
       const loginUrl = new URL("/login", nextUrl);

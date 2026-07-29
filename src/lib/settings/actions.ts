@@ -177,6 +177,7 @@ function toPublicPaymentInstructions(store: typeof stores.$inferSelect) {
     paymentInstructionsRedpagos: store.paymentInstructionsRedpagos,
     paymentInstructionsMiDinero: store.paymentInstructionsMiDinero,
     paymentInstructionsPrex: store.paymentInstructionsPrex,
+    paymentInstructionsContraentrega: store.paymentInstructionsContraentrega,
   };
 }
 
@@ -218,6 +219,9 @@ export async function updatePaymentInstructions(input: z.infer<typeof updatePaym
       }),
       ...(data.paymentInstructionsPrex !== undefined && {
         paymentInstructionsPrex: data.paymentInstructionsPrex || null,
+      }),
+      ...(data.paymentInstructionsContraentrega !== undefined && {
+        paymentInstructionsContraentrega: data.paymentInstructionsContraentrega || null,
       }),
     })
     .where(eq(stores.id, session.user.storeId))

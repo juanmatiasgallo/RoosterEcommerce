@@ -84,9 +84,14 @@ export function LoginFormClient({ callbackUrl }: { callbackUrl: string }) {
       </div>
 
       <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium">
-          Contrasena
-        </label>
+        <div className="mb-1 flex items-center justify-between">
+          <label htmlFor="password" className="block text-sm font-medium">
+            Contrasena
+          </label>
+          <Link href="/olvide-password" className="text-xs text-neutral-500 underline">
+            Olvide mi contrasena
+          </Link>
+        </div>
         <input
           id="password"
           type="password"
