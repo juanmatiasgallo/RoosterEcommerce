@@ -2,8 +2,14 @@ import Link from "next/link";
 import { listProductsForAdmin } from "@/lib/catalog/actions";
 import { listCategoryTree } from "@/lib/catalog/queries";
 import { listCustomOrdersForAdmin } from "@/lib/custom-orders/actions";
+import { listOrdersForAdmin } from "@/lib/orders/actions";
+import { formatCurrency } from "@/lib/format";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+function formatDate(date: Date): string {
+  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
+}
 
 // Consulta la DB: sin esto, el build de Docker en EasyPanel la
 // pre-renderiza en build time y falla (no tiene red hacia la base ahi).
@@ -26,10 +32,11 @@ function countCategories(nodes: Awaited<ReturnType<typeof listCategoryTree>>): n
  * esas funciones (defensa en profundidad, mismo patron que el resto de /admin).
  */
 export default async function AdminDashboardPage() {
-  const [products, customOrders, categoryTree] = await Promise.all([
+  const [products, customOrders, categoryTree, orders] = await Promise.all([
     listProductsForAdmin(),
     listCustomOrdersForAdmin(),
     listCategoryTree(),
+    listOrdersForAdmin(),
   ]);
 
   const activeProducts = products.filter((product) => product.active);
@@ -113,14 +120,37 @@ export default async function AdminDashboardPage() {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-lg font-semibold">Ordenes pagadas recientes</h2>
-        <Card className="mt-4">
-          <CardContent>
-            <p className="text-sm text-neutral-500">
-              Sin ordenes pagadas todavia — se habilita con el checkout.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Ordenes recientes</h2>
+          <Link href="/admin/pedidos" className="text-sm text-accent hover:underline">
+            Ver todas
+          </Link>
+        </div>
+
+        {orders.length === 0 ? (
+          <Card className="mt-4">
+            <CardContent>
+              <p className="text-sm text-neutral-500">Todavia no hay ordenes pagadas.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mt-4">
+            <ul className="divide-y divide-neutral-200 dark:divide-neutral-800">
+              {orders.slice(0, 5).map((row) => (
+                <li key={row.order.id} className="flex items-center justify-between gap-2 p-4">
+                  <div>
+                    <CardTitle className="text-sm">{row.customerName ?? row.customerEmail}</CardTitle>
+                    <p className="text-xs text-neutral-500">{formatDate(row.order.createdAt)}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{formatCurrency(Number(row.order.total))}</span>
+                    <Badge variant={row.order.status === "entregado" ? "success" : "info"}>{row.order.status}</Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </section>
     </div>
   );

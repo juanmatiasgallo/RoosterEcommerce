@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/productos", label: "Productos" },
   { href: "/admin/categorias", label: "Categorias" },
+  { href: "/admin/pedidos", label: "Pedidos" },
   { href: "/admin/pedidos-custom", label: "Pedidos a medida" },
 ];
 

@@ -1,12 +1,23 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
-import { auditLogs, cartItems, orderItems, orders } from "@/lib/db/schema";
+import { auditLogs, cartItems, orderItems, orders, users } from "@/lib/db/schema";
 import { getCartItems } from "@/lib/cart/actions";
 import { createPreference } from "@/lib/mercadopago/client";
+
+const STAFF_ROLES: Role[] = ["admin", "empleado"];
+
+async function requireStaff() {
+  const session = await auth();
+  if (!session || !STAFF_ROLES.includes(session.user.role)) {
+    throw new Error("No autorizado.");
+  }
+  return session;
+}
 
 async function logAudit(params: {
   userId: string;
@@ -105,4 +116,85 @@ export async function checkoutCart() {
   revalidatePath("/carrito");
 
   return { initPoint };
+}
+
+// Paso 6 de docs/spec-ecommerce-base.md: cola de ordenes que ya tienen algo
+// que gestionar (pagadas en adelante). Las "pendiente_pago" son intentos de
+// checkout sin confirmar todavia — no hay nada que un admin pueda hacer con
+// esas, asi que se excluyen.
+export async function listOrdersForAdmin() {
+  const session = await requireStaff();
+
+  const orderRows = await db
+    .select({ order: orders, customerName: users.name, customerEmail: users.email })
+    .from(orders)
+    .innerJoin(users, eq(users.id, orders.userId))
+    .where(and(eq(orders.storeId, session.user.storeId), ne(orders.status, "pendiente_pago")))
+    .orderBy(desc(orders.createdAt));
+
+  if (orderRows.length === 0) return [];
+
+  const itemRows = await db
+    .select()
+    .from(orderItems)
+    .where(
+      inArray(
+        orderItems.orderId,
+        orderRows.map((row) => row.order.id),
+      ),
+    );
+
+  const itemsByOrder = new Map<string, typeof itemRows>();
+  for (const item of itemRows) {
+    const list = itemsByOrder.get(item.orderId) ?? [];
+    list.push(item);
+    itemsByOrder.set(item.orderId, list);
+  }
+
+  return orderRows.map((row) => ({ ...row, items: itemsByOrder.get(row.order.id) ?? [] }));
+}
+
+export type AdminOrderRow = Awaited<ReturnType<typeof listOrdersForAdmin>>[number];
+
+type OrderStatus = typeof orders.$inferSelect.status;
+
+// Camino feliz explicito, sin saltos: "pagado" -> "en_preparacion" ->
+// "enviado" -> "entregado". "cancelado" es terminal y no se maneja aca
+// (ver Paso 5: solo el webhook toca el estado de una orden no aprobada).
+const ORDER_STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus>> = {
+  pagado: "en_preparacion",
+  en_preparacion: "enviado",
+  enviado: "entregado",
+};
+
+export async function updateOrderStatus(id: string, nextStatus: "en_preparacion" | "enviado" | "entregado") {
+  const session = await requireStaff();
+
+  const [existing] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, id), eq(orders.storeId, session.user.storeId)))
+    .limit(1);
+  if (!existing) throw new Error("Orden no encontrada.");
+
+  if (ORDER_STATUS_TRANSITIONS[existing.status] !== nextStatus) {
+    throw new Error(`No se puede pasar de "${existing.status}" a "${nextStatus}".`);
+  }
+
+  const [updated] = await db.update(orders).set({ status: nextStatus }).where(eq(orders.id, id)).returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update_status",
+    entityType: "order",
+    entityId: id,
+    before: { status: existing.status },
+    after: { status: nextStatus },
+  });
+
+  revalidatePath("/admin/pedidos");
+  revalidatePath("/admin/dashboard");
+
+  return updated;
 }
