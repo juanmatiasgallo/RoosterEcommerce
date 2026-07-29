@@ -34,6 +34,17 @@ function formatDate(date: Date): string {
   return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
 }
 
+// shippingAddress es jsonb sin tipo estricto en el schema (puede venir de
+// ordenes viejas sin este campo, o con forma distinta) — se lee con cuidado
+// en vez de asumir la forma exacta de ShippingAddress.
+function formatShippingAddress(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const address = value as Record<string, unknown>;
+  return [address.calle, address.numero, address.piso, address.ciudad, address.departamento]
+    .filter((part) => typeof part === "string" && part.length > 0)
+    .join(" ");
+}
+
 export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
   const [isPending, startTransition] = useTransition();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -111,6 +122,13 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
                 </li>
               ))}
             </ul>
+
+            {Boolean(row.order.shippingAddress) && (
+              <p className="mt-2 text-xs text-neutral-500">
+                Envio: {formatShippingAddress(row.order.shippingAddress)}
+                {Number(row.order.shippingCost) > 0 && ` · ${formatCurrency(Number(row.order.shippingCost))}`}
+              </p>
+            )}
 
             <div className="mt-3 flex items-center justify-between">
               <p className="text-sm font-medium">{formatCurrency(Number(row.order.total))}</p>

@@ -5,10 +5,11 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
-import { auditLogs, cartItems, orderItems, orders, stores, users } from "@/lib/db/schema";
+import { auditLogs, cartItems, orderItems, orders, shippingZones, stores, users } from "@/lib/db/schema";
 import { getCartItems } from "@/lib/cart/actions";
 import { createPreference } from "@/lib/mercadopago/client";
 import { markOrderAsPaid } from "@/lib/orders/mark-paid";
+import { shippingAddressSchema, type ShippingAddress } from "@/lib/orders/schema";
 import { sendMail } from "@/lib/mail";
 import { formatCurrency } from "@/lib/format";
 import { getVacationStatus } from "@/lib/settings/actions";
@@ -97,6 +98,43 @@ async function sendManualPaymentInstructions(params: {
   }
 }
 
+// Aviso al admin cuando entra una orden de servicio nueva (medio manual):
+// va al contactEmail de /admin/configuracion, o al smtpFromEmail si todavia
+// no cargaron uno. Mismo criterio de resiliencia que sendManualPaymentInstructions
+// de arriba — nunca bloquea la creacion de la orden.
+async function sendManualPaymentAdminNotification(params: {
+  storeId: string;
+  orderNumber: number;
+  total: string;
+  methodLabel: string;
+  customerEmail: string;
+}) {
+  try {
+    const [store] = await db
+      .select({ contactEmail: stores.contactEmail, smtpFromEmail: stores.smtpFromEmail })
+      .from(stores)
+      .where(eq(stores.id, params.storeId))
+      .limit(1);
+    const to = store?.contactEmail || store?.smtpFromEmail;
+    if (!to) return;
+
+    await sendMail({
+      storeId: params.storeId,
+      to,
+      subject: `Nueva orden de servicio #${params.orderNumber}`,
+      text: [
+        `Se genero una orden de servicio nueva #${params.orderNumber} por ${formatCurrency(Number(params.total))}.`,
+        `Medio de pago elegido: ${params.methodLabel}.`,
+        `Cliente: ${params.customerEmail}.`,
+        "",
+        "Confirmala cuando verifiques que el pago llego, desde /admin/pedidos.",
+      ].join("\n"),
+    });
+  } catch {
+    // No se relanza: un mail que falla no puede tirar abajo la orden.
+  }
+}
+
 async function logAudit(params: {
   userId: string;
   storeId: string;
@@ -132,7 +170,11 @@ async function logAudit(params: {
 // instrucciones + numero de orden, y un admin la confirma a mano desde
 // /admin/pedidos cuando verifica que el dinero llego (ver
 // confirmManualPayment mas abajo).
-export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago") {
+export async function checkoutCart(params: {
+  paymentMethod: PaymentMethod;
+  shippingZoneId?: string;
+  shippingAddress?: ShippingAddress;
+}) {
   const session = await auth();
   if (!session) throw new Error("Debes iniciar sesion para pagar.");
 
@@ -152,6 +194,8 @@ export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago"
     }
   }
 
+  const paymentMethod = params.paymentMethod;
+
   let manualMethod: { value: ManualPaymentMethod; label: string; instructions: string } | undefined;
   if (paymentMethod !== "mercado_pago") {
     const available = await getAvailableManualPaymentMethods(session.user.storeId);
@@ -162,6 +206,31 @@ export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago"
     if (!manualMethod) throw new Error("Ese medio de pago no esta disponible.");
   }
 
+  // Zona de envio (opcional): si se manda un id, tiene que existir, estar
+  // activa y pertenecer a esta tienda — nunca se confia en un costo que
+  // pudiera mandar el cliente. Sin zona elegida, el envio queda en 0 (se
+  // coordina aparte, mismo criterio que antes de que existiera este paso).
+  let shippingZone: { id: string; name: string; cost: string } | undefined;
+  if (params.shippingZoneId) {
+    const [zone] = await db
+      .select({ id: shippingZones.id, name: shippingZones.name, cost: shippingZones.cost })
+      .from(shippingZones)
+      .where(
+        and(
+          eq(shippingZones.id, params.shippingZoneId),
+          eq(shippingZones.storeId, session.user.storeId),
+          eq(shippingZones.active, true),
+        ),
+      )
+      .limit(1);
+    if (!zone) throw new Error("Esa zona de envio no esta disponible.");
+    shippingZone = zone;
+  }
+
+  const shippingAddress = params.shippingAddress ? shippingAddressSchema.parse(params.shippingAddress) : undefined;
+  const shippingCost = shippingZone ? Number(shippingZone.cost) : 0;
+  const orderTotal = total + shippingCost;
+
   const [order] = await db
     .insert(orders)
     .values({
@@ -170,7 +239,10 @@ export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago"
       source: "catalogo",
       status: manualMethod ? "pendiente_confirmacion" : "pendiente_pago",
       paymentMethod,
-      total: total.toFixed(2),
+      total: orderTotal.toFixed(2),
+      shippingZoneId: shippingZone?.id,
+      shippingCost: shippingCost.toFixed(2),
+      shippingAddress: shippingAddress ?? null,
     })
     .returning();
 
@@ -212,6 +284,14 @@ export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago"
       });
     }
 
+    await sendManualPaymentAdminNotification({
+      storeId: session.user.storeId,
+      orderNumber: order.orderNumber,
+      total: order.total,
+      methodLabel: manualMethod.label,
+      customerEmail: session.user.email ?? "(sin email)",
+    });
+
     return {
       type: "manual" as const,
       orderNumber: order.orderNumber,
@@ -220,14 +300,21 @@ export async function checkoutCart(paymentMethod: PaymentMethod = "mercado_pago"
     };
   }
 
+  const preferenceItems = items.map((row) => ({
+    title: row.product.name,
+    quantity: row.item.quantity,
+    unitPrice: Number(row.variant.price),
+  }));
+  // Envio como linea aparte (no prorrateado entre productos): mas claro
+  // para el cliente en el Checkout Pro de Mercado Pago.
+  if (shippingZone && shippingCost > 0) {
+    preferenceItems.push({ title: `Envio - ${shippingZone.name}`, quantity: 1, unitPrice: shippingCost });
+  }
+
   const preference = await createPreference({
     orderId: order.id,
     storeId: session.user.storeId,
-    items: items.map((row) => ({
-      title: row.product.name,
-      quantity: row.item.quantity,
-      unitPrice: Number(row.variant.price),
-    })),
+    items: preferenceItems,
     payerEmail: session.user.email ?? undefined,
   });
 

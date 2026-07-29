@@ -30,10 +30,12 @@ export async function registerUser(input: z.infer<typeof registerSchema>) {
       storeId,
       name: data.name,
       email,
+      phone: data.phone,
       passwordHash,
       // Nunca se acepta un rol desde el input: quien se registra por este
       // formulario publico siempre es "cliente".
       role: "cliente",
+      termsAcceptedAt: new Date(),
     })
     .returning();
 
@@ -47,4 +49,14 @@ export async function registerUser(input: z.infer<typeof registerSchema>) {
   });
 
   return { id: created.id, email: created.email };
+}
+
+// Publica: el paso 1 del checkout (identificacion por mail) la usa para
+// decidir si pide contrasena (cuenta existente) o datos de registro (cuenta
+// nueva). No filtra nada mas sensible que "existe o no" — mismo dato que ya
+// se podria inferir intentando registrarse con ese mail.
+export async function checkEmailExists(email: string) {
+  const normalized = email.trim().toLowerCase();
+  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, normalized)).limit(1);
+  return { exists: Boolean(existing) };
 }

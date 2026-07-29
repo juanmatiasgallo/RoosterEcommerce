@@ -1,15 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { removeFromCart, updateCartItem, type CartRow } from "@/lib/cart/actions";
-import { checkoutCart } from "@/lib/orders/actions";
-import {
-  PaymentMethodPicker,
-  type ManualPaymentMethodOption,
-  type PaymentMethodValue,
-} from "@/components/payment-method-picker";
 
 function CartItemRow({ row }: { row: CartRow }) {
   const [quantity, setQuantity] = useState(row.item.quantity);
@@ -85,69 +80,20 @@ function CartItemRow({ row }: { row: CartRow }) {
   );
 }
 
-type ManualOrderResult = { orderNumber: number; methodLabel: string; instructions: string };
-
+// El picker de medio de pago y el checkout en si viven en /checkout (4
+// pasos: carrito, envio, pago, confirmacion) — este componente solo edita
+// cantidades y manda para alla. Ver checkout-wizard.tsx.
 export function CarritoClient({
   items,
   total,
-  manualPaymentMethods,
   vacationMode = false,
   vacationMessage,
 }: {
   items: CartRow[];
   total: number;
-  manualPaymentMethods: ManualPaymentMethodOption[];
   vacationMode?: boolean;
   vacationMessage?: string | null;
 }) {
-  const [isCheckingOut, startCheckout] = useTransition();
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue>("mercado_pago");
-  const [manualResult, setManualResult] = useState<ManualOrderResult | null>(null);
-
-  function handleCheckout() {
-    startCheckout(async () => {
-      try {
-        const result = await checkoutCart(paymentMethod);
-        if (result.type === "manual") {
-          setManualResult(result);
-          return;
-        }
-        // Recarga completa (no router.push): sale del SPA hacia el
-        // Checkout Pro de Mercado Pago, no hay nada que preservar del
-        // cache de Next del lado de aca.
-        window.location.assign(result.initPoint);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "No se pudo iniciar el pago.";
-        if (message.includes("iniciar sesion")) {
-          window.location.assign(`/login?callbackUrl=${encodeURIComponent("/carrito")}`);
-          return;
-        }
-        toast.error(message);
-      }
-    });
-  }
-
-  // Orden de servicio ya creada: se muestra la confirmacion en la misma
-  // pagina en vez de navegar a otro lado — el carrito ya se vacio en el
-  // server, no tiene sentido volver a mostrarlo.
-  if (manualResult) {
-    return (
-      <div className="mt-6 flex flex-col gap-4 rounded border border-neutral-200 p-4 dark:border-neutral-800">
-        <h2 className="font-semibold">Orden de servicio #{manualResult.orderNumber} creada</h2>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Te mandamos un mail con estos mismos datos. En cuanto confirmemos que el pago llego, vas a ver la orden
-          actualizada en <span className="underline">tu cuenta</span>.
-        </p>
-        <div className="rounded bg-neutral-100 p-3 text-sm dark:bg-neutral-900">
-          <p className="font-medium">{manualResult.methodLabel}</p>
-          <p className="mt-1 whitespace-pre-line text-neutral-600 dark:text-neutral-400">
-            {manualResult.instructions}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mt-6 flex flex-col gap-4">
       {items.map((row) => (
@@ -159,29 +105,17 @@ export function CarritoClient({
         <span className="text-lg font-semibold">{formatCurrency(total)}</span>
       </div>
 
-      <PaymentMethodPicker
-        manualPaymentMethods={manualPaymentMethods}
-        value={paymentMethod}
-        onChange={setPaymentMethod}
-      />
-
       {vacationMode ? (
         <p className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
           {vacationMessage || "La tienda no esta recibiendo pedidos en este momento."}
         </p>
       ) : (
-        <button
-          type="button"
-          onClick={handleCheckout}
-          disabled={isCheckingOut}
-          className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        <Link
+          href="/checkout"
+          className="rounded bg-neutral-900 px-4 py-2 text-center text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
         >
-          {isCheckingOut
-            ? "Procesando..."
-            : paymentMethod === "mercado_pago"
-              ? "Ir a pagar"
-              : "Generar orden de servicio"}
-        </button>
+          Continuar
+        </Link>
       )}
     </div>
   );

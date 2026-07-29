@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { getCartItems } from "@/lib/cart/actions";
-import { getAvailableManualPaymentMethods } from "@/lib/orders/actions";
-import { getDefaultStoreId } from "@/lib/db/store";
 import { getVacationStatus } from "@/lib/settings/actions";
 import { CarritoClient } from "./carrito-client";
 
@@ -11,12 +9,7 @@ import { CarritoClient } from "./carrito-client";
 export const dynamic = "force-dynamic";
 
 export default async function CarritoPage() {
-  const storeId = await getDefaultStoreId();
-  const [{ items, total }, manualPaymentMethods, vacation] = await Promise.all([
-    getCartItems(),
-    getAvailableManualPaymentMethods(storeId),
-    getVacationStatus(),
-  ]);
+  const [{ items, total }, vacation] = await Promise.all([getCartItems(), getVacationStatus()]);
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-8">
@@ -34,7 +27,6 @@ export default async function CarritoPage() {
         <CarritoClient
           items={items}
           total={total}
-          manualPaymentMethods={manualPaymentMethods}
           vacationMode={vacation.vacationMode}
           vacationMessage={vacation.vacationMessage}
         />

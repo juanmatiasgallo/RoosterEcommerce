@@ -90,6 +90,10 @@ export const users = pgTable("users", {
   role: userRoleEnum("role").notNull().default("cliente"),
   phone: varchar("phone", { length: 50 }),
   active: boolean("active").notNull().default(true),
+  // Registro de consentimiento (cuando acepto terminos y condiciones al
+  // crear la cuenta) — nulo para cuentas creadas antes de que existiera
+  // este campo (admin/empleado creados por seed, clientes viejos).
+  termsAcceptedAt: timestamp("terms_accepted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -159,6 +163,23 @@ export const productReviews = pgTable(
     // no duplicarla).
     unique("product_reviews_product_user_unique").on(table.productId, table.userId),
   ],
+);
+
+// --- Newsletter -------------------------------------------------------
+
+// Suscripcion a promos/novedades desde el footer: solo el mail, sin cuenta
+// ni login (puede ser de alguien que ni siquiera compro todavia). Todavia
+// no hay motor de envio de campañas — esto solo guarda la lista para que el
+// admin la vea/exporte desde /admin/newsletter.
+export const newsletterSubscribers = pgTable(
+  "newsletter_subscribers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeId: uuid("store_id").notNull().references(() => stores.id),
+    email: varchar("email", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [unique("newsletter_subscribers_store_email_unique").on(table.storeId, table.email)],
 );
 
 // --- Envios -----------------------------------------------------------
@@ -279,7 +300,12 @@ export const orders = pgTable("orders", {
   customOrderId: uuid("custom_order_id").references(() => customOrders.id),
   status: orderStatusEnum("status").notNull().default("pendiente_pago"),
   paymentMethod: paymentMethodEnum("payment_method").notNull().default("mercado_pago"),
+  // total ya incluye shippingCost sumado (nunca se recalcula sumandolos por
+  // separado en el front) — shippingCost queda aparte solo para poder
+  // mostrarlo desglosado en /admin/pedidos y en el mail de confirmacion.
   total: numeric("total", { precision: 12, scale: 2 }).notNull(),
+  shippingZoneId: uuid("shipping_zone_id").references(() => shippingZones.id),
+  shippingCost: numeric("shipping_cost", { precision: 12, scale: 2 }).notNull().default("0.00"),
   shippingAddress: jsonb("shipping_address"),
   mpPreferenceId: varchar("mp_preference_id", { length: 100 }),
   mpPaymentId: varchar("mp_payment_id", { length: 100 }),

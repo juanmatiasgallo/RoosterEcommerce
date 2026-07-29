@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/admin/categorias", label: "Categorias" },
   { href: "/admin/pedidos", label: "Pedidos" },
   { href: "/admin/pedidos-custom", label: "Pedidos a medida" },
+  { href: "/admin/newsletter", label: "Newsletter" },
 ];
 
 // Usuarios y Configuracion son admin-only: Configuracion ya lo era (expone

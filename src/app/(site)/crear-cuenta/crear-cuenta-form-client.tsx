@@ -107,6 +107,21 @@ export function CrearCuentaFormClient() {
       </div>
 
       <div>
+        <label htmlFor="phone" className="mb-1 block text-sm font-medium">
+          Celular de contacto
+        </label>
+        <input
+          id="phone"
+          type="tel"
+          autoComplete="tel"
+          placeholder="+598 99 000 000"
+          {...register("phone")}
+          className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+        />
+        {errors.phone && <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>}
+      </div>
+
+      <div>
         <label htmlFor="password" className="mb-1 block text-sm font-medium">
           Contrasena
         </label>
@@ -132,6 +147,20 @@ export function CrearCuentaFormClient() {
           className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
         />
         {errors.confirmPassword && <p className="mt-1 text-xs text-red-600">{errors.confirmPassword.message}</p>}
+      </div>
+
+      <div>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-0.5" {...register("acceptTerms")} />
+          <span>
+            Acepto los{" "}
+            <Link href="/terminos-y-condiciones" target="_blank" className="underline">
+              terminos y condiciones
+            </Link>
+            .
+          </span>
+        </label>
+        {errors.acceptTerms && <p className="mt-1 text-xs text-red-600">{errors.acceptTerms.message}</p>}
       </div>
 
       {formError && (

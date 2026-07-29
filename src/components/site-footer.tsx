@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
+import { NewsletterForm } from "@/components/newsletter-form";
 
 // Placeholders: se usan solo si el admin todavia no cargo datos reales de
 // contacto en /admin/configuracion (ver "Datos de la tienda").
@@ -16,8 +17,16 @@ export function SiteFooter({
   contactPhone?: string | null;
 }) {
   return (
-    <footer className="mt-16 border-t border-neutral-200 py-10 dark:border-neutral-800">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:grid-cols-3">
+    <footer className="mt-16 border-t border-neutral-200 dark:border-neutral-800">
+      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 border-b border-neutral-200 px-4 py-6 sm:flex-row sm:items-center dark:border-neutral-800">
+        <div>
+          <p className="font-semibold">Recibi promociones y novedades</p>
+          <p className="text-sm text-neutral-500">Ofertas del catalogo y avisos de pedidos a medida, sin spam.</p>
+        </div>
+        <NewsletterForm />
+      </div>
+
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
         <div>
           <p className="font-semibold">Tienda 3D</p>
           <p className="mt-2 text-sm text-neutral-500">Catalogo de impresion 3D y pedidos a medida.</p>
