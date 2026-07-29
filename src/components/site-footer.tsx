@@ -31,8 +31,17 @@ export function SiteFooter({
   const hasSocialLinks = Boolean(instagramUrl || facebookUrl);
 
   return (
-    <footer className="mt-16 bg-neutral-950 text-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6">
+    <footer className="relative mt-16 overflow-hidden bg-neutral-950 text-white">
+      {/* Brillo estatico (sin animacion, no suma costo) para que el limite
+          con la seccion anterior (Newsletter, con su grilla y glow) no
+          corte de golpe -- una ultima "estela" de luz que se apaga hacia
+          abajo, en vez de que el footer arranque plano de una. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-accent/10 to-transparent"
+      />
+
+      <div className="relative mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6">
         <Link href="/" className="text-sm font-semibold">
           Tienda 3D
         </Link>

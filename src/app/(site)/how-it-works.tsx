@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { FileUp, MessageSquareText, PackageCheck } from "lucide-react";
 import { AnimatedHeading } from "@/components/animated-heading";
+import { AnimatedParagraph } from "@/components/animated-paragraph";
 
 const STEPS = [
   {
@@ -87,7 +88,15 @@ export function HowItWorks() {
             </div>
             <p className="mt-3 text-xs font-medium text-neutral-400">Paso {index + 1}</p>
             <h3 className="font-heading mt-1 font-medium">{item.title}</h3>
-            <p className="mt-1 max-w-56 text-sm text-neutral-500 dark:text-neutral-300">{item.description}</p>
+            {/* Segundo tiempo del reveal (task #31): el icono+titulo ya
+                aparecieron como parte de "step" de arriba; la descripcion
+                arranca con su propio delay para leerse recien despues,
+                letra a letra a un ritmo comodo, no todo junto de una. */}
+            <AnimatedParagraph
+              text={item.description}
+              delay={0.3}
+              className="mt-1 block max-w-56 text-sm text-neutral-500 dark:text-neutral-300"
+            />
           </motion.div>
         ))}
       </motion.div>
