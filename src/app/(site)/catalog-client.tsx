@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { AvailableFilters, CategoryTreeNode, ProductSort } from "@/lib/catalog/queries";
+import { trackEvent } from "@/lib/analytics/track";
 
 type ApplyParams = (mutate: (params: URLSearchParams) => void) => void;
 
@@ -56,6 +57,21 @@ export function CatalogClient({
       const next = new URLSearchParams(searchParams.toString());
       mutate(next);
       const query = next.toString();
+      // Un solo evento para busqueda + todos los filtros (categoria,
+      // material, color, precio, orden): applyParams es el unico choke
+      // point por el que pasan todos (ver handlers de abajo), y el
+      // buscador/precio ya llegan debounced desde useDebouncedField -- no
+      // hace falta instrumentar cada handler por separado ni hay riesgo de
+      // spamear un evento por tecla.
+      trackEvent("catalogo_filtro", {
+        q: next.get("q") ?? undefined,
+        categoryId: next.get("categoryId") ?? undefined,
+        material: next.get("material") ?? undefined,
+        color: next.get("color") ?? undefined,
+        minPrice: next.get("minPrice") ?? undefined,
+        maxPrice: next.get("maxPrice") ?? undefined,
+        sort: next.get("sort") ?? undefined,
+      });
       startTransition(() => {
         router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
       });

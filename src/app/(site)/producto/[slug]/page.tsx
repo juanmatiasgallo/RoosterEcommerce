@@ -87,7 +87,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           <h1 className="text-2xl font-semibold">{product.name}</h1>
 
           <div className="mt-6">
-            <VariantSelectorClient variants={product.variants} basePrice={product.basePrice} />
+            <VariantSelectorClient
+              variants={product.variants}
+              basePrice={product.basePrice}
+              productId={product.id}
+              productName={product.name}
+            />
           </div>
 
           <div className="mt-3">

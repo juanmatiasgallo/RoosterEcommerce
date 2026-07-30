@@ -59,3 +59,13 @@ export const updateLoyaltySettingsSchema = z.object({
   loyaltyPointsPer100: z.number().int().min(0).max(10000),
   loyaltyPointValue: z.number().min(0).max(10000),
 });
+
+// No son secretos (van igual expuestos en el HTML del sitio, dentro del
+// <script> de tracking) -- por eso, a diferencia de mpAccessToken/
+// smtpPassword, vacio SI pisa el valor guardado (permite volver a la
+// instancia de Umami por defecto de las env vars, o apagar el tracking
+// dejando ambos campos vacios sin que exista un Website ID valido).
+export const updateUmamiSettingsSchema = z.object({
+  umamiWebsiteId: z.string().max(100).optional(),
+  umamiScriptUrl: z.union([z.url(), z.literal("")]).optional(),
+});

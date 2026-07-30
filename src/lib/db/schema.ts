@@ -91,6 +91,16 @@ export const stores = pgTable("stores", {
   // /admin/configuracion.
   loyaltyPointsPer100: integer("loyalty_points_per_100").notNull().default(0),
   loyaltyPointValue: numeric("loyalty_point_value", { precision: 12, scale: 2 }).notNull().default("0.00"),
+  // Analytics (Umami self-hosted, ver docs/): igual que Mercado Pago arriba,
+  // configurable desde /admin/configuracion sin tocar env vars ni redeployar
+  // -- pensado para poder replicar este mismo patron en otras
+  // implementaciones/clientes sin editar codigo, solo cargando el Website ID
+  // y la URL del script de SU instancia de Umami. Nulo = se cae a
+  // NEXT_PUBLIC_UMAMI_WEBSITE_ID / NEXT_PUBLIC_UMAMI_SRC (ver
+  // getPublicUmamiConfig en src/lib/settings/actions.ts), asi que el deploy
+  // actual (con esas env vars ya seteadas) sigue andando sin cambios.
+  umamiWebsiteId: varchar("umami_website_id", { length: 100 }),
+  umamiScriptUrl: varchar("umami_script_url", { length: 500 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

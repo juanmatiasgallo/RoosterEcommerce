@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/format";
 import { addToCart, getCartItems, type CartRow } from "@/lib/cart/actions";
 import { Spinner } from "@/components/ui/spinner";
 import { CartDrawer } from "@/components/cart-drawer";
+import { trackEvent } from "@/lib/analytics/track";
 
 type Variant = {
   id: string;
@@ -22,7 +23,17 @@ function uniqueValues(variants: Variant[], pick: (v: Variant) => string): string
   return Array.from(new Set(variants.map(pick)));
 }
 
-export function VariantSelectorClient({ variants, basePrice }: { variants: Variant[]; basePrice: string }) {
+export function VariantSelectorClient({
+  variants,
+  basePrice,
+  productId,
+  productName,
+}: {
+  variants: Variant[];
+  basePrice: string;
+  productId: string;
+  productName: string;
+}) {
   const materials = useMemo(() => uniqueValues(variants, (v) => v.material), [variants]);
   const [material, setMaterial] = useState(materials[0] ?? "");
 
@@ -91,6 +102,16 @@ export function VariantSelectorClient({ variants, basePrice }: { variants: Varia
     startTransition(async () => {
       try {
         await addToCart(selectedVariant.id, quantity);
+        trackEvent("agregar_al_carrito", {
+          productId,
+          productName,
+          variantId: selectedVariant.id,
+          material: selectedVariant.material,
+          quantity,
+          price: Number(selectedVariant.price),
+          revenue: Number(selectedVariant.price) * quantity,
+          currency: "UYU",
+        });
         const fresh = await getCartItems();
         setDrawerItems(fresh.items);
         setDrawerTotal(fresh.total);

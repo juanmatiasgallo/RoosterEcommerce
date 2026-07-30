@@ -14,6 +14,7 @@ import {
   updatePaymentInstructionsSchema,
   updateSmtpSettingsSchema,
   updateStoreInfoSchema,
+  updateUmamiSettingsSchema,
   updateVacationModeSchema,
 } from "./schema";
 
@@ -444,6 +445,82 @@ export async function updateLoyaltySettings(input: z.infer<typeof updateLoyaltyS
   revalidatePath("/admin/configuracion");
 
   return toPublicLoyaltySettings(updated);
+}
+
+function toPublicUmamiSettings(store: typeof stores.$inferSelect) {
+  return {
+    umamiWebsiteId: store.umamiWebsiteId,
+    umamiScriptUrl: store.umamiScriptUrl,
+  };
+}
+
+export async function getUmamiSettings() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return toPublicUmamiSettings(store);
+}
+
+export type UmamiSettings = Awaited<ReturnType<typeof getUmamiSettings>>;
+
+export async function updateUmamiSettings(input: z.infer<typeof updateUmamiSettingsSchema>) {
+  const session = await requireAdmin();
+  const data = updateUmamiSettingsSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      // Vacio SI pisa (ver comentario en updateUmamiSettingsSchema) — a
+      // diferencia de mpAccessToken/smtpPassword, esto no es un secreto.
+      ...(data.umamiWebsiteId !== undefined && { umamiWebsiteId: data.umamiWebsiteId || null }),
+      ...(data.umamiScriptUrl !== undefined && { umamiScriptUrl: data.umamiScriptUrl || null }),
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "umami_settings",
+    entityId: session.user.storeId,
+    before: toPublicUmamiSettings(existing),
+    after: toPublicUmamiSettings(updated),
+  });
+
+  revalidatePath("/admin/configuracion");
+  // El layout raiz (donde vive UmamiScript) no es admin-only, hay que
+  // revalidar el arbol entero para que el nuevo Website ID/URL se refleje
+  // en el sitio publico sin esperar a que expire el cache por otro motivo.
+  revalidatePath("/", "layout");
+
+  return toPublicUmamiSettings(updated);
+}
+
+// Publica (no admin-gated): la usa el layout raiz para decidir que
+// Website ID/URL de script pasarle a UmamiScript. DB primero (cargado desde
+// /admin/configuracion), y si la tienda no tiene nada seteado ahi, se cae a
+// las env vars NEXT_PUBLIC_UMAMI_WEBSITE_ID / NEXT_PUBLIC_UMAMI_SRC del
+// deploy actual -- mismo criterio que mpAccessTokenEncrypted cayendo a
+// MP_ACCESS_TOKEN. Este fallback es lo que permite replicar el patron en
+// otro cliente/implementacion sin tocar codigo: alcanza con cargar sus
+// datos de Umami en /admin/configuracion (o, si se prefiere, solo con env
+// vars, sin tocar la base).
+export async function getPublicUmamiConfig() {
+  const [store] = await db
+    .select({ umamiWebsiteId: stores.umamiWebsiteId, umamiScriptUrl: stores.umamiScriptUrl })
+    .from(stores)
+    .limit(1);
+
+  return {
+    websiteId: store?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || null,
+    scriptUrl: store?.umamiScriptUrl || process.env.NEXT_PUBLIC_UMAMI_SRC || null,
+  };
 }
 
 export async function sendTestEmail() {

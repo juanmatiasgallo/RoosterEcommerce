@@ -10,6 +10,7 @@ import { createCustomOrderSchema } from "@/lib/custom-orders/schema";
 import { createCustomOrder } from "@/lib/custom-orders/actions";
 import { IdentifyStep } from "@/components/identify-step";
 import { Spinner } from "@/components/ui/spinner";
+import { trackEvent } from "@/lib/analytics/track";
 
 type Step = "identify" | "details" | "confirm";
 type FormValues = z.infer<typeof createCustomOrderSchema>;
@@ -86,6 +87,10 @@ export function PedidoAMedidaWizard({
         },
         file,
       );
+      trackEvent("pedido_a_medida_enviado", {
+        material: values.material || undefined,
+        quantity: values.quantity,
+      });
       setShowSuccess(true);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "No se pudo enviar el pedido.");

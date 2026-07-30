@@ -10,14 +10,17 @@ import { usePathname } from "next/navigation";
  * cookies ni recolecta datos personales, asi que no hace falta banner de
  * consentimiento.
  *
- * Website ID y URL del script vienen por env var (NEXT_PUBLIC_*, no
- * hardcodeados): si no estan seteadas (ej. en local sin instancia de Umami
- * a mano), el componente no renderiza nada en vez de romper.
+ * websiteId/src YA vienen resueltos desde el server (ver
+ * getPublicUmamiConfig en src/lib/settings/actions.ts, llamado en
+ * src/app/layout.tsx): admin/configuracion primero, env vars
+ * NEXT_PUBLIC_UMAMI_* como fallback. Este componente no lee process.env
+ * directo a proposito -- asi el Website ID se puede cambiar desde
+ * /admin/configuracion sin rebuild, algo que no era posible cuando esto
+ * vivia baked-in en el bundle del cliente. Mismo motivo por el que ambos
+ * son props opcionales: si ninguna fuente tiene datos, no renderiza nada.
  */
-export function UmamiScript() {
+export function UmamiScript({ websiteId, src }: { websiteId: string | null; src: string | null }) {
   const pathname = usePathname();
-  const websiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
-  const src = process.env.NEXT_PUBLIC_UMAMI_SRC;
 
   if (!websiteId || !src || pathname?.startsWith("/admin")) return null;
 

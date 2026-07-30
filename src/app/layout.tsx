@@ -3,7 +3,16 @@ import { Space_Grotesk, Work_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UmamiScript } from "@/components/umami-script";
+import { getPublicUmamiConfig } from "@/lib/settings/actions";
 import "./globals.css";
+
+// Layout raiz: ahora consulta la DB (getPublicUmamiConfig, para el Website
+// ID/URL de Umami configurables desde /admin/configuracion) en cada
+// request. force-dynamic evita que Next intente pre-renderizarlo en build
+// time -- el contenedor de build en EasyPanel no tiene red hacia la base,
+// mismo motivo que el resto de las paginas de este repo (ver sus propios
+// `export const dynamic`).
+export const dynamic = "force-dynamic";
 
 // Una sola familia, dos pesos (regular + semibold) — suficiente para todo
 // el sitio, sin sumar mas de 2 pesos de fuente.
@@ -34,16 +43,18 @@ export const metadata: Metadata = {
   description: "Impresiones 3D por catalogo o a medida",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const umamiConfig = await getPublicUmamiConfig();
+
   return (
     <html lang="es" className={`${workSans.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           {children}
           <Toaster richColors position="bottom-right" />
-          <UmamiScript />
+          <UmamiScript websiteId={umamiConfig.websiteId} src={umamiConfig.scriptUrl} />
         </ThemeProvider>
       </body>
     </html>

@@ -6,6 +6,7 @@ import {
   getPaymentInstructions,
   getSmtpSettings,
   getStoreInfo,
+  getUmamiSettings,
   getVacationSettings,
 } from "@/lib/settings/actions";
 import { listShippingZonesForAdmin } from "@/lib/shipping/actions";
@@ -30,16 +31,25 @@ export default async function ConfiguracionAdminPage() {
     redirect("/");
   }
 
-  const [smtpSettings, mpSettings, paymentInstructions, storeInfo, vacationSettings, shippingZones, loyaltySettings] =
-    await Promise.all([
-      getSmtpSettings(),
-      getMercadoPagoSettings(),
-      getPaymentInstructions(),
-      getStoreInfo(),
-      getVacationSettings(),
-      listShippingZonesForAdmin(),
-      getLoyaltySettings(),
-    ]);
+  const [
+    smtpSettings,
+    mpSettings,
+    paymentInstructions,
+    storeInfo,
+    vacationSettings,
+    shippingZones,
+    loyaltySettings,
+    umamiSettings,
+  ] = await Promise.all([
+    getSmtpSettings(),
+    getMercadoPagoSettings(),
+    getPaymentInstructions(),
+    getStoreInfo(),
+    getVacationSettings(),
+    listShippingZonesForAdmin(),
+    getLoyaltySettings(),
+    getUmamiSettings(),
+  ]);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -57,6 +67,7 @@ export default async function ConfiguracionAdminPage() {
           initialVacation={vacationSettings}
           initialShippingZones={shippingZones}
           initialLoyalty={loyaltySettings}
+          initialUmami={umamiSettings}
         />
       </div>
     </div>

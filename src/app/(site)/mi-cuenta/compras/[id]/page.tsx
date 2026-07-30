@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { getReceiptView } from "@/lib/receipt/actions";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
 import { OrderReceiptCard } from "@/components/order-receipt-card";
+import { PurchaseConfirmedTracker } from "@/components/purchase-confirmed-tracker";
 
 // Consulta la DB directo (comprobante de una orden puntual del usuario
 // logueado) — mismo motivo que el resto de /mi-cuenta/*: sin esto el build
@@ -25,6 +26,14 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
+      <PurchaseConfirmedTracker
+        orderId={receipt.orderId}
+        orderNumber={receipt.orderNumber}
+        status={receipt.status}
+        total={Number(receipt.total)}
+        paymentMethodLabel={receipt.paymentMethodLabel}
+      />
+
       <div className="flex items-center justify-between gap-2">
         <Link href="/mi-cuenta/compras" className="text-sm text-neutral-500 underline">
           ← Volver a mis compras

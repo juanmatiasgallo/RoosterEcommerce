@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { PostPurchaseFollow } from "@/components/post-purchase-follow";
 import { IdentifyStep } from "@/components/identify-step";
 import { OrderReceiptCard, type OrderReceiptCardProps } from "@/components/order-receipt-card";
+import { trackEvent, trackPurchaseOnce } from "@/lib/analytics/track";
 
 type ShippingZoneOption = { id: string; name: string; description: string | null; cost: string };
 type Step = 1 | 2 | 3 | 4;
@@ -147,6 +148,11 @@ export function CheckoutWizard({
       const result = await previewDiscountCode(promoCodeInput);
       setAppliedPromo(result);
       setSelectedCouponCode(null);
+      trackEvent("aplicar_codigo_promo", {
+        code: result.code,
+        type: result.type,
+        discountAmount: result.discountAmount,
+      });
     } catch (error) {
       setAppliedPromo(null);
       setPromoError(error instanceof Error ? error.message : "No se pudo aplicar el codigo.");
@@ -168,6 +174,20 @@ export function CheckoutWizard({
       .catch(() => {
         // no-op: el checkout sigue andando sin cupones si esto falla
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // "iniciar_checkout": un solo evento al montar el wizard con el carrito
+  // que trajo -- paso del funnel entre "agregar_al_carrito" y
+  // "compra_confirmada". Se dispara una sola vez (deps vacias), no en cada
+  // cambio de paso.
+  useEffect(() => {
+    if (initialItems.length === 0) return;
+    trackEvent("iniciar_checkout", {
+      itemCount: initialItems.reduce((sum, row) => sum + row.item.quantity, 0),
+      subtotal: initialTotal,
+      currency: "UYU",
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -211,9 +231,30 @@ export function CheckoutWizard({
         promoCode: appliedPromo?.code ?? undefined,
       });
       if (result.type === "manual") {
+        // Orden de servicio creada (pago pendiente de confirmar a mano por
+        // un admin, ver comentario mas abajo en ManualOrderResult) -- este
+        // es el "thank you" real que ve el cliente para este flujo, asi que
+        // es donde tiene sentido registrar la compra con su monto (Revenue
+        // en Umami). Para Mercado Pago el equivalente es la pagina del
+        // comprobante (/mi-cuenta/compras/[id], ver purchase-confirmed-
+        // tracker.tsx), porque el pago recien se confirma por webhook
+        // despues del redirect.
+        trackPurchaseOnce(result.orderId, {
+          orderId: result.orderId,
+          orderNumber: result.orderNumber,
+          revenue: total,
+          currency: "UYU",
+          paymentMethod,
+        });
         setManualResult(result);
         return;
       }
+      // Paso del funnel: la orden ya se creo (pendiente_pago) y el cliente
+      // esta por salir del sitio hacia Mercado Pago. No es "compra
+      // confirmada" todavia -- eso se registra en la pagina del
+      // comprobante, cuando el status ya no es pendiente (ver
+      // purchase-confirmed-tracker.tsx).
+      trackEvent("checkout_redirigido_mercadopago", { subtotal, total, currency: "UYU" });
       // Recarga completa: sale del SPA hacia el Checkout Pro de Mercado
       // Pago, no hay nada que preservar del cache de Next del lado de aca.
       window.location.assign(result.initPoint);
