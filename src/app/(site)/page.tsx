@@ -112,15 +112,23 @@ export default async function HomePage({
 
   return (
     <HomeReplayBoundary>
-    <AmbientSiteBackground />
     <main className="mx-auto max-w-6xl px-4 py-8">
       <Hero />
-      <HowItWorks />
-      <ValueProps />
-      <ServicesSection />
-      <DeliveryTimesSection />
-      <MaterialSection />
-      <FeaturedCategories categoryTree={categoryTree} />
+
+      {/* Fondo ambiente SOLO para este tramo del medio (no toda la pagina,
+          ver ambient-site-background.tsx): arranca despues del Hero -- que
+          ya tiene su propio fondo mas fuerte, no hace falta superponer otro
+          ahi -- y termina justo antes de Catalogo, que se pidio explicito
+          que quede con el color de fondo natural, sin animacion. */}
+      <div className="relative">
+        <AmbientSiteBackground />
+        <HowItWorks />
+        <ValueProps />
+        <ServicesSection />
+        <DeliveryTimesSection />
+        <MaterialSection />
+        <FeaturedCategories categoryTree={categoryTree} />
+      </div>
 
       <div id="catalogo" className="scroll-mt-6 border-t border-neutral-200 pt-10 dark:border-neutral-800">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
