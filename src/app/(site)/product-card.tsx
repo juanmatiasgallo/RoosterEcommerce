@@ -17,6 +17,7 @@ export function ProductCard({
   isLoggedIn?: boolean;
 }) {
   const price = product.minVariantPrice ?? Number(product.basePrice);
+  const compareAtPrice = product.minVariantCompareAtPrice;
 
   return (
     <Link
@@ -35,6 +36,12 @@ export function ProductCard({
           />
         ) : (
           <ProductPlaceholder />
+        )}
+
+        {product.onSale && (
+          <Badge variant="danger" className="absolute left-2 top-2 shadow">
+            Oferta -{product.discountPercent}%
+          </Badge>
         )}
 
         {product.availableVariantCount > 0 ? (
@@ -59,7 +66,14 @@ export function ProductCard({
             <span className="text-xs text-neutral-400">({product.reviewCount})</span>
           </div>
         )}
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">desde {formatCurrency(price)}</p>
+        <p className="flex items-baseline gap-1.5 text-sm text-neutral-500 dark:text-neutral-400">
+          desde {formatCurrency(price)}
+          {compareAtPrice !== null && (
+            <span className="text-xs text-neutral-400 line-through dark:text-neutral-600">
+              {formatCurrency(compareAtPrice)}
+            </span>
+          )}
+        </p>
       </div>
     </Link>
   );

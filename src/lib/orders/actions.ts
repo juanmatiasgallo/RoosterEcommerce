@@ -3,13 +3,14 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
-import { auditLogs, cartItems, discountCoupons, orderItems, orders, shippingZones, stores, users } from "@/lib/db/schema";
+import { auditLogs, cartItems, discountCampaigns, discountCoupons, orderItems, orders, shippingZones, stores, users } from "@/lib/db/schema";
 import { getCartItems } from "@/lib/cart/actions";
+import { computeCampaignDiscount, findUsableCampaign } from "@/lib/discount-campaigns/actions";
 import { createPreference } from "@/lib/mercadopago/client";
 import { markOrderAsPaid } from "@/lib/orders/mark-paid";
 import { shippingAddressSchema, type ShippingAddress } from "@/lib/orders/schema";
@@ -258,6 +259,13 @@ export async function checkoutCart(params: {
   // cliente, solo en el codigo, y se revalida todo server-side (dueño,
   // no usado, tienda) antes de aplicarlo.
   couponCode?: string;
+  // Codigo de promocion general (backlog "sistema de ofertas/descuentos",
+  // ver src/lib/discount-campaigns/): distinto del cupon de puntos de
+  // arriba -- cualquier visitante puede tener uno, no esta atado a un
+  // usuario. Mutuamente excluyente con couponCode en la UI del checkout,
+  // pero si por algun motivo llegaran los dos, gana el cupon de puntos
+  // (mas especifico/personal) y este se ignora.
+  promoCode?: string;
 }) {
   const session = await auth();
   if (!session) throw new Error("Debes iniciar sesion para pagar.");
@@ -321,6 +329,13 @@ export async function checkoutCart(params: {
   // negativo).
   let coupon: { id: string; code: string; amount: string } | undefined;
   let discountAmount = 0;
+  // Codigo de campania general (backlog "sistema de ofertas/descuentos"):
+  // solo se busca si no vino un cupon de puntos (ver comentario en el tipo
+  // de parametros de arriba). Misma condicion que previewDiscountCode del
+  // checkout (findUsableCampaign), para que "valido en el preview" siga
+  // siendo valido aca -- salvo que alguien mas agote el cupo justo en el
+  // medio, cubierto abajo por el update condicionado a usageLimit.
+  let campaign: { id: string; code: string; type: "percent" | "fixed"; value: string } | undefined;
   if (params.couponCode) {
     const [found] = await db
       .select({ id: discountCoupons.id, code: discountCoupons.code, amount: discountCoupons.amount })
@@ -337,6 +352,11 @@ export async function checkoutCart(params: {
     if (!found) throw new Error("Ese cupon no es valido o ya fue usado.");
     coupon = found;
     discountAmount = Math.min(Number(found.amount), total);
+  } else if (params.promoCode) {
+    const found = await findUsableCampaign(params.promoCode, session.user.storeId);
+    if (!found) throw new Error("Ese codigo de promocion no es valido, esta inactivo o ya se agoto.");
+    campaign = found;
+    discountAmount = computeCampaignDiscount(found, total);
   }
 
   // Ratio para prorratear el descuento entre los items al armar la
@@ -358,7 +378,7 @@ export async function checkoutCart(params: {
       shippingZoneId: shippingZone?.id,
       shippingCost: shippingCost.toFixed(2),
       discountAmount: discountAmount.toFixed(2),
-      couponCode: coupon?.code,
+      couponCode: coupon?.code ?? campaign?.code,
       shippingAddress: shippingAddress ?? null,
     })
     .returning();
@@ -371,6 +391,16 @@ export async function checkoutCart(params: {
       .update(discountCoupons)
       .set({ usedAt: new Date(), usedOrderId: order.id })
       .where(eq(discountCoupons.id, coupon.id));
+  }
+
+  // Idem para el codigo de campania: recien se consume el cupo una vez que
+  // la orden ya existe de verdad. sql`... + 1` (no leer+sumar en JS) para
+  // que dos checkouts casi simultaneos no pisen el conteo del otro.
+  if (campaign) {
+    await db
+      .update(discountCampaigns)
+      .set({ usageCount: sql`${discountCampaigns.usageCount} + 1` })
+      .where(eq(discountCampaigns.id, campaign.id));
   }
 
   await db.insert(orderItems).values(

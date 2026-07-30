@@ -270,18 +270,13 @@ export function SiteHeader({
         <nav className="hidden items-center gap-4 sm:flex">
           <CategoriesDropdown categoryTree={categoryTree} />
 
-          {/* Ofertas: placeholder sin link real (el catalogo todavia no
-              tiene el concepto de descuento, paso aparte). Solo visible para
-              clientes logueados — a un invitado no le sirve ver una promesa
-              de algo que no puede usar sin cuenta. */}
-          {user?.role === "cliente" && (
-            <span
-              aria-disabled="true"
-              className="cursor-not-allowed text-sm text-neutral-400 opacity-50 dark:text-neutral-600"
-            >
-              Ofertas
-            </span>
-          )}
+          {/* Ofertas (backlog "sistema de ofertas/descuentos"): link real,
+              publico para cualquier visitante -- no requiere cuenta, a
+              diferencia de la version anterior que era un placeholder
+              deshabilitado solo-cliente. */}
+          <Link href="/ofertas" className={linkClass}>
+            Ofertas
+          </Link>
 
           <Link href="/pedido-a-medida" className={linkClass}>
             Pedido a medida
@@ -333,11 +328,13 @@ export function SiteHeader({
             </div>
           </details>
 
-          {user?.role === "cliente" && (
-            <span aria-disabled="true" className="cursor-not-allowed py-1 text-sm text-neutral-400 opacity-50 dark:text-neutral-600">
-              Ofertas
-            </span>
-          )}
+          <Link
+            href="/ofertas"
+            className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+            onClick={() => setMenuOpen(false)}
+          >
+            Ofertas
+          </Link>
 
           <Link
             href="/pedido-a-medida"

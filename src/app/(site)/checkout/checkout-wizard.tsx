@@ -8,6 +8,7 @@ import { getCartItems, mergeGuestCartIntoUser, type CartRow } from "@/lib/cart/a
 import { checkoutCart, uploadPaymentReceipt } from "@/lib/orders/actions";
 import { shippingAddressSchema, type ShippingAddress } from "@/lib/orders/schema";
 import { getMyCoupons, type CouponRow } from "@/lib/loyalty/actions";
+import { previewDiscountCode } from "@/lib/discount-campaigns/actions";
 import { mergeGuestFavoritesIntoUser } from "@/lib/favorites/actions";
 import { getGuestFavoriteIds, clearGuestFavorites } from "@/lib/favorites/guest-favorites";
 import type { PaymentMethod } from "@/lib/orders/actions";
@@ -103,13 +104,62 @@ export function CheckoutWizard({
   const [coupons, setCoupons] = useState<CouponRow[]>([]);
   const [selectedCouponCode, setSelectedCouponCode] = useState<string | null>(null);
 
+  // Codigo de promocion general (backlog "sistema de ofertas/descuentos"):
+  // texto libre + boton "Aplicar" (previewDiscountCode revalida contra el
+  // carrito real del server), a diferencia del cupon de puntos de arriba
+  // que se elige de un listado. Mutuamente excluyente con el cupon de
+  // puntos -- elegir uno limpia el otro, ver los dos handlers abajo.
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    type: "percent" | "fixed";
+    value: number;
+    discountAmount: number;
+  } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [manualResult, setManualResult] = useState<ManualResult | null>(null);
 
   const shippingCost = shippingZone ? Number(shippingZone.cost) : 0;
   const selectedCoupon = coupons.find((c) => c.code === selectedCouponCode) ?? null;
-  const discountAmount = selectedCoupon ? Math.min(Number(selectedCoupon.amount), subtotal) : 0;
+  const discountAmount = selectedCoupon
+    ? Math.min(Number(selectedCoupon.amount), subtotal)
+    : appliedPromo
+      ? Math.min(appliedPromo.discountAmount, subtotal)
+      : 0;
+  const discountLabel = selectedCoupon ? "Descuento (cupon de puntos)" : "Descuento (codigo de promocion)";
   const total = Math.max(0, subtotal - discountAmount) + shippingCost;
+
+  function handleSelectCoupon(code: string | null) {
+    setSelectedCouponCode(code);
+    if (code) {
+      setAppliedPromo(null);
+      setPromoError(null);
+    }
+  }
+
+  async function handleApplyPromo() {
+    setPromoError(null);
+    setIsApplyingPromo(true);
+    try {
+      const result = await previewDiscountCode(promoCodeInput);
+      setAppliedPromo(result);
+      setSelectedCouponCode(null);
+    } catch (error) {
+      setAppliedPromo(null);
+      setPromoError(error instanceof Error ? error.message : "No se pudo aplicar el codigo.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  }
+
+  function handleClearPromo() {
+    setAppliedPromo(null);
+    setPromoCodeInput("");
+    setPromoError(null);
+  }
 
   useEffect(() => {
     if (!startedLoggedIn) return;
@@ -158,6 +208,7 @@ export function CheckoutWizard({
         shippingZoneId: shippingZone?.id,
         shippingAddress: shippingAddress ?? undefined,
         couponCode: selectedCouponCode ?? undefined,
+        promoCode: appliedPromo?.code ?? undefined,
       });
       if (result.type === "manual") {
         setManualResult(result);
@@ -212,7 +263,14 @@ export function CheckoutWizard({
               onChange={setPaymentMethod}
               coupons={coupons}
               selectedCouponCode={selectedCouponCode}
-              onCouponChange={setSelectedCouponCode}
+              onCouponChange={handleSelectCoupon}
+              promoCodeInput={promoCodeInput}
+              onPromoCodeInputChange={setPromoCodeInput}
+              appliedPromo={appliedPromo}
+              promoError={promoError}
+              isApplyingPromo={isApplyingPromo}
+              onApplyPromo={handleApplyPromo}
+              onClearPromo={handleClearPromo}
               onContinue={() => setStep(4)}
               onBack={() => setStep(2)}
             />
@@ -237,6 +295,7 @@ export function CheckoutWizard({
         subtotal={subtotal}
         shippingCost={shippingCost}
         discountAmount={discountAmount}
+        discountLabel={discountLabel}
         total={total}
       />
     </div>
@@ -416,6 +475,13 @@ function PaymentStep({
   coupons,
   selectedCouponCode,
   onCouponChange,
+  promoCodeInput,
+  onPromoCodeInputChange,
+  appliedPromo,
+  promoError,
+  isApplyingPromo,
+  onApplyPromo,
+  onClearPromo,
   onContinue,
   onBack,
 }: {
@@ -425,6 +491,13 @@ function PaymentStep({
   coupons: CouponRow[];
   selectedCouponCode: string | null;
   onCouponChange: (code: string | null) => void;
+  promoCodeInput: string;
+  onPromoCodeInputChange: (value: string) => void;
+  appliedPromo: { code: string; type: "percent" | "fixed"; value: number; discountAmount: number } | null;
+  promoError: string | null;
+  isApplyingPromo: boolean;
+  onApplyPromo: () => void;
+  onClearPromo: () => void;
   onContinue: () => void;
   onBack: () => void;
 }) {
@@ -452,6 +525,44 @@ function PaymentStep({
           </select>
         </div>
       )}
+
+      {/* Codigo de promocion general (backlog "sistema de ofertas/
+          descuentos"): texto libre, no requiere cuenta ni puntos --
+          mutuamente excluyente con el cupon de puntos de arriba. */}
+      <div>
+        <label htmlFor="promo-code" className="mb-1 block text-sm font-medium">
+          Codigo de promocion (opcional)
+        </label>
+        {appliedPromo ? (
+          <div className="flex items-center justify-between gap-2 rounded border border-green-200 bg-green-50 px-3 py-2 text-sm dark:border-green-900 dark:bg-green-950">
+            <span className="font-mono text-green-700 dark:text-green-300">
+              {appliedPromo.code} — {formatCurrency(appliedPromo.discountAmount)} de descuento
+            </span>
+            <button type="button" onClick={onClearPromo} className="text-xs text-neutral-500 underline">
+              Quitar
+            </button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              id="promo-code"
+              value={promoCodeInput}
+              onChange={(e) => onPromoCodeInputChange(e.target.value)}
+              placeholder="VERANO10"
+              className={`${inputClass} uppercase`}
+            />
+            <button
+              type="button"
+              onClick={onApplyPromo}
+              disabled={!promoCodeInput.trim() || isApplyingPromo}
+              className="shrink-0 rounded border border-neutral-300 px-3 py-2 text-sm active:scale-[0.98] disabled:opacity-50 dark:border-neutral-700"
+            >
+              {isApplyingPromo ? "Aplicando..." : "Aplicar"}
+            </button>
+          </div>
+        )}
+        {promoError && <p className="mt-1 text-xs text-red-600">{promoError}</p>}
+      </div>
 
       {manualPaymentMethods.length === 0 ? (
         <p className="text-sm text-neutral-500">
@@ -560,12 +671,14 @@ function OrderSummary({
   subtotal,
   shippingCost,
   discountAmount,
+  discountLabel,
   total,
 }: {
   items: CartRow[];
   subtotal: number;
   shippingCost: number;
   discountAmount: number;
+  discountLabel: string;
   total: number;
 }) {
   return (
@@ -593,7 +706,7 @@ function OrderSummary({
         </div>
         {discountAmount > 0 && (
           <div className="flex justify-between text-green-700 dark:text-green-400">
-            <span>Descuento (cupon de puntos)</span>
+            <span>{discountLabel}</span>
             <span>-{formatCurrency(discountAmount)}</span>
           </div>
         )}

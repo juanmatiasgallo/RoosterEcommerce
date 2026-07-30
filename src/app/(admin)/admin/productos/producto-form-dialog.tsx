@@ -38,6 +38,12 @@ const variantRowSchema = z.object({
   color: z.string().max(50).optional(),
   size: z.string().max(50).optional(),
   price: z.coerce.number().positive("Debe ser mayor a 0"),
+  // String (no z.coerce.number) a proposito, mismo criterio que
+  // color/size/sku de aca abajo: vacio = sin oferta. z.coerce.number()
+  // sobre un campo opcional rompe la inferencia de tipos de zodResolver
+  // (mismo bug ya visto en contenido-client.tsx con .default()) -- se
+  // convierte a numero recien en onSubmit.
+  compareAtPrice: z.string().max(20).optional(),
   stock: z.coerce.number().int().min(0, "No puede ser negativo"),
   sku: z.string().max(100).optional(),
 });
@@ -99,6 +105,7 @@ export function ProductoFormDialog(props: Props) {
               color: variant.color ?? "",
               size: variant.size ?? "",
               price: Number(variant.price),
+              compareAtPrice: variant.compareAtPrice ? String(Number(variant.compareAtPrice)) : "",
               stock: variant.stock,
               sku: variant.sku ?? "",
             })),
@@ -153,11 +160,16 @@ export function ProductoFormDialog(props: Props) {
       }
 
       for (const variant of values.variants) {
+        const compareAtPrice = variant.compareAtPrice ? Number(variant.compareAtPrice) : undefined;
         const payload = {
           material: variant.material,
           color: variant.color || undefined,
           size: variant.size || undefined,
           price: variant.price,
+          // undefined si esta vacio, NaN si se tipeo algo invalido (ej.
+          // "abc") -- en ambos casos se manda undefined (sin oferta) en vez
+          // de mandar un NaN al server.
+          compareAtPrice: compareAtPrice && !Number.isNaN(compareAtPrice) ? compareAtPrice : undefined,
           stock: variant.stock,
           sku: variant.sku || undefined,
         };
@@ -342,7 +354,7 @@ export function ProductoFormDialog(props: Props) {
                 <h2 className="text-sm font-medium">Variantes</h2>
                 <button
                   type="button"
-                  onClick={() => append({ material: "", color: "", size: "", price: 0, stock: 0, sku: "" })}
+                  onClick={() => append({ material: "", color: "", size: "", price: 0, compareAtPrice: "", stock: 0, sku: "" })}
                   className="rounded border border-neutral-300 px-2 py-1 text-xs font-medium hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
                 >
                   + Agregar variante
@@ -414,8 +426,28 @@ export function ProductoFormDialog(props: Props) {
                           <Trash2 size={16} />
                         </button>
                       </div>
+                      {/* Precio "antes" tachado (oferta): fila propia, no
+                          suma otra columna al grid ya apretado de arriba --
+                          se usa poco (solo cuando la variante esta en
+                          oferta), asi que no merece competir por espacio con
+                          los campos que se cargan siempre. */}
+                      <div className="col-span-7 flex items-end gap-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+                        <div className="w-40">
+                          <label className="mb-0.5 block text-xs text-neutral-500">Precio antes (oferta)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="Sin oferta"
+                            {...register(`variants.${index}.compareAtPrice`)}
+                            className="w-full rounded border border-neutral-300 px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                          />
+                        </div>
+                        <p className="pb-1.5 text-xs text-neutral-400">
+                          Si es mayor al precio de arriba, se muestra tachado + badge "Oferta" en la tienda.
+                        </p>
+                      </div>
                       {errors.variants?.[index] && (
-                        <p className="col-span-6 text-xs text-red-600">Revisa los campos de esta variante.</p>
+                        <p className="col-span-7 text-xs text-red-600">Revisa los campos de esta variante.</p>
                       )}
                     </div>
                   ))}

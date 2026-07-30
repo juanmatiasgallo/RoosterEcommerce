@@ -28,6 +28,11 @@ export const createVariantSchema = z.object({
   color: z.string().max(50).optional(),
   size: z.string().max(50).optional(),
   price: z.number().positive(),
+  // Precio "antes" tachado (oferta): opcional, sin validar que sea mayor a
+  // `price` aca -- si el admin carga uno menor o igual, simplemente no se
+  // muestra como oferta en la tienda (ver isOnSale en catalog/queries.ts),
+  // no hace falta rechazar el guardado por eso.
+  compareAtPrice: z.number().positive().optional(),
   stock: z.number().int().min(0),
   sku: z.string().max(100).optional(),
 });

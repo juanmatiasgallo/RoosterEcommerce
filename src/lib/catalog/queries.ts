@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { and, asc, avg, count, desc, eq, exists, gte, ilike, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, avg, count, desc, eq, exists, gt, gte, ilike, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, productImages, productReviews, products, productVariants } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
@@ -20,6 +20,35 @@ async function reviewSummaryByProduct(productIds: string[]): Promise<Map<string,
   return new Map(rows.map((row) => [row.productId, { average: row.average ? Number(row.average) : 0, count: row.total }]));
 }
 
+// onSale/discountPercent para la ProductCard (badge "Oferta -X%") y la ficha
+// de producto: se computan aca (no en el componente) para no repetir la
+// logica de "cual es el mayor % de descuento entre las variantes" en cada
+// lugar que consume ProductListItem.
+function computeSaleInfo(variants: { price: string; compareAtPrice: string | null }[]): {
+  onSale: boolean;
+  discountPercent: number | null;
+} {
+  let bestPercent = 0;
+  for (const variant of variants) {
+    if (!variant.compareAtPrice) continue;
+    const price = Number(variant.price);
+    const compareAtPrice = Number(variant.compareAtPrice);
+    if (compareAtPrice <= price) continue;
+    const percent = Math.round((1 - price / compareAtPrice) * 100);
+    if (percent > bestPercent) bestPercent = percent;
+  }
+  return bestPercent > 0 ? { onSale: true, discountPercent: bestPercent } : { onSale: false, discountPercent: null };
+}
+
+// La variante que define el "desde $X" de la ProductCard -- se reusa para
+// saber si ESA variante puntual tiene precio tachado (no cualquier otra
+// variante del producto, para que el tachado que se muestra al lado del
+// precio sea coherente).
+function pickMinPriceVariant<T extends { price: string }>(variants: T[]): T | null {
+  if (variants.length === 0) return null;
+  return variants.reduce((min, variant) => (Number(variant.price) < Number(min.price) ? variant : min));
+}
+
 export type ProductSort = "relevancia" | "precio_asc" | "precio_desc" | "nombre";
 
 export type ListProductsParams = {
@@ -30,6 +59,9 @@ export type ListProductsParams = {
   minPrice?: number;
   maxPrice?: number;
   sort?: ProductSort;
+  // Backlog "sistema de ofertas/descuentos": solo productos con al menos una
+  // variante activa en oferta (compareAtPrice > price). Usado por /ofertas.
+  onSale?: boolean;
 };
 
 // El arbol de categorias soporta profundidad arbitraria, pero el filtro de
@@ -93,6 +125,26 @@ export async function listProducts(params: ListProductsParams = {}) {
     );
   }
 
+  // onSale: al menos una variante activa con precio tachado mayor al precio
+  // real (mismo patron EXISTS que material/color arriba).
+  if (params.onSale) {
+    conditions.push(
+      exists(
+        db
+          .select({ id: productVariants.id })
+          .from(productVariants)
+          .where(
+            and(
+              eq(productVariants.productId, products.id),
+              eq(productVariants.active, true),
+              isNotNull(productVariants.compareAtPrice),
+              gt(productVariants.compareAtPrice, productVariants.price),
+            ),
+          ),
+      ),
+    );
+  }
+
   const orderBy = (() => {
     switch (params.sort) {
       case "precio_asc":
@@ -151,14 +203,25 @@ export async function listProducts(params: ListProductsParams = {}) {
     const productVariantsList = variantsByProduct.get(product.id) ?? [];
     const prices = productVariantsList.map((variant) => Number(variant.price));
     const reviewSummary = reviewSummaries.get(product.id);
+    const saleInfo = computeSaleInfo(productVariantsList);
+    const minPriceVariant = pickMinPriceVariant(productVariantsList);
 
     return {
       ...product,
       thumbnailUrl: thumbnailByProduct.get(product.id) ?? null,
       minVariantPrice: prices.length > 0 ? Math.min(...prices) : null,
+      // Precio tachado para la ProductCard: solo el de la MISMA variante que
+      // da el "desde $X" (no el de mayor descuento del producto), para que
+      // el tachado siempre corresponda al precio mostrado al lado.
+      minVariantCompareAtPrice:
+        minPriceVariant?.compareAtPrice && Number(minPriceVariant.compareAtPrice) > Number(minPriceVariant.price)
+          ? Number(minPriceVariant.compareAtPrice)
+          : null,
       availableVariantCount: productVariantsList.filter((variant) => variant.stock > 0).length,
       averageRating: reviewSummary?.average ?? 0,
       reviewCount: reviewSummary?.count ?? 0,
+      onSale: saleInfo.onSale,
+      discountPercent: saleInfo.discountPercent,
     };
   });
 }
@@ -214,15 +277,23 @@ export async function listProductsByIds(ids: string[]) {
       const productVariantsList = variantsByProduct.get(product.id) ?? [];
       const prices = productVariantsList.map((variant) => Number(variant.price));
       const reviewSummary = reviewSummaries.get(product.id);
+      const saleInfo = computeSaleInfo(productVariantsList);
+      const minPriceVariant = pickMinPriceVariant(productVariantsList);
       return [
         product.id,
         {
           ...product,
           thumbnailUrl: thumbnailByProduct.get(product.id) ?? null,
           minVariantPrice: prices.length > 0 ? Math.min(...prices) : null,
+          minVariantCompareAtPrice:
+            minPriceVariant?.compareAtPrice && Number(minPriceVariant.compareAtPrice) > Number(minPriceVariant.price)
+              ? Number(minPriceVariant.compareAtPrice)
+              : null,
           availableVariantCount: productVariantsList.filter((variant) => variant.stock > 0).length,
           averageRating: reviewSummary?.average ?? 0,
           reviewCount: reviewSummary?.count ?? 0,
+          onSale: saleInfo.onSale,
+          discountPercent: saleInfo.discountPercent,
         },
       ];
     }),

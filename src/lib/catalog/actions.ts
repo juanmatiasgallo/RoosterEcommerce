@@ -252,6 +252,7 @@ export async function createVariant(input: z.infer<typeof createVariantSchema>) 
       color: data.color,
       size: data.size,
       price: data.price.toFixed(2),
+      compareAtPrice: data.compareAtPrice ? data.compareAtPrice.toFixed(2) : null,
       stock: data.stock,
       sku: data.sku,
     })
@@ -300,6 +301,13 @@ export async function updateVariant(id: string, input: z.infer<typeof updateVari
       ...(data.color !== undefined && { color: data.color }),
       ...(data.size !== undefined && { size: data.size }),
       ...(data.price !== undefined && { price: data.price.toFixed(2) }),
+      // Sin guard de "!== undefined" a proposito (a diferencia de los demas
+      // campos de arriba): el unico caller de updateVariant es
+      // producto-form-dialog.tsx, que siempre reenvia la fila completa de
+      // la variante -- si el admin borra el campo "Precio antes", el
+      // payload manda compareAtPrice: undefined explicito, y eso tiene que
+      // limpiar la oferta (NULL), no dejar el valor viejo pegado.
+      compareAtPrice: data.compareAtPrice ? data.compareAtPrice.toFixed(2) : null,
       ...(data.stock !== undefined && { stock: data.stock }),
       ...(data.sku !== undefined && { sku: data.sku }),
     })

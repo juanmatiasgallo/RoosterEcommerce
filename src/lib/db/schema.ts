@@ -224,6 +224,12 @@ export const productVariants = pgTable("product_variants", {
   color: varchar("color", { length: 50 }),
   size: varchar("size", { length: 50 }), // ej. "15cm", "25cm"
   price: numeric("price", { precision: 12, scale: 2 }).notNull(),
+  // Precio "antes" tachado para mostrar la oferta (task backlog "sistema de
+  // ofertas/descuentos"): nulo = sin oferta. El precio que se cobra sigue
+  // siendo siempre `price` -- esto es solo presentacion, nunca entra en el
+  // calculo de checkoutCart, asi que no hay riesgo de que un descuento mal
+  // calculado termine cobrando de mas o de menos.
+  compareAtPrice: numeric("compare_at_price", { precision: 12, scale: 2 }),
   stock: integer("stock").notNull().default(0),
   sku: varchar("sku", { length: 100 }),
   active: boolean("active").notNull().default(true),
@@ -612,5 +618,29 @@ export const services = pgTable("services", {
   description: text("description").notNull(),
   sortOrder: integer("sort_order").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// --- Codigos de promocion (campania general) --------------------------------
+//
+// Distinto de discount_coupons (arriba): aquel es personal (un userId
+// puntual, generado al canjear puntos, un solo uso). Este es un codigo
+// general de campania (ej. "VERANO10") que el admin crea y CUALQUIER
+// cliente puede usar en el checkout, hasta un limite de usos total
+// (usageLimit nulo = sin limite). "Vigencia manual": el admin lo prende/
+// apaga con `active`, sin fechas de inicio/fin automaticas por ahora.
+export const discountCampaignTypeEnum = pgEnum("discount_campaign_type", ["percent", "fixed"]);
+
+export const discountCampaigns = pgTable("discount_campaigns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  code: varchar("code", { length: 30 }).notNull().unique(),
+  type: discountCampaignTypeEnum("type").notNull(),
+  // "percent": 0-100 (% del subtotal). "fixed": monto fijo en $, igual
+  // criterio que discount_coupons.amount.
+  value: numeric("value", { precision: 12, scale: 2 }).notNull(),
+  active: boolean("active").notNull().default(true),
+  usageLimit: integer("usage_limit"),
+  usageCount: integer("usage_count").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

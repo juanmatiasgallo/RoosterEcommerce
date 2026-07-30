@@ -13,6 +13,7 @@ type Variant = {
   color: string | null;
   size: string | null;
   price: string;
+  compareAtPrice: string | null;
   stock: number;
   sku: string | null;
 };
@@ -101,10 +102,28 @@ export function VariantSelectorClient({ variants, basePrice }: { variants: Varia
   }
 
   const displayPrice = selectedVariant ? Number(selectedVariant.price) : Number(basePrice);
+  const displayCompareAtPrice =
+    selectedVariant?.compareAtPrice && Number(selectedVariant.compareAtPrice) > displayPrice
+      ? Number(selectedVariant.compareAtPrice)
+      : null;
+  const discountPercent =
+    displayCompareAtPrice !== null ? Math.round((1 - displayPrice / displayCompareAtPrice) * 100) : null;
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-2xl font-semibold">{formatCurrency(displayPrice)}</p>
+      <div className="flex items-center gap-2.5">
+        <p className="text-2xl font-semibold">{formatCurrency(displayPrice)}</p>
+        {displayCompareAtPrice !== null && (
+          <>
+            <p className="text-base text-neutral-400 line-through dark:text-neutral-600">
+              {formatCurrency(displayCompareAtPrice)}
+            </p>
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950 dark:text-red-300">
+              -{discountPercent}%
+            </span>
+          </>
+        )}
+      </div>
 
       <div>
         <h2 className="mb-1 text-sm font-medium">Material</h2>
