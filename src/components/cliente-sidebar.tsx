@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gift, Heart, Home, Lock, Menu, ShoppingBag, UserCircle, Wand2, X } from "lucide-react";
+import { Gift, Heart, Home, Lock, Menu, MessageCircle, ShoppingBag, UserCircle, Wand2, X } from "lucide-react";
 import { LogoutButton } from "@/components/logout-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -22,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/mi-cuenta/compras", label: "Mis compras", icon: ShoppingBag },
   { href: "/mi-cuenta/pedidos", label: "Mis pedidos", icon: Wand2 },
   { href: "/mi-cuenta/favoritos", label: "Favoritos", icon: Heart },
+  { href: "/mi-cuenta/preguntas", label: "Mis preguntas", icon: MessageCircle },
   { href: "/mi-cuenta/puntos", label: "Mis puntos", icon: Gift },
   { href: "/mi-cuenta/cambiar-contrasena", label: "Contrasena", icon: Lock },
 ];

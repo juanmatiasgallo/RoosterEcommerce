@@ -32,13 +32,30 @@ export function SiteFooter({
 
   return (
     <footer className="relative mt-16 overflow-hidden bg-neutral-950 text-white">
-      {/* Brillo estatico (sin animacion, no suma costo) para que el limite
-          con la seccion anterior (Newsletter, con su grilla y glow) no
-          corte de golpe -- una ultima "estela" de luz que se apaga hacia
-          abajo, en vez de que el footer arranque plano de una. */}
+      {/* Transicion real de color (no solo un brillo encima) para el limite
+          con lo que venga antes del footer: en modo claro el salto es
+          grande (fondo crema -> footer casi negro), un glow chico no
+          alcanza a disimular eso. Arranca en var(--background) -- el mismo
+          color que ya tiene la pagina justo arriba del footer, sea cual sea
+          el tema -- y termina en el neutral-950 real del footer, con varios
+          stops intermedios (color-mix) para que la rampa sea perceptual y
+          no bandeada, como paso con un degrade de 2 stops sobre un fondo
+          oscuro solido (ver historial). En oscuro --background y
+          neutral-950 ya son el mismo color, asi que ahi el degrade no hace
+          nada (correcto: no hay salto que disimular). */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-accent/10 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        style={{
+          background: [
+            "linear-gradient(to bottom,",
+            "var(--background) 0%,",
+            "color-mix(in srgb, var(--background) 75%, var(--color-neutral-950) 25%) 25%,",
+            "color-mix(in srgb, var(--background) 50%, var(--color-neutral-950) 50%) 50%,",
+            "color-mix(in srgb, var(--background) 25%, var(--color-neutral-950) 75%) 75%,",
+            "var(--color-neutral-950) 100%)",
+          ].join(" "),
+        }}
       />
 
       <div className="relative mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6">

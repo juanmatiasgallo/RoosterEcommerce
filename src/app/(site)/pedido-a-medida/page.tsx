@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS } from "@/lib/custom-orders/schema";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
 import { AnimatedHeading } from "@/components/animated-heading";
+import { NewsletterSection } from "../newsletter-section";
 import { PedidoAMedidaWizard } from "./pedido-a-medida-wizard";
 
 // Ya no requiere sesion antes de renderizar (ver proxy.ts, task #111): un
@@ -50,6 +51,8 @@ export default async function PedidoAMedidaPage() {
           allowedExtensions={CUSTOM_ORDER_ALLOWED_EXTENSIONS}
         />
       </div>
+
+      <NewsletterSection />
     </main>
   );
 }

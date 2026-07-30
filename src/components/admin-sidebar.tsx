@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   Mail,
   Menu,
+  MessageCircle,
   Package,
   Settings,
   Users,
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/admin/proyectos", label: "Proyectos", icon: Images },
   { href: "/admin/pedidos", label: "Pedidos", icon: ClipboardList },
   { href: "/admin/pedidos-custom", label: "Pedidos a medida", icon: Wand2 },
+  { href: "/admin/preguntas", label: "Preguntas", icon: MessageCircle },
   { href: "/admin/newsletter", label: "Newsletter", icon: Mail },
 ];
 

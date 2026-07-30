@@ -5,6 +5,7 @@ import { Breadcrumb, type BreadcrumbItem } from "../../breadcrumb";
 import { ProductCarousel } from "../../product-carousel";
 import { ProductDetailsTabs } from "./product-details-tabs";
 import { ProductGalleryClient } from "./product-gallery-client";
+import { ProductInquiry } from "./product-inquiry";
 import { ProductReviews } from "./product-reviews";
 import { RecentlyViewedCarousel } from "./recently-viewed-carousel";
 import { VariantSelectorClient } from "./variant-selector-client";
@@ -100,6 +101,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <RecentlyViewedCarousel productId={product.id} isLoggedIn={isLoggedIn} />
 
       <ProductReviews productId={product.id} productSlug={product.slug} />
+
+      <ProductInquiry
+        productId={product.id}
+        productSlug={product.slug}
+        isLoggedIn={isLoggedIn}
+        role={session?.user.role}
+      />
 
       {/* Productos similares (task #7): a pedido del owner, va despues de
           los comentarios -- antes ("Tambien te puede interesar") quedaba

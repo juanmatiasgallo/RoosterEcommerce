@@ -254,6 +254,43 @@ export const productReviews = pgTable(
   ],
 );
 
+// --- Preguntas privadas sobre productos ----------------------------------
+
+// Chat privado cliente <-> staff sobre un producto puntual (task #46): a
+// diferencia de product_reviews (publico, con estrellas), esto es una
+// consulta 1 a 1 que solo ve ese cliente y el staff de la tienda -- nunca
+// el resto del publico. Un solo hilo por combinacion (producto, cliente):
+// si el mismo cliente vuelve a preguntar algo distinto sobre el mismo
+// producto, se suma al mismo hilo en vez de crear uno nuevo.
+export const productInquiries = pgTable(
+  "product_inquiries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeId: uuid("store_id").notNull().references(() => stores.id),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id").notNull().references(() => users.id),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    // Se pisa con cada mensaje nuevo (de cualquiera de los dos lados) -- para
+    // ordenar la lista del admin y la de "Mis preguntas" por actividad
+    // reciente, no por fecha de creacion del hilo.
+    lastMessageAt: timestamp("last_message_at").notNull().defaultNow(),
+  },
+  (table) => [unique("product_inquiries_product_customer_unique").on(table.productId, table.customerId)],
+);
+
+export const productInquirySenderEnum = pgEnum("product_inquiry_sender", ["cliente", "empleado"]);
+
+export const productInquiryMessages = pgTable("product_inquiry_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  inquiryId: uuid("inquiry_id").notNull().references(() => productInquiries.id, { onDelete: "cascade" }),
+  senderId: uuid("sender_id").notNull().references(() => users.id),
+  // Denormalizado (ademas de senderId) para no tener que joinear users solo
+  // para saber de que lado vino cada mensaje al pintar el chat.
+  senderRole: productInquirySenderEnum("sender_role").notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Favoritos / lista de deseos: solo para usuarios logueados (a diferencia
 // del carrito, no hay version de invitado por cookie — guardar favoritos
 // sin cuenta no tiene mucho sentido de negocio y complica menos).
@@ -481,6 +518,14 @@ export const orders = pgTable("orders", {
   // lo revise antes de confirmar el pago en /admin/pedidos.
   receiptUrl: varchar("receipt_url", { length: 300 }),
   receiptUploadedAt: timestamp("receipt_uploaded_at"),
+  // Seguimiento del envio (task #40): texto libre, no un enum, porque no
+  // siempre se despacha por el mismo transportista (DAC la mayoria de las
+  // veces, pero puede ser retiro en local o coordinado aparte, en cuyo caso
+  // estos dos campos quedan null). El admin los carga a mano desde
+  // /admin/pedidos cuando tiene el codigo; el cliente los ve en su
+  // comprobante junto al estado del pedido.
+  trackingCarrier: varchar("tracking_carrier", { length: 60 }),
+  trackingCode: varchar("tracking_code", { length: 100 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

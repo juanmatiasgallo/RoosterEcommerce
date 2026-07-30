@@ -90,13 +90,22 @@ export function PrinterGridBackground() {
         />
       ))}
 
-      {/* La linea de escaneo (barrido de arriba a abajo, "el efecto que ya
-          tenemos por encima" que el owner pidio mantener): sin cambios. */}
+      {/* Barrido de arriba a abajo -- antes se veia como una mancha/franja
+          sucia cruzando toda la seccion (opacidad y blur insuficientes para
+          la saturacion del acento en claro). Ahora: mucha menos opacidad de
+          base, blur bastante mas grande (deja de ser una linea con borde
+          definido) y un mask radial que ademas lo apaga hacia los costados,
+          asi no es una franja de punta a punta sino un brillo ambiente que
+          flota por el centro. */}
       <motion.div
-        className="absolute inset-x-0 h-28 bg-gradient-to-b from-transparent via-accent/25 to-transparent blur-md"
-        initial={{ top: "-15%", opacity: 0 }}
-        animate={{ top: ["-15%", "50%", "110%"], opacity: [0, 1, 0] }}
-        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.8, times: [0, 0.5, 1] }}
+        className="absolute inset-x-0 h-40 bg-gradient-to-b from-transparent via-accent/8 to-transparent blur-2xl"
+        style={{
+          maskImage: "radial-gradient(ellipse 55% 100% at 50% 50%, black 35%, transparent 90%)",
+          WebkitMaskImage: "radial-gradient(ellipse 55% 100% at 50% 50%, black 35%, transparent 90%)",
+        }}
+        initial={{ top: "-20%", opacity: 0 }}
+        animate={{ top: ["-20%", "50%", "120%"], opacity: [0, 0.7, 0] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut", repeatDelay: 2.4, times: [0, 0.5, 1] }}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MapPin, Package, ShieldCheck } from "lucide-react";
+import { ExternalLink, MapPin, Package, ShieldCheck, Truck } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { orderReferenceCode } from "@/lib/orders/reference-code";
 import type { ShippingAddress } from "@/lib/orders/schema";
@@ -31,7 +31,16 @@ export type OrderReceiptCardProps = {
   storeName: string;
   shippingAddress: ShippingAddress | null;
   qrDataUrl: string;
+  trackingCarrier?: string | null;
+  trackingCode?: string | null;
 };
+
+// Link publico de rastreo de DAC (unico transportista con pagina de
+// rastreo propia que integramos por ahora, ver setOrderTracking): el
+// admin carga el codigo a mano, ac aca solo mostramos el link generico
+// (no armamos una URL con el codigo pre-cargado -- DAC no documenta un
+// formato estable de query param para eso).
+const DAC_TRACKING_URL = "https://www.dac.com.uy/envios/rastrear";
 
 // Resumen de orden con plantilla propia (task #6): antes de esto, "generar
 // orden de servicio" mostraba una cajita de texto minima -- el owner mando
@@ -54,6 +63,8 @@ export function OrderReceiptCard({
   storeName,
   shippingAddress,
   qrDataUrl,
+  trackingCarrier,
+  trackingCode,
 }: OrderReceiptCardProps) {
   const referenceCode = orderReferenceCode(orderId);
 
@@ -110,6 +121,29 @@ export function OrderReceiptCard({
             <p className="text-sm text-neutral-600 dark:text-neutral-400">A coordinar / retiro en el local</p>
           )}
         </div>
+
+        {trackingCarrier && trackingCode && (
+          <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-neutral-400 uppercase">
+              <Truck size={13} />
+              Seguimiento del envio
+            </p>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              {trackingCarrier}: <span className="font-mono">{trackingCode}</span>
+            </p>
+            {trackingCarrier.trim().toLowerCase() === "dac" && (
+              <a
+                href={DAC_TRACKING_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1 text-xs text-accent underline"
+              >
+                Rastrear en DAC
+                <ExternalLink size={11} />
+              </a>
+            )}
+          </div>
+        )}
 
         <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-neutral-400 uppercase">

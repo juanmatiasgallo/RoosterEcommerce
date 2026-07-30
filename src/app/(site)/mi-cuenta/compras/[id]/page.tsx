@@ -57,6 +57,8 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
           storeName={receipt.storeName}
           shippingAddress={receipt.shippingAddress}
           qrDataUrl={receipt.qrDataUrl}
+          trackingCarrier={receipt.trackingCarrier}
+          trackingCode={receipt.trackingCode}
         />
       </div>
     </div>

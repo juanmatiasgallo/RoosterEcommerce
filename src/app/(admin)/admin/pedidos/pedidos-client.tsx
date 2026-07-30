@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { Truck } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import { confirmManualPayment, updateOrderStatus, type AdminOrderRow } from "@/lib/orders/actions";
+import { confirmManualPayment, setOrderTracking, updateOrderStatus, type AdminOrderRow } from "@/lib/orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
 
@@ -58,6 +59,33 @@ function formatShippingAddress(value: unknown): string {
 export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
   const [isPending, startTransition] = useTransition();
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  // Formulario de seguimiento (task #41): un solo id abierto a la vez, con
+  // sus propios valores locales -- se precarga con lo ya guardado si existia
+  // (para editar), o vacio si es la primera carga.
+  const [trackingFormId, setTrackingFormId] = useState<string | null>(null);
+  const [trackingCarrier, setTrackingCarrier] = useState("");
+  const [trackingCode, setTrackingCode] = useState("");
+
+  function openTrackingForm(id: string, carrier: string | null, code: string | null) {
+    setTrackingFormId(id);
+    setTrackingCarrier(carrier ?? "DAC");
+    setTrackingCode(code ?? "");
+  }
+
+  function handleSaveTracking(id: string) {
+    setUpdatingId(id);
+    startTransition(async () => {
+      try {
+        await setOrderTracking(id, { carrier: trackingCarrier, code: trackingCode });
+        toast.success("Codigo de seguimiento guardado.");
+        setTrackingFormId(null);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo guardar el seguimiento.");
+      } finally {
+        setUpdatingId(null);
+      }
+    });
+  }
 
   function handleAdvance(id: string, next: AdvanceableStatus) {
     setUpdatingId(id);
@@ -150,6 +178,66 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
                 Descuento aplicado: -{formatCurrency(Number(row.order.discountAmount))}
                 {row.order.couponCode && ` (cupon ${row.order.couponCode})`}
               </p>
+            )}
+
+            {/* Seguimiento del envio (task #41): solo tiene sentido para
+                ordenes ya despachables (pagadas en adelante) -- antes de eso
+                no hay nada que rastrear todavia. */}
+            {PIPELINE_STATUSES.has(row.order.status) && (
+              <div className="mt-2">
+                {trackingFormId === row.order.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      value={trackingCarrier}
+                      onChange={(event) => setTrackingCarrier(event.target.value)}
+                      placeholder="Transportista (ej. DAC)"
+                      className="w-36 rounded border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+                    />
+                    <input
+                      value={trackingCode}
+                      onChange={(event) => setTrackingCode(event.target.value)}
+                      placeholder="Codigo de seguimiento"
+                      className="w-40 rounded border border-neutral-300 px-2 py-1 text-xs dark:border-neutral-700 dark:bg-neutral-900"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleSaveTracking(row.order.id)}
+                      disabled={isPending && updatingId === row.order.id}
+                      className="rounded bg-neutral-900 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+                    >
+                      Guardar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrackingFormId(null)}
+                      className="text-xs text-neutral-500 hover:underline"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                ) : row.order.trackingCarrier && row.order.trackingCode ? (
+                  <p className="flex items-center gap-1.5 text-xs text-neutral-500">
+                    <Truck size={13} className="text-accent" />
+                    {row.order.trackingCarrier}: <code className="text-neutral-700 dark:text-neutral-300">{row.order.trackingCode}</code>
+                    <button
+                      type="button"
+                      onClick={() => openTrackingForm(row.order.id, row.order.trackingCarrier, row.order.trackingCode)}
+                      className="text-accent hover:underline"
+                    >
+                      Editar
+                    </button>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => openTrackingForm(row.order.id, null, null)}
+                    className="flex items-center gap-1.5 text-xs text-accent hover:underline"
+                  >
+                    <Truck size={13} />
+                    Agregar codigo de seguimiento
+                  </button>
+                )}
+              </div>
             )}
 
             {row.order.receiptUrl && (

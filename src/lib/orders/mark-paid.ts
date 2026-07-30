@@ -141,6 +141,12 @@ export async function markOrderAsPaid(params: {
           customerName: customer.name,
           storeName: store.name,
           shippingAddress: (order.shippingAddress as ShippingAddress | null) ?? null,
+          // El mail de confirmacion se manda apenas se aprueba el pago -- el
+          // codigo de seguimiento recien se carga despues, cuando el admin
+          // despacha el pedido (ver setOrderTracking), asi que en este punto
+          // siempre es null.
+          trackingCarrier: null,
+          trackingCode: null,
         });
 
         await sendMail({

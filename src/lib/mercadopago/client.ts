@@ -94,10 +94,14 @@ export async function createPreference(params: {
       })),
       payer: params.payerEmail ? { email: params.payerEmail } : undefined,
       external_reference: params.orderId,
+      // orderId va explicito en el query string (ademas de external_reference,
+      // que MP tambien devuelve por su cuenta): mas robusto para que
+      // /checkout/exito pueda redirigir directo al ticket de la orden sin
+      // depender de que MP siempre reenvie external_reference en el back_url.
       back_urls: {
-        success: `${process.env.AUTH_URL}/checkout/exito`,
-        pending: `${process.env.AUTH_URL}/checkout/pendiente`,
-        failure: `${process.env.AUTH_URL}/checkout/error`,
+        success: `${process.env.AUTH_URL}/checkout/exito?orderId=${params.orderId}`,
+        pending: `${process.env.AUTH_URL}/checkout/pendiente?orderId=${params.orderId}`,
+        failure: `${process.env.AUTH_URL}/checkout/error?orderId=${params.orderId}`,
       },
       auto_return: "approved",
       notification_url: `${process.env.AUTH_URL}/api/webhooks/mercadopago`,

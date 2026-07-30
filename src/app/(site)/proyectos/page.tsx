@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { listPublicProjects } from "@/lib/projects/queries";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
 import { AnimatedHeading } from "@/components/animated-heading";
+import { NewsletterSection } from "../newsletter-section";
 import { ProyectosGallery } from "./proyectos-gallery";
 
 export const metadata: Metadata = {
@@ -44,6 +45,8 @@ export default async function ProyectosPage() {
       <div className="mx-auto max-w-6xl px-4">
         <ProyectosGallery projects={projects} />
       </div>
+
+      <NewsletterSection />
     </main>
   );
 }

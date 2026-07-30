@@ -33,6 +33,8 @@ export type ReceiptData = {
   customerName: string;
   storeName: string;
   shippingAddress: ShippingAddress | null;
+  trackingCarrier: string | null;
+  trackingCode: string | null;
 };
 
 export function getReceiptUrl(orderId: string): string {
@@ -88,6 +90,9 @@ export async function generateReceiptPdf(orderId: string, data: ReceiptData): Pr
   text(`Cliente: ${data.customerName}`);
   text(`Medio de pago: ${data.paymentMethodLabel}`);
   text(`Estado: ${data.statusLabel}`);
+  if (data.trackingCarrier && data.trackingCode) {
+    text(`Seguimiento (${data.trackingCarrier}): ${data.trackingCode}`, { size: 9, bold: true });
+  }
   if (data.shippingAddress) {
     const a = data.shippingAddress;
     text(

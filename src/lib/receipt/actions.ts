@@ -80,6 +80,8 @@ export async function getReceiptData(orderId: string): Promise<(ReceiptData & { 
     // unknown; se castea aca, no en el schema, para no afectar el resto de
     // los usos de `orders.shippingAddress` en el codigo.
     shippingAddress: (row.order.shippingAddress as ShippingAddress | null) ?? null,
+    trackingCarrier: row.order.trackingCarrier,
+    trackingCode: row.order.trackingCode,
   };
 }
 

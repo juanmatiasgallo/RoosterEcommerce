@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Heart, Menu, Search, ShoppingCart, X } from "lucide-react";
+import { ChevronDown, Heart, Menu, Search, ShoppingCart, UserCircle, X } from "lucide-react";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import type { Role } from "@/lib/auth/schema";
 import type { notifications } from "@/lib/db/schema";
@@ -13,10 +13,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SearchBar } from "@/components/search-bar";
 import { cn } from "@/lib/utils";
 
-function initialsOf(name?: string | null, email?: string | null): string {
-  const source = name?.trim() || email?.trim() || "?";
-  return source.charAt(0).toUpperCase();
-}
 
 function CartIcon({ cartItemCount }: { cartItemCount: number }) {
   return (
@@ -66,9 +62,16 @@ function UserAvatarMenu({
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
         aria-label="Menu de cuenta"
-        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-neutral-900 text-sm font-medium text-white transition-transform hover:scale-105 dark:bg-neutral-100 dark:text-neutral-900"
+        className="relative flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-neutral-600 transition-transform hover:scale-105 hover:text-accent dark:text-neutral-300"
       >
-        {initialsOf(user.name, user.email)}
+        <UserCircle size={26} strokeWidth={1.5} />
+        {/* Puntito "conectado" (pedido explicito: "icono como de persona
+            conectada"): confirma con un vistazo que hay sesion activa, sin
+            volver al circulo solido con la inicial de antes. */}
+        <span
+          aria-hidden="true"
+          className="absolute right-0 bottom-0 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-neutral-950"
+        />
       </button>
 
       {open && (
@@ -101,6 +104,9 @@ function UserAvatarMenu({
                 </Link>
                 <Link href="/mi-cuenta/favoritos" className={menuLinkClass} onClick={close}>
                   Mis favoritos
+                </Link>
+                <Link href="/mi-cuenta/preguntas" className={menuLinkClass} onClick={close}>
+                  Mis preguntas
                 </Link>
                 <Link href="/mi-cuenta/puntos" className={menuLinkClass} onClick={close}>
                   Mis puntos
@@ -392,6 +398,13 @@ export function SiteHeader({
                 onClick={() => setMenuOpen(false)}
               >
                 Mis favoritos{favoritesCount > 0 ? ` (${favoritesCount})` : ""}
+              </Link>
+              <Link
+                href="/mi-cuenta/preguntas"
+                className="py-1 text-sm text-neutral-600 dark:text-neutral-300"
+                onClick={() => setMenuOpen(false)}
+              >
+                Mis preguntas
               </Link>
               <Link
                 href="/mi-cuenta/puntos"

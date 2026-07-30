@@ -665,6 +665,58 @@ export async function updateOrderStatus(id: string, nextStatus: AdvanceableOrder
   return updated;
 }
 
+// Codigo de seguimiento del envio (task #40/#41): independiente del
+// pipeline de estados de arriba porque el admin a veces tiene el codigo
+// antes de marcar "enviado" (ej. lo genera al armar el bulto) -- editable en
+// cualquier momento, no atado a una transicion puntual. Transportista en
+// texto libre (no enum): la mayoria de las veces es DAC, pero tambien hay
+// retiro en local o envios coordinados aparte sin codigo de terceros.
+export async function setOrderTracking(id: string, input: { carrier: string; code: string }) {
+  const session = await requireStaff();
+
+  const [existing] = await db
+    .select()
+    .from(orders)
+    .where(and(eq(orders.id, id), eq(orders.storeId, session.user.storeId)))
+    .limit(1);
+  if (!existing) throw new Error("Orden no encontrada.");
+
+  const carrier = input.carrier.trim();
+  const code = input.code.trim();
+  if (!carrier || !code) {
+    throw new Error("Transportista y codigo son requeridos.");
+  }
+
+  const [updated] = await db
+    .update(orders)
+    .set({ trackingCarrier: carrier, trackingCode: code })
+    .where(eq(orders.id, id))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "set_tracking",
+    entityType: "order",
+    entityId: id,
+    before: { trackingCarrier: existing.trackingCarrier, trackingCode: existing.trackingCode },
+    after: { trackingCarrier: updated.trackingCarrier, trackingCode: updated.trackingCode },
+  });
+
+  await notify({
+    storeId: session.user.storeId,
+    recipientUserId: existing.userId,
+    type: "order_status_changed",
+    title: `Tu pedido #${existing.orderNumber} ya tiene codigo de seguimiento`,
+    link: "/mi-cuenta/compras",
+  });
+
+  revalidatePath("/admin/pedidos");
+  revalidatePath(`/mi-cuenta/compras/${id}`);
+
+  return updated;
+}
+
 // Confirmacion manual de una orden de servicio (medio de pago transferencia
 // /abitab/redpagos): el admin la usa cuando verifico que el dinero
 // efectivamente llego. Usa markOrderAsPaid — mismo helper que el webhook de
