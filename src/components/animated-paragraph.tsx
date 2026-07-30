@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +8,28 @@ const word = {
   hidden: { opacity: 0, y: "40%" },
   show: { opacity: 1, y: "0%", transition: { duration: 0.4, ease: "easeOut" as const } },
 };
+
+// Espacio entre palabras como nodo de texto SUELTO (no dentro del
+// motion.span de la palabra) -- mismo bug/fix que animated-heading.tsx
+// (task #32): un espacio como ultimo caracter dentro de un inline-block se
+// colapsa, pegando las palabras entre si.
+function renderWords(words: string[]): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  words.forEach((w, index) => {
+    if (w === "") return;
+    nodes.push(
+      <span key={`w-${index}`} className="inline-block overflow-hidden pb-0.5 align-bottom">
+        <motion.span variants={word} className="inline-block">
+          {w}
+        </motion.span>
+      </span>,
+    );
+    if (index < words.length - 1) {
+      nodes.push(<span key={`sp-${index}`}> </span>);
+    }
+  });
+  return nodes;
+}
 
 // Version liviana de AnimatedHeading para texto de cuerpo (parrafos,
 // descripciones): palabra por palabra, sin la fuente de titulos ni el
@@ -39,14 +62,7 @@ export function AnimatedParagraph({
       viewport={{ once: true, amount: 0.6 }}
       variants={{ hidden: {}, show: { transition: { staggerChildren: stagger, delayChildren: delay } } }}
     >
-      {words.map((w, index) => (
-        <span key={`${w}-${index}`} className="inline-block overflow-hidden pb-0.5 align-bottom">
-          <motion.span variants={word} className="inline-block">
-            {w}
-            {index < words.length - 1 ? " " : ""}
-          </motion.span>
-        </span>
-      ))}
+      {renderWords(words)}
     </MotionTag>
   );
 }
