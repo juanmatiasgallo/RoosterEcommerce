@@ -23,26 +23,30 @@ const STEPS = [
   },
 ];
 
+// Coreografia mas lenta e integrada (task #35): la linea conectora arranca
+// primero (casi sin delay) y sigue dibujandose mientras los pasos van
+// apareciendo detras de ella -- antes cada paso "saltaba" a su posicion casi
+// de golpe (spring bien rigido) y todo el conjunto se sentia como dos
+// bloques separados (linea + iconos) en vez de un solo flujo continuo.
 const container = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.4, delayChildren: 0.1 } },
+  show: { transition: { staggerChildren: 0.55, delayChildren: 0.25 } },
 };
 
-// Cada paso "materializa" en su lugar (scale + opacity, nunca top/left) en
-// vez de solo desvanecer hacia arriba -- junto con el glow que lo acompaña
-// (abajo), da la sensacion de que el foco de atencion se mueve de un paso
-// al siguiente, sin necesitar animar posicion real (mas caro, menos fluido).
+// Spring mas blando (antes stiffness 260/damping 22, se sentia como un
+// "pop" instantaneo) -- ahora tarda mas en asentarse y el rebote final es
+// mas sutil, sin inicio ni fin brusco.
 const step = {
   hidden: { opacity: 0, scale: 0.75, y: 14 },
-  show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 260, damping: 22 } },
+  show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 110, damping: 18, mass: 0.9 } },
 };
 
 const glowPulse = {
   hidden: { opacity: 0, scale: 0.4 },
   show: {
-    opacity: [0, 0.55, 0],
-    scale: [0.4, 1.4, 1.8],
-    transition: { duration: 1.1, ease: "easeOut" as const },
+    opacity: [0, 0.5, 0],
+    scale: [0.4, 1.4, 1.9],
+    transition: { duration: 1.5, ease: "easeOut" as const },
   },
 };
 
@@ -55,7 +59,12 @@ const glowPulse = {
 export function HowItWorks() {
   return (
     <section className="py-14">
-      <AnimatedHeading text="Como funciona el pedido a medida" className="text-center text-2xl font-semibold" />
+      <AnimatedHeading
+        text="Como funciona el pedido a medida"
+        stagger={0.06}
+        duration={0.65}
+        className="text-center text-2xl font-semibold"
+      />
 
       <motion.div
         initial="hidden"
@@ -65,12 +74,18 @@ export function HowItWorks() {
         className="relative mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8"
       >
         <div className="absolute top-6 right-[16.5%] left-[16.5%] hidden h-px bg-neutral-200 sm:block dark:bg-neutral-800">
+          {/* Sin keyframes intermedios (antes [0, 0.5, 1] con un "times"
+              fijo): ese quiebre a mitad de camino se sentia como un cambio
+              de ritmo brusco. Un solo tramo con easeInOut alarga el dibujo
+              de la linea (2.2s, arranca casi enseguida) y la hace de guia
+              visual mientras los pasos van apareciendo detras, en vez de
+              adelantarse y terminar antes que ellos. */}
           <motion.div
             className="h-full origin-left bg-accent"
             initial={{ scaleX: 0 }}
-            whileInView={{ scaleX: [0, 0.5, 1] }}
+            whileInView={{ scaleX: 1 }}
             viewport={{ once: true, amount: 0.4 }}
-            transition={{ duration: 1.6, ease: "easeInOut", delay: 0.3, times: [0, 0.55, 1] }}
+            transition={{ duration: 2.2, ease: "easeInOut", delay: 0.15 }}
           />
         </div>
 
@@ -94,7 +109,8 @@ export function HowItWorks() {
                 letra a letra a un ritmo comodo, no todo junto de una. */}
             <AnimatedParagraph
               text={item.description}
-              delay={0.3}
+              delay={0.45}
+              stagger={0.065}
               className="mt-1 block max-w-56 text-sm text-neutral-500 dark:text-neutral-300"
             />
           </motion.div>

@@ -31,12 +31,15 @@ const VALUE_PROPS = [
   },
 ];
 
+// Mismo tratamiento de tiempo que "Como funciona" (task #36): todo un poco
+// mas lento y con springs mas blandos, para que no se sienta como un "pop"
+// instantaneo al entrar en pantalla.
 const container = {
   hidden: {},
   // delayChildren mas grande que en otras secciones: esta seccion suele
   // entrar en pantalla justo despues de la timeline de "Como funciona", asi
   // que le damos un respiro antes de arrancar en vez de superponerse.
-  show: { transition: { staggerChildren: 0.22, delayChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.34, delayChildren: 0.15 } },
 };
 
 // Cada tarjeta orquesta su PROPIO stagger interno (icono -> titulo) en vez
@@ -45,20 +48,22 @@ const container = {
 // tarjeta, no salteado entre tarjetas distintas.
 const card = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.15 } },
+  show: { transition: { staggerChildren: 0.22 } },
 };
 
 // El icono "viene al frente": arranca mas grande de lo que va a quedar y
 // mas cerca (scale > 1), como si se acercara a camara, y se asienta en su
-// tamano final -- nunca anima top/left, solo transform/opacity.
+// tamano final -- nunca anima top/left, solo transform/opacity. Spring mas
+// blando que antes (stiffness 220/damping 20 -> 110/18, igual que en
+// how-it-works.tsx) para un asentado mas gradual, sin inicio/fin brusco.
 const iconWrap = {
   hidden: { opacity: 0, scale: 1.9, y: -6 },
-  show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 220, damping: 20 } },
+  show: { opacity: 1, scale: 1, y: 0, transition: { type: "spring" as const, stiffness: 110, damping: 18, mass: 0.9 } },
 };
 
 const title = {
   hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: "easeOut" as const, delay: 0.2 } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: "easeOut" as const, delay: 0.3 } },
 };
 
 // Coreografia de entrada (task #30): 1) el icono aparece "al frente" y se
@@ -87,7 +92,7 @@ export function ValueProps() {
                 aria-hidden="true"
                 className="absolute inset-0 rounded-md bg-accent/30"
                 animate={{ scale: [1, 1.35, 1], opacity: [0.5, 0, 0.5] }}
-                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: index * 0.3 + 1 }}
+                transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: index * 0.3 + 1.4 }}
               />
               <div className="relative flex h-9 w-9 items-center justify-center rounded-md bg-accent/10 text-accent">
                 <item.icon size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -96,7 +101,7 @@ export function ValueProps() {
             <motion.h3 variants={title} className="font-heading text-sm font-medium">
               {item.title}
             </motion.h3>
-            <AnimatedParagraph text={item.description} delay={0.4} className="text-sm text-neutral-500" />
+            <AnimatedParagraph text={item.description} delay={0.55} stagger={0.065} className="text-sm text-neutral-500" />
           </motion.div>
         ))}
       </motion.div>

@@ -25,7 +25,14 @@ export function Hero() {
     // la seccion relativa al viewport en vez de a su padre. El contenido de
     // adentro (texto, botones) vuelve a quedar centrado en un
     // mx-auto max-w-6xl propio, para alinear con el resto de la pagina.
-    <section className="animate-in fade-in slide-in-from-bottom-2 relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-100 px-6 py-16 text-center text-neutral-900 duration-500 sm:py-24 dark:bg-neutral-950 dark:text-white">
+    <section
+      className="animate-in fade-in slide-in-from-bottom-2 relative left-1/2 right-1/2 -mx-[50vw] flex min-h-[calc(100dvh-4.5rem)] w-screen flex-col items-center justify-center overflow-hidden bg-neutral-100 px-6 py-16 text-center text-neutral-900 duration-500 sm:py-24 dark:bg-neutral-950 dark:text-white"
+    >
+      {/* min-h-[calc(100dvh-4.5rem)] (task #33): el Hero ocupa toda la
+          altura visible debajo del header sticky (~4.5rem, estimado a partir
+          de su padding + el boton de avatar h-8) -- asi en la carga inicial
+          no se alcanza a ver ni un pixel de "Como funciona" empujando a
+          scrollear un poco para descubrirlo, que era el pedido original. */}
       <PrinterGridBackground />
 
       <div className="relative mx-auto max-w-6xl">
@@ -35,12 +42,20 @@ export function Hero() {
             resalte lo principal, mas presencia que una linea de texto plano.
             splitBy="letter" arma la frase letra por letra en vez de por
             palabra, mas "vivo" para el titulo mas grande del sitio. */}
+        {/* Ritmo mucho mas lento que el resto de los titulos del sitio
+            (task #34): stagger 0.09 (antes 0.025) entre letras, cada letra
+            tarda 0.85s en asentarse (antes 0.55s) y la segunda linea arranca
+            0.45s despues de la primera (antes 0.15s) -- se nota como un
+            armado deliberado, letra por letra, en vez de un parpadeo. */}
         <AnimatedHeading
           as="h1"
           text={["Impresion 3D", "a tu medida"]}
           lineClassName={["", "text-accent"]}
           splitBy="letter"
           glow
+          stagger={0.09}
+          duration={0.85}
+          lineDelay={0.45}
           className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl"
         />
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-600 dark:text-neutral-300">

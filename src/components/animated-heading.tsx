@@ -4,10 +4,16 @@ import type { ElementType, ReactNode } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-const unit = {
-  hidden: { y: "115%" },
-  show: { y: "0%", transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] as const } },
-};
+// `duration` configurable por instancia (antes fijo en 0.55s): el Hero
+// (task #34) lo pide "mucho mas lento" que el resto de los titulos del
+// sitio (Categorias, Catalogo, etc.) que siguen con el ritmo original --
+// por eso es un parametro, no una constante global.
+function getUnitVariants(duration: number) {
+  return {
+    hidden: { y: "115%" },
+    show: { y: "0%", transition: { duration, ease: [0.22, 1, 0.36, 1] as const } },
+  };
+}
 
 // Renderiza cada palabra/letra en su propia mascara animada, y el espacio
 // entre palabras como un nodo de texto plano SUELTO entre esas mascaras
@@ -18,8 +24,9 @@ const unit = {
 // se veia como "Comofuncionaelpedidoamedida", pegado sin espacios. Sacar el
 // espacio afuera de la mascara lo resuelve porque ahi es texto normal en el
 // flujo del padre, no el borde de una caja atomica.
-function renderUnits(units: string[], splitBy: "word" | "letter"): ReactNode[] {
+function renderUnits(units: string[], splitBy: "word" | "letter", duration: number): ReactNode[] {
   const nodes: ReactNode[] = [];
+  const unit = getUnitVariants(duration);
   units.forEach((u, index) => {
     if (u === "") return;
     if (u === " ") {
@@ -57,6 +64,8 @@ export function AnimatedHeading({
   splitBy = "word",
   glow = false,
   stagger,
+  duration,
+  lineDelay,
 }: {
   text: string | string[];
   as?: ElementType;
@@ -65,10 +74,17 @@ export function AnimatedHeading({
   splitBy?: "word" | "letter";
   glow?: boolean;
   stagger?: number;
+  // Ambos opcionales, con el mismo default de siempre -- el Hero (task #34)
+  // es el unico caso que hoy los pisa, para un armado bastante mas lento y
+  // pausado que el resto de los titulos del sitio.
+  duration?: number;
+  lineDelay?: number;
 }) {
   const Tag = as;
   const lines = Array.isArray(text) ? text : [text];
   const staggerValue = stagger ?? (splitBy === "letter" ? 0.025 : 0.045);
+  const durationValue = duration ?? 0.55;
+  const lineDelayValue = lineDelay ?? 0.15;
 
   return (
     <Tag className={cn("font-heading relative", className)}>
@@ -88,7 +104,7 @@ export function AnimatedHeading({
             viewport={{ once: true, amount: 0.6 }}
             variants={{
               hidden: {},
-              show: { transition: { staggerChildren: staggerValue, delayChildren: lineIndex * 0.15 } },
+              show: { transition: { staggerChildren: staggerValue, delayChildren: lineIndex * lineDelayValue } },
             }}
             // "block" (no inline-block): cada entrada de `text` debe quedar
             // en su propio renglon -- con inline-block quedaban una al lado
@@ -96,7 +112,7 @@ export function AnimatedHeading({
             // Hero mostraba "Impresion 3Da tu medida" en una sola linea).
             className={cn("block", lineClassName?.[lineIndex])}
           >
-            {renderUnits(units, splitBy)}
+            {renderUnits(units, splitBy, durationValue)}
           </motion.span>
         );
       })}

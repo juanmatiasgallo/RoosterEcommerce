@@ -58,57 +58,68 @@ export function SiteFooter({
         }}
       />
 
-      <div className="relative mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-6">
-        <Link href="/" className="text-sm font-semibold">
-          Tienda 3D
-        </Link>
+      {/* Pulido (task #37): antes las 3 columnas (marca, nav, social) vivian
+          en un solo flex-wrap justify-between, que en mobile quebraba de
+          forma impredecible (a veces el nav quedaba solo en su propia linea,
+          descentrado). Ahora es explicitamente columna-centrada en mobile y
+          fila-justificada recien desde sm:, con la marca acompañada de una
+          bajada de linea para que no quede como una palabra sola y suelta. */}
+      <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-10 text-center sm:flex-row sm:items-start sm:justify-between sm:text-left">
+        <div>
+          <Link href="/" className="text-sm font-semibold">
+            Tienda 3D
+          </Link>
+          <p className="mt-1 text-xs text-neutral-500">Impresion 3D y pedidos a medida.</p>
+        </div>
 
-        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-neutral-400">
-          <Link href="/#catalogo" className="transition-colors hover:text-white">
-            Catalogo
-          </Link>
-          <Link href="/pedido-a-medida" className="transition-colors hover:text-white">
-            Pedido a medida
-          </Link>
-          <Link href="/envios" className="transition-colors hover:text-white">
-            Envios
-          </Link>
-          <Link href="/ayuda" className="transition-colors hover:text-white">
-            Ayuda
-          </Link>
-        </nav>
+        <div className="flex flex-col items-center gap-4 sm:items-end">
+          <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-neutral-400 sm:justify-end">
+            <Link href="/#catalogo" className="transition-colors hover:text-white">
+              Catalogo
+            </Link>
+            <Link href="/pedido-a-medida" className="transition-colors hover:text-white">
+              Pedido a medida
+            </Link>
+            <Link href="/envios" className="transition-colors hover:text-white">
+              Envios
+            </Link>
+            <Link href="/ayuda" className="transition-colors hover:text-white">
+              Ayuda
+            </Link>
+          </nav>
 
-        {hasSocialLinks && (
-          <div className="flex items-center gap-3 text-neutral-400">
-            {instagramUrl && (
-              <a
-                href={instagramUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="transition-colors hover:text-white"
-              >
-                <InstagramIcon size={16} />
-              </a>
-            )}
-            {facebookUrl && (
-              <a
-                href={facebookUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="transition-colors hover:text-white"
-              >
-                <FacebookIcon size={16} />
-              </a>
-            )}
-          </div>
-        )}
+          {hasSocialLinks && (
+            <div className="flex items-center gap-3 text-neutral-400">
+              {instagramUrl && (
+                <a
+                  href={instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="transition-colors hover:text-white"
+                >
+                  <InstagramIcon size={16} />
+                </a>
+              )}
+              {facebookUrl && (
+                <a
+                  href={facebookUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="transition-colors hover:text-white"
+                >
+                  <FacebookIcon size={16} />
+                </a>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs text-neutral-500">
-          <span>© {new Date().getFullYear()} Tienda 3D. Impresion 3D y pedidos a medida.</span>
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-1.5 px-4 py-4 text-center text-xs text-neutral-500 sm:flex-row sm:items-center sm:justify-between sm:text-left">
+          <span>© {new Date().getFullYear()} Tienda 3D. Todos los derechos reservados.</span>
           <span>{contactEmail || FALLBACK_EMAIL}</span>
         </div>
       </div>
