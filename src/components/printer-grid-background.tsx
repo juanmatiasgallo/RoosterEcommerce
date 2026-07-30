@@ -55,20 +55,41 @@ export function PrinterGridBackground() {
       <motion.div
         className="absolute inset-[-42px]"
         style={{
-          // Fade grande y con varios stops (evita el banding que vimos con
-          // un mask-image de 2 stops sobre un fondo solido oscuro -- aca el
-          // target es la grilla, ya mayormente transparente, asi que el
-          // degrade es mucho mas suave). 30%/70% = 60% de la seccion
-          // desvaneciendo hacia cada punta, para que no se note donde
-          // termina.
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 30%, black 70%, transparent 100%)",
+          // Fade mas grande todavia (antes 30%/70%, ahora 38%/62% = 76% de
+          // la seccion desvaneciendo hacia cada punta -- el owner marco que
+          // el borde donde una seccion con grilla terminaba y la siguiente
+          // (blanca, sin grilla) empezaba se notaba como un corte). Con solo
+          // un 24% solido en el medio, la transicion es mucho mas gradual.
+          maskImage: "linear-gradient(to bottom, transparent 0%, black 38%, black 62%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 38%, black 62%, transparent 100%)",
         }}
         animate={{ x: [0, 14, 0], y: [0, 10, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
       >
         <HexGrid patternId={patternId} />
       </motion.div>
+
+      {/* "Arranque irregular" pedido explicitamente: en vez de que el fade
+          de arriba sea una linea perfectamente uniforme de punta a punta,
+          3 manchas difusas -- en distintas posiciones horizontales y con
+          radios distintos -- aparecen con timings ligeramente distintos
+          cerca del borde superior, como si la grilla "fuera agarrando
+          cuerpo" de forma organica en vez de crecer pareja. Puramente
+          decorativo (aria-hidden, mismo grupo que ya es aria-hidden). */}
+      {[
+        { left: "18%", size: 220, delay: 0 },
+        { left: "58%", size: 170, delay: 0.8 },
+        { left: "82%", size: 150, delay: 1.6 },
+      ].map((blob, index) => (
+        <motion.div
+          key={index}
+          className="absolute top-0 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/[0.06] blur-2xl"
+          style={{ left: blob.left, width: blob.size, height: blob.size }}
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: [0, 0.9, 0], scale: [0.6, 1.15, 0.6] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: blob.delay }}
+        />
+      ))}
 
       {/* "Corriente" (task #27): chispitas que viajan en diagonal por
           encima de la grilla, entrando y saliendo de la nada (opacity

@@ -22,7 +22,7 @@ export default async function ProyectosPage() {
     <main>
       {/* Full-bleed, mismo patron que Hero/pedido-a-medida: banner
           theme-aware con la grilla animada de impresora de fondo. */}
-      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-100 px-6 py-14 text-center text-neutral-900 sm:py-20 dark:bg-neutral-950 dark:text-white">
+      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-[var(--background)] px-6 py-14 text-center text-neutral-900 sm:py-20 dark:text-white">
         <PrinterGridBackground />
 
         <div className="relative mx-auto max-w-xl">

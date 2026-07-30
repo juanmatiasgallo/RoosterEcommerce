@@ -9,12 +9,15 @@ import { AnimatedHeading } from "@/components/animated-heading";
 // del navegador, no solo el max-w-6xl del resto de la home.
 //
 // Theme-aware (era bg-neutral-950 fijo -- el owner lo marco como "muy roto
-// para el ojo humano" contra el fondo claro del sitio). Mismo panel
-// claro/oscuro que el Hero, mismo fondo animado (PrinterGridBackground) en
-// vez de los blobs pulsantes genericos de antes.
+// para el ojo humano" contra el fondo claro del sitio). Sin panel de color
+// propio (antes bg-neutral-100/dark:bg-neutral-950, mismo motivo que el
+// Hero): usa var(--background) para que no haya costura contra el resto de
+// la home ni contra el degrade de arranque del footer (que ya asume que lo
+// de arriba es var(--background), ver site-footer.tsx). Mismo fondo animado
+// (PrinterGridBackground) en vez de los blobs pulsantes genericos de antes.
 export function NewsletterSection() {
   return (
-    <section className="relative left-1/2 right-1/2 -mx-[50vw] mt-16 w-screen overflow-hidden bg-neutral-100 px-6 py-14 text-center sm:px-12 dark:bg-neutral-950">
+    <section className="relative left-1/2 right-1/2 -mx-[50vw] mt-16 w-screen overflow-hidden bg-[var(--background)] px-6 py-14 text-center sm:px-12">
       <PrinterGridBackground />
 
       <div className="animate-in fade-in slide-in-from-bottom-4 relative mx-auto flex max-w-lg flex-col items-center gap-3 duration-700">

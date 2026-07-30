@@ -270,10 +270,16 @@ export function SiteHeader({
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 border-b bg-white/80 backdrop-blur-md transition-[background-color,border-color,box-shadow] duration-300 dark:bg-neutral-950/70",
+        // Transparente hasta que se scrollea (antes bg-white/80 fijo): el
+        // owner marco que se notaba una costura contra el Hero/login de
+        // abajo, sobre todo en modo claro. Sin fondo propio mientras
+        // scrolled=false, el header se funde del todo con lo que sea que
+        // haya detras (Hero, login, etc); backdrop-blur solo sigue activo
+        // siempre asi el blur no aparece de golpe al empezar a scrollear.
+        "sticky top-0 z-40 border-b backdrop-blur-md transition-[background-color,border-color,box-shadow] duration-300",
         scrolled
-          ? "border-neutral-200 shadow-sm dark:border-neutral-800"
-          : "border-transparent shadow-none",
+          ? "border-neutral-200 bg-white/80 shadow-sm dark:border-neutral-800 dark:bg-neutral-950/70"
+          : "border-transparent bg-transparent shadow-none",
       )}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">

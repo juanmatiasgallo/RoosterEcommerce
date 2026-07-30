@@ -7,10 +7,12 @@ import { HeroTrustBadges } from "./hero-trust-badges";
 
 // Theme-aware (antes era bg-neutral-950 fijo, sin importar el tema -- se
 // veia como un bloque negro roto contra el fondo claro cuando el sitio
-// quedo en modo claro por defecto). En claro usa un panel tintado suave
-// (neutral-100), en oscuro el panel oscuro de siempre. La grilla animada
-// (PrinterGridBackground) reemplaza los blobs difuminados genericos: se
-// pidio algo tematico a la impresion 3D en vez de manchas de color sueltas.
+// quedo en modo claro por defecto). Ya no tiene un panel de color propio
+// (antes bg-neutral-100/dark:bg-neutral-950): el owner marco que ese
+// rectangulo generaba una costura visible contra el resto de la pagina
+// (que usa var(--background), un tono distinto). Usa el mismo fondo que
+// toda la home -- la grilla animada, el glow y la tipografia son los que le
+// dan presencia de "seccion de marca", no un bloque de color aparte.
 
 export function Hero() {
   return (
@@ -21,7 +23,7 @@ export function Hero() {
     // adentro (texto, botones) vuelve a quedar centrado en un
     // mx-auto max-w-6xl propio, para alinear con el resto de la pagina.
     <section
-      className="animate-in fade-in slide-in-from-bottom-2 relative left-1/2 right-1/2 -mx-[50vw] flex min-h-[calc(100dvh-4.5rem)] w-screen flex-col items-center justify-center overflow-hidden bg-neutral-100 px-6 py-16 text-center text-neutral-900 duration-500 sm:py-24 dark:bg-neutral-950 dark:text-white"
+      className="animate-in fade-in slide-in-from-bottom-2 relative left-1/2 right-1/2 -mx-[50vw] flex min-h-[calc(100dvh-4.5rem)] w-screen flex-col items-center justify-center overflow-hidden bg-[var(--background)] px-6 py-16 text-center text-neutral-900 duration-500 sm:py-24 dark:text-white"
     >
       {/* min-h-[calc(100dvh-4.5rem)] (task #33): el Hero ocupa toda la
           altura visible debajo del header sticky (~4.5rem, estimado a partir

@@ -25,7 +25,7 @@ export default async function PedidoAMedidaPage() {
           contenedor centrado para dar mas presencia visual a esta pagina,
           que ahora es la puerta de entrada tanto para clientes como para
           gente sin cuenta todavia. */}
-      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-neutral-100 px-6 py-14 text-center text-neutral-900 sm:py-20 dark:bg-neutral-950 dark:text-white">
+      <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-[var(--background)] px-6 py-14 text-center text-neutral-900 sm:py-20 dark:text-white">
         <PrinterGridBackground />
 
         <div className="relative mx-auto max-w-xl">

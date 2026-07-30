@@ -21,6 +21,7 @@ import { getMyFavoriteProductIds } from "@/lib/favorites/actions";
 import { auth } from "@/auth";
 import { AnimatedHeading } from "@/components/animated-heading";
 import { HomeReplayBoundary } from "@/components/home-replay-boundary";
+import { AmbientSiteBackground } from "@/components/ambient-site-background";
 
 // Esta pagina consulta la DB en cada request: si se deja como estatica por
 // defecto, `next build` la pre-renderiza en build time y el build de Docker
@@ -111,6 +112,7 @@ export default async function HomePage({
 
   return (
     <HomeReplayBoundary>
+    <AmbientSiteBackground />
     <main className="mx-auto max-w-6xl px-4 py-8">
       <Hero />
       <HowItWorks />
