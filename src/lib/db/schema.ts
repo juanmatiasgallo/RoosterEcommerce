@@ -557,3 +557,60 @@ export const auditLogs = pgTable("audit_logs", {
   after: jsonb("after"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// --- Contenido de la home (tiempos de entrega, material, servicios) --------
+//
+// 3 bloques de la pagina principal que el owner pidio poder editar sin pasar
+// por un deploy (a diferencia de "Como funciona"/"Value props", que son
+// copy fijo en el codigo) -- mismo criterio storeId-scoped + soft delete
+// (active) que el resto del catalogo. `sortOrder` es un numero que el admin
+// carga a mano (no hay drag-and-drop todavia) para controlar el orden de
+// aparicion.
+
+export const deliveryTiers = pgTable("delivery_tiers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  title: varchar("title", { length: 120 }).notNull(),
+  description: text("description").notNull(),
+  // Separados (en vez de un solo string "1-2 dias habiles") para poder
+  // tipografiar el numero mas grande que la unidad en la tarjeta, como en la
+  // referencia que paso el owner.
+  rangeLabel: varchar("range_label", { length: 20 }).notNull(),
+  unitLabel: varchar("unit_label", { length: 60 }).notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const materials = pgTable("materials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  name: varchar("name", { length: 120 }).notNull(),
+  description: text("description").notNull(),
+  // jsonb tipado en vez de tablas separadas material_features/material_colors
+  // -- mismo patron ya usado en products.specs/technicalSpecs, y evita 2
+  // tablas + 2 CRUDs extra para listas chicas que siempre se editan junto
+  // con el material (no tienen sentido sueltas). `positive: false` marca la
+  // limitacion honesta ("no apto para altas temperaturas") con otro icono
+  // que las demas.
+  features: jsonb("features").$type<{ text: string; positive: boolean }[]>(),
+  colors: jsonb("colors").$type<{ name: string; hex: string }[]>(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const services = pgTable("services", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  storeId: uuid("store_id").notNull().references(() => stores.id),
+  // Clave de un set curado de iconos (ver src/lib/site-content/icon-registry.ts),
+  // no un nombre de icono arbitrario -- el admin elige de un <select>, nunca
+  // texto libre, para no depender de que el nombre coincida 1 a 1 con un
+  // export de lucide-react.
+  icon: varchar("icon", { length: 40 }).notNull(),
+  title: varchar("title", { length: 120 }).notNull(),
+  description: text("description").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});

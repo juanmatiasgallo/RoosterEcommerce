@@ -8,10 +8,13 @@ import {
   type ProductSort,
 } from "@/lib/catalog/queries";
 import { CatalogClient } from "./catalog-client";
+import { DeliveryTimesSection } from "./delivery-times-section";
 import { FeaturedCategories } from "./featured-categories";
 import { Hero } from "./hero";
 import { HowItWorks } from "./how-it-works";
+import { MaterialSection } from "./material-section";
 import { ProductCard } from "./product-card";
+import { ServicesSection } from "./services-section";
 import { ValueProps } from "./value-props";
 import { NewsletterSection } from "./newsletter-section";
 import { getMyFavoriteProductIds } from "@/lib/favorites/actions";
@@ -110,6 +113,9 @@ export default async function HomePage({
       <Hero />
       <HowItWorks />
       <ValueProps />
+      <ServicesSection />
+      <DeliveryTimesSection />
+      <MaterialSection />
       <FeaturedCategories categoryTree={categoryTree} />
 
       <div id="catalogo" className="scroll-mt-6 border-t border-neutral-200 pt-10 dark:border-neutral-800">
