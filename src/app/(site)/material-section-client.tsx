@@ -41,7 +41,7 @@ export function MaterialSectionClient({ material }: { material: MaterialRow }) {
       <motion.div
         initial="hidden"
         whileInView="show"
-        viewport={{ once: true, amount: 0.25 }}
+        viewport={{ once: false, amount: 0.25 }}
         variants={container}
         className="mt-10 grid gap-10 sm:grid-cols-2"
       >

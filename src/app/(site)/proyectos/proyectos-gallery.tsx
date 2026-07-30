@@ -31,7 +31,7 @@ export function ProyectosGallery({ projects }: { projects: PublicProject[] }) {
     <motion.div
       initial="hidden"
       whileInView="show"
-      viewport={{ once: true, amount: 0.15 }}
+      viewport={{ once: false, amount: 0.15 }}
       variants={container}
       className="grid gap-5 py-10 sm:grid-cols-2 lg:grid-cols-3"
     >

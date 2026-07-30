@@ -21,15 +21,18 @@ const inputClass =
 const labelClass = "mb-1 block text-sm font-medium";
 
 // Schema propio del formulario, distinto del que usa la server action
-// (src/lib/discount-campaigns/schema.ts): usageLimit viaja como string
-// vacio-o-no aca (se convierte a numero recien en onSubmit) porque
-// registrarlo con valueAsNumber manda NaN cuando el input queda vacio, y
-// NaN no pasa z.number().optional() -- mismo criterio que compareAtPrice en
-// producto-form-dialog.tsx.
+// (src/lib/discount-campaigns/schema.ts): "value" y "usageLimit" viajan
+// como string aca (se convierten a numero recien en onSubmit). z.coerce.
+// number() se probo primero y rompe el build: el tipo de ENTRADA que espera
+// zodResolver para ese campo queda en `unknown`, y useForm<FormValues> (el
+// tipo de SALIDA, con value ya en number) no matchea -- mismo bug de fondo
+// que compareAtPrice en producto-form-dialog.tsx y usageLimit un poco mas
+// abajo, mismo arreglo: campo string en el form, Number(...) manual en
+// onSubmit.
 const campaignFormSchema = z.object({
   code: z.string().min(3, "Minimo 3 caracteres").max(30),
   type: z.enum(["percent", "fixed"]),
-  value: z.coerce.number().positive("Debe ser mayor a 0"),
+  value: z.string().refine((v) => Number.isFinite(Number(v)) && Number(v) > 0, "Debe ser mayor a 0"),
   usageLimit: z.string().max(10).optional(),
 });
 
@@ -55,7 +58,7 @@ export function OfertasClient({ initialCampaigns }: { initialCampaigns: Discount
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(campaignFormSchema),
-    defaultValues: { code: "", type: "percent", value: 10, usageLimit: "" },
+    defaultValues: { code: "", type: "percent", value: "10", usageLimit: "" },
   });
 
   async function onSubmit(values: FormValues) {
@@ -64,11 +67,11 @@ export function OfertasClient({ initialCampaigns }: { initialCampaigns: Discount
       const created = await createDiscountCampaign({
         code: values.code,
         type: values.type,
-        value: values.value,
+        value: Number(values.value),
         usageLimit: usageLimit && !Number.isNaN(usageLimit) ? usageLimit : undefined,
       });
       setCampaigns((prev) => [created, ...prev]);
-      reset({ code: "", type: "percent", value: 10, usageLimit: "" });
+      reset({ code: "", type: "percent", value: "10", usageLimit: "" });
       toast.success("Codigo de promocion creado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "No se pudo crear el codigo.");
@@ -143,7 +146,7 @@ export function OfertasClient({ initialCampaigns }: { initialCampaigns: Discount
               </div>
               <div>
                 <label className={labelClass}>Valor</label>
-                <input type="number" step="0.01" {...register("value", { valueAsNumber: true })} className={inputClass} />
+                <input type="number" step="0.01" {...register("value")} className={inputClass} />
                 {errors.value && <p className="mt-1 text-xs text-red-600">{errors.value.message}</p>}
               </div>
               <div>

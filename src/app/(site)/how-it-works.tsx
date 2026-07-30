@@ -69,7 +69,7 @@ export function HowItWorks() {
       <motion.div
         initial="hidden"
         whileInView="show"
-        viewport={{ once: true, amount: 0.4 }}
+        viewport={{ once: false, amount: 0.4 }}
         variants={container}
         className="relative mt-12 grid gap-10 sm:grid-cols-3 sm:gap-8"
       >
@@ -84,7 +84,7 @@ export function HowItWorks() {
             className="h-full origin-left bg-accent"
             initial={{ scaleX: 0 }}
             whileInView={{ scaleX: 1 }}
-            viewport={{ once: true, amount: 0.4 }}
+            viewport={{ once: false, amount: 0.4 }}
             transition={{ duration: 2.2, ease: "easeInOut", delay: 0.15 }}
           />
         </div>

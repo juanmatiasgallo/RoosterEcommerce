@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { PackageSearch, ShieldCheck, Truck } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
-import { AnimatedHeading } from "@/components/animated-heading";
+import { HeroHeading } from "./hero-heading";
+import { HeroTrustBadges } from "./hero-trust-badges";
 
 // Theme-aware (antes era bg-neutral-950 fijo, sin importar el tema -- se
 // veia como un bloque negro roto contra el fondo claro cuando el sitio
@@ -11,11 +11,6 @@ import { AnimatedHeading } from "@/components/animated-heading";
 // (neutral-100), en oscuro el panel oscuro de siempre. La grilla animada
 // (PrinterGridBackground) reemplaza los blobs difuminados genericos: se
 // pidio algo tematico a la impresion 3D en vez de manchas de color sueltas.
-const TRUST_BADGES = [
-  { icon: ShieldCheck, label: "Pago seguro con Mercado Pago" },
-  { icon: Truck, label: "Coordinamos el envio a todo el pais" },
-  { icon: PackageSearch, label: "Cotizacion antes de pagar" },
-];
 
 export function Hero() {
   return (
@@ -37,27 +32,12 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-6xl">
         <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catalogo + pedidos a medida</p>
-        {/* Dos lineas, un solo h1: la 1ra neutra, la 2da con el color de
-            acento + un glow radial detras (bg-accent/25 blur-3xl) para que
-            resalte lo principal, mas presencia que una linea de texto plano.
-            splitBy="letter" arma la frase letra por letra en vez de por
-            palabra, mas "vivo" para el titulo mas grande del sitio. */}
-        {/* Ritmo mucho mas lento que el resto de los titulos del sitio
-            (task #34): stagger 0.09 (antes 0.025) entre letras, cada letra
-            tarda 0.85s en asentarse (antes 0.55s) y la segunda linea arranca
-            0.45s despues de la primera (antes 0.15s) -- se nota como un
-            armado deliberado, letra por letra, en vez de un parpadeo. */}
-        <AnimatedHeading
-          as="h1"
-          text={["Impresion 3D", "a tu medida"]}
-          lineClassName={["", "text-accent"]}
-          splitBy="letter"
-          glow
-          stagger={0.09}
-          duration={0.85}
-          lineDelay={0.45}
-          className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl"
-        />
+        {/* HeroHeading (antes AnimatedHeading generico): "Impresion" se
+            arma letra por letra igual que siempre, pero "3D" ahora es una
+            pieza aparte con relieve 3D real (Extruded3DText) y "a tu
+            medida" usa un armado disparejo que converge al tamano uniforme
+            (UnevenSettleText) -- ver hero-heading.tsx. */}
+        <HeroHeading />
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-600 dark:text-neutral-300">
           Elegi una pieza de nuestro catalogo o subi tu propio diseno: te cotizamos antes de cobrarte nada y lo
           imprimimos para vos.
@@ -84,14 +64,7 @@ export function Hero() {
           </Link>
         </div>
 
-        <ul className="mx-auto mt-10 flex max-w-2xl flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm text-neutral-500 dark:text-neutral-400">
-          {TRUST_BADGES.map((badge) => (
-            <li key={badge.label} className="flex items-center gap-1.5">
-              <badge.icon size={15} className="text-accent" aria-hidden="true" />
-              {badge.label}
-            </li>
-          ))}
-        </ul>
+        <HeroTrustBadges />
       </div>
     </section>
   );

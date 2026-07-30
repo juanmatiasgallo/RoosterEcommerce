@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { auditLogs, discountCampaigns } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
 import { getCartItems } from "@/lib/cart/actions";
+import { computeCampaignDiscount } from "./pure";
 import { createDiscountCampaignSchema, updateDiscountCampaignSchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -169,12 +170,6 @@ export async function findUsableCampaign(code: string, storeId: string) {
   if (!campaign) return null;
   if (campaign.usageLimit !== null && campaign.usageCount >= campaign.usageLimit) return null;
   return campaign;
-}
-
-export function computeCampaignDiscount(campaign: { type: "percent" | "fixed"; value: string }, subtotal: number) {
-  const value = Number(campaign.value);
-  const raw = campaign.type === "percent" ? subtotal * (value / 100) : value;
-  return Math.min(Math.max(0, raw), subtotal);
 }
 
 // Preview publico (sin requireStaff -- lo usa cualquier visitante en

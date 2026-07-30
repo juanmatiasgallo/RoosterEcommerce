@@ -20,6 +20,7 @@ import { NewsletterSection } from "./newsletter-section";
 import { getMyFavoriteProductIds } from "@/lib/favorites/actions";
 import { auth } from "@/auth";
 import { AnimatedHeading } from "@/components/animated-heading";
+import { HomeReplayBoundary } from "@/components/home-replay-boundary";
 
 // Esta pagina consulta la DB en cada request: si se deja como estatica por
 // defecto, `next build` la pre-renderiza en build time y el build de Docker
@@ -109,6 +110,7 @@ export default async function HomePage({
   const hasActiveFilters = Object.values(listParams).some((value) => value !== undefined);
 
   return (
+    <HomeReplayBoundary>
     <main className="mx-auto max-w-6xl px-4 py-8">
       <Hero />
       <HowItWorks />
@@ -169,5 +171,6 @@ export default async function HomePage({
 
       <NewsletterSection />
     </main>
+    </HomeReplayBoundary>
   );
 }

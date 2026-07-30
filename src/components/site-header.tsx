@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ChevronDown, Heart, Menu, Search, ShoppingCart, UserCircle, X } from "lucide-react";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import type { Role } from "@/lib/auth/schema";
@@ -232,6 +232,20 @@ export function SiteHeader({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+
+  // Click en el logo estando ya en la home: en vez de navegar (que no hace
+  // nada, ya estamos en "/"), se pide que vuelva arriba del todo "como si
+  // hubiese actualizado" y que las animaciones se vuelvan a ejecutar -- sin
+  // una recarga real. HomeReplayBoundary (montado dentro de la home) escucha
+  // este evento y remonta el contenido. Si estamos en otra pagina, se deja
+  // que el Link navegue normal (el mount fresco de la home ya trae las
+  // animaciones de cero, no hace falta nada especial).
+  function handleLogoClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (pathname !== "/") return;
+    event.preventDefault();
+    window.dispatchEvent(new Event("home:replay"));
+  }
 
   // Header "integrado con la pagina" (task #23): sticky + vidrio esmerilado
   // (backdrop-blur) en vez de un bloque opaco fijo -- deja intuir el fondo
@@ -263,7 +277,7 @@ export function SiteHeader({
       )}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="text-lg font-semibold">
+        <Link href="/" className="text-lg font-semibold" onClick={handleLogoClick}>
           Tienda 3D
         </Link>
 

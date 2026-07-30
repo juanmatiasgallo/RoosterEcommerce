@@ -77,7 +77,7 @@ export function ValueProps() {
       <motion.div
         initial="hidden"
         whileInView="show"
-        viewport={{ once: true, amount: 0.3 }}
+        viewport={{ once: false, amount: 0.3 }}
         variants={container}
         className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4"
       >
