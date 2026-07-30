@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Work_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { UmamiScript } from "@/components/umami-script";
 import "./globals.css";
 
 // Una sola familia, dos pesos (regular + semibold) — suficiente para todo
@@ -42,6 +43,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           {children}
           <Toaster richColors position="bottom-right" />
+          <UmamiScript />
         </ThemeProvider>
       </body>
     </html>
