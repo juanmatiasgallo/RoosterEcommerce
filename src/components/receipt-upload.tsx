@@ -15,11 +15,28 @@ import { Spinner } from "@/components/ui/spinner";
 // Opcional: el cliente puede subir el comprobante ahora mismo (si ya tiene
 // la transferencia hecha) o mas adelante — no bloquea nada, es solo una
 // ayuda para que el admin confirme el pago mas rapido.
+//
+// Limite real (extensiones + tamano) se valida en el server
+// (uploadPaymentReceipt, UPLOADS_MAX_SIZE_MB=20 por default) -- esta
+// constante es solo para el mensaje de error inmediato en el cliente, sin
+// esperar el roundtrip al server.
+const MAX_SIZE_MB = 20;
+
 export function ReceiptUpload({ orderId }: { orderId: string }) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function handleFileChange(selected: File | null) {
+    setError(null);
+    if (selected && selected.size > MAX_SIZE_MB * 1024 * 1024) {
+      setFile(null);
+      setError(`El archivo supera el tamano maximo permitido (${MAX_SIZE_MB} MB).`);
+      return;
+    }
+    setFile(selected);
+  }
 
   async function handleUpload() {
     if (!file) return;
@@ -43,10 +60,11 @@ export function ReceiptUpload({ orderId }: { orderId: string }) {
   return (
     <div className="flex flex-col gap-2 rounded border border-neutral-200 p-3 dark:border-neutral-800">
       <p className="text-sm font-medium">Ya tenes el comprobante? Subilo aca (opcional)</p>
+      <p className="text-xs text-neutral-500">PDF, JPG, PNG o WEBP — hasta {MAX_SIZE_MB} MB.</p>
       <input
         type="file"
         accept=".jpg,.jpeg,.png,.webp,.pdf"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
         className="text-sm"
       />
       {error && <p className="text-sm text-red-600">{error}</p>}

@@ -11,24 +11,38 @@ export function PostPurchaseFollow({
   instagramUrl,
   facebookUrl,
   whatsappHref,
+  showNewsletter = true,
 }: {
   instagramUrl?: string | null;
   facebookUrl?: string | null;
   whatsappHref?: string | null;
+  // Falso en /mi-cuenta/compras/[id]: el cliente puede volver a esa pantalla
+  // varias veces mientras su pedido esta pendiente (a diferencia de
+  // /checkout/exito, que se ve una sola vez) y ya esta identificado -- pedir
+  // "suscribite" ahi repetidas veces no suma, solo el seguinos en redes.
+  showNewsletter?: boolean;
 }) {
   const hasSocialLinks = Boolean(instagramUrl || facebookUrl || whatsappHref);
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-neutral-200 bg-neutral-50 p-4 dark:border-neutral-800 dark:bg-neutral-900/50">
-      <div>
-        <p className="text-sm font-medium">Suscribite para no perderte ofertas</p>
-        <div className="mt-2">
-          <NewsletterForm />
+      {showNewsletter && (
+        <div>
+          <p className="text-sm font-medium">Suscribite para no perderte ofertas</p>
+          <div className="mt-2">
+            <NewsletterForm />
+          </div>
         </div>
-      </div>
+      )}
 
       {hasSocialLinks && (
-        <div className="flex items-center gap-3 border-t border-neutral-200 pt-3 dark:border-neutral-800">
+        <div
+          className={
+            showNewsletter
+              ? "flex items-center gap-3 border-t border-neutral-200 pt-3 dark:border-neutral-800"
+              : "flex items-center gap-3"
+          }
+        >
           <span className="text-xs text-neutral-500">Segui nuestro trabajo:</span>
           <div className="flex items-center gap-3 text-neutral-500">
             {instagramUrl && (

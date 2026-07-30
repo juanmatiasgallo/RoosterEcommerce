@@ -110,7 +110,12 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
       )}
 
       <div className="mt-8">
-        <PostPurchaseFollow instagramUrl={contact.instagramUrl} facebookUrl={contact.facebookUrl} whatsappHref={whatsappHref} />
+        <PostPurchaseFollow
+          instagramUrl={contact.instagramUrl}
+          facebookUrl={contact.facebookUrl}
+          whatsappHref={whatsappHref}
+          showNewsletter={false}
+        />
       </div>
     </div>
   );
