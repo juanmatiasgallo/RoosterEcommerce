@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import { FacebookIcon, InstagramIcon } from "@/components/social-icons";
+import { PrinterGridBackground } from "@/components/printer-grid-background";
 
 // Placeholders: se usan solo si el admin todavia no cargo datos reales de
 // contacto en /admin/configuracion (ver "Datos de la tienda").
@@ -32,6 +33,18 @@ export function SiteFooter({
 
   return (
     <footer className="relative mt-16 overflow-hidden bg-neutral-950 text-white">
+      {/* Mismo fondo animado (hex-grid + chispas + barrido) que Hero,
+          Newsletter, Proyectos y el banner de Pedido a medida (ver
+          printer-grid-background.tsx): antes el footer quedaba como una
+          franja negra solida y estatica, un corte brusco justo despues de
+          Newsletter (que si tiene esta animacion) -- sobre todo en tema
+          claro, donde el salto de color ya es grande de por si. Reusar el
+          mismo componente en vez de inventar una animacion nueva mantiene
+          el lenguaje visual consistente en todas las "secciones de marca"
+          del sitio. Va primero en el DOM (pinta detras) para no taparse
+          con el degrade de transicion ni el contenido de abajo. */}
+      <PrinterGridBackground />
+
       {/* Transicion real de color (no solo un brillo encima) para el limite
           con lo que venga antes del footer: en modo claro el salto es
           grande (fondo crema -> footer casi negro), un glow chico no

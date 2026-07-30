@@ -116,7 +116,7 @@ function UserAvatarMenu({
             <Link href="/mi-cuenta/cambiar-contrasena" className={menuLinkClass} onClick={close}>
               Cambiar contrasena
             </Link>
-            <div className="px-2 py-1.5">
+            <div className="mt-1 border-t border-neutral-200 px-2 pt-2 pb-0.5 dark:border-neutral-800">
               <LogoutButton />
             </div>
           </div>
@@ -442,8 +442,8 @@ export function SiteHeader({
             </Link>
           )}
           {user ? (
-            <div className="flex items-center gap-2 py-1 text-sm text-neutral-500">
-              {user.name ?? user.email}
+            <div className="mt-1 flex items-center justify-between gap-2 border-t border-neutral-200 py-2 text-sm text-neutral-500 dark:border-neutral-800">
+              <span className="truncate">{user.name ?? user.email}</span>
               <LogoutButton />
             </div>
           ) : (

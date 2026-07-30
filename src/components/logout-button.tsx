@@ -23,12 +23,18 @@ export function LogoutButton({ variant = "text" }: { variant?: "text" | "icon" }
     );
   }
 
+  // Variante "text" (menu del header, desktop y mobile): icono + tinte rojo
+  // al hover en vez de texto subrayado piso -- lectura mas clara de "esto es
+  // una accion distinta a navegar" (mismo lenguaje que un logout en
+  // cualquier app conocida), sin llegar a un boton solido rojo que se sienta
+  // alarmante para algo tan comun.
   return (
     <button
       type="button"
       onClick={() => signOut({ callbackUrl: "/" })}
-      className="text-sm text-neutral-500 underline hover:text-accent"
+      className="flex items-center gap-1.5 text-sm text-neutral-500 transition-colors hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400"
     >
+      <LogOut size={15} strokeWidth={1.75} />
       Cerrar sesion
     </button>
   );
