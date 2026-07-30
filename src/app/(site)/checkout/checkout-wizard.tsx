@@ -1,38 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { getCartItems, mergeGuestCartIntoUser, type CartRow } from "@/lib/cart/actions";
-import { checkoutCart, uploadPaymentReceipt } from "@/lib/orders/actions";
+import { checkoutCart } from "@/lib/orders/actions";
 import { shippingAddressSchema, type ShippingAddress } from "@/lib/orders/schema";
 import { getMyCoupons, type CouponRow } from "@/lib/loyalty/actions";
 import { previewDiscountCode } from "@/lib/discount-campaigns/actions";
 import { mergeGuestFavoritesIntoUser } from "@/lib/favorites/actions";
 import { getGuestFavoriteIds, clearGuestFavorites } from "@/lib/favorites/guest-favorites";
 import type { PaymentMethod } from "@/lib/orders/actions";
-import { getReceiptView } from "@/lib/receipt/actions";
 import {
   PaymentMethodPicker,
   type ManualPaymentMethodOption,
   type PaymentMethodValue,
 } from "@/components/payment-method-picker";
 import { Spinner } from "@/components/ui/spinner";
-import { PostPurchaseFollow } from "@/components/post-purchase-follow";
 import { IdentifyStep } from "@/components/identify-step";
-import { OrderReceiptCard, type OrderReceiptCardProps } from "@/components/order-receipt-card";
-import { trackEvent, trackPurchaseOnce } from "@/lib/analytics/track";
+import { trackEvent } from "@/lib/analytics/track";
 
 type ShippingZoneOption = { id: string; name: string; description: string | null; cost: string };
 type Step = 1 | 2 | 3 | 4;
-type ManualResult = {
-  orderId: string;
-  orderNumber: number;
-  methodLabel: string;
-  instructions: string;
-  receiptEligible: boolean;
-};
 
 const STEP_LABELS: Record<Step, string> = {
   1: "Identificacion",
@@ -61,9 +52,6 @@ export function CheckoutWizard({
   initialShippingAddress = null,
   initialShippingZoneId = null,
   initialPaymentMethod = null,
-  instagramUrl = null,
-  facebookUrl = null,
-  whatsappHref = null,
   manualPaymentMethods,
   shippingZones,
 }: {
@@ -73,12 +61,10 @@ export function CheckoutWizard({
   initialShippingAddress?: ShippingAddress | null;
   initialShippingZoneId?: string | null;
   initialPaymentMethod?: PaymentMethod | null;
-  instagramUrl?: string | null;
-  facebookUrl?: string | null;
-  whatsappHref?: string | null;
   manualPaymentMethods: ManualPaymentMethodOption[];
   shippingZones: ShippingZoneOption[];
 }) {
+  const router = useRouter();
   const startedLoggedIn = Boolean(initialUserEmail);
   const [step, setStep] = useState<Step>(startedLoggedIn ? 2 : 1);
   const [items, setItems] = useState(initialItems);
@@ -121,7 +107,6 @@ export function CheckoutWizard({
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [manualResult, setManualResult] = useState<ManualResult | null>(null);
 
   const shippingCost = shippingZone ? Number(shippingZone.cost) : 0;
   const selectedCoupon = coupons.find((c) => c.code === selectedCouponCode) ?? null;
@@ -232,21 +217,16 @@ export function CheckoutWizard({
       });
       if (result.type === "manual") {
         // Orden de servicio creada (pago pendiente de confirmar a mano por
-        // un admin, ver comentario mas abajo en ManualOrderResult) -- este
-        // es el "thank you" real que ve el cliente para este flujo, asi que
-        // es donde tiene sentido registrar la compra con su monto (Revenue
-        // en Umami). Para Mercado Pago el equivalente es la pagina del
-        // comprobante (/mi-cuenta/compras/[id], ver purchase-confirmed-
-        // tracker.tsx), porque el pago recien se confirma por webhook
-        // despues del redirect.
-        trackPurchaseOnce(result.orderId, {
-          orderId: result.orderId,
-          orderNumber: result.orderNumber,
-          revenue: total,
-          currency: "UYU",
-          paymentMethod,
-        });
-        setManualResult(result);
+        // un admin). Redirige al comprobante real -- mismo destino final
+        // que ya usa Mercado Pago (task #39) -- en vez de mostrar un
+        // resumen inline aca; ahi el cliente ve la linea de tiempo del
+        // pedido, las instrucciones de pago y puede subir el comprobante.
+        // No se registra "compra_confirmada" en este punto: el pago manual
+        // recien queda confirmado cuando un admin lo verifica, y ese
+        // evento se dispara solo en esa pagina (ver
+        // purchase-confirmed-tracker.tsx) para no contar como Revenue algo
+        // que todavia no se cobro de verdad.
+        router.push(`/mi-cuenta/compras/${result.orderId}`);
         return;
       }
       // Paso del funnel: la orden ya se creo (pendiente_pago) y el cliente
@@ -263,17 +243,6 @@ export function CheckoutWizard({
     } finally {
       setIsSubmittingOrder(false);
     }
-  }
-
-  if (manualResult) {
-    return (
-      <ManualOrderResult
-        manualResult={manualResult}
-        instagramUrl={instagramUrl}
-        facebookUrl={facebookUrl}
-        whatsappHref={whatsappHref}
-      />
-    );
   }
 
   return (
@@ -765,121 +734,3 @@ function OrderSummary({
   );
 }
 
-// Pantalla de "orden de servicio creada" (task #6): antes era una cajita de
-// texto minima. El owner mando de referencia el comprobante de Tata.com.uy
-// (codigo grande, QR, direccion, articulos) para que este momento -- justo
-// despues de comprometerse a pagar por fuera de Mercado Pago -- transmita
-// mas confianza. El resumen (OrderReceiptCard) se pide en un segundo viaje
-// al server porque manualResult no trae items/direccion (checkoutCart no
-// los devuelve para no duplicar el payload) -- se busca por orderId apenas
-// se conoce, reusando el mismo getReceiptView que arma el comprobante
-// permanente de /mi-cuenta/compras/[id].
-function ManualOrderResult({
-  manualResult,
-  instagramUrl,
-  facebookUrl,
-  whatsappHref,
-}: {
-  manualResult: ManualResult;
-  instagramUrl: string | null;
-  facebookUrl: string | null;
-  whatsappHref: string | null;
-}) {
-  const [receipt, setReceipt] = useState<OrderReceiptCardProps | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    getReceiptView(manualResult.orderId)
-      .then((data) => {
-        if (!cancelled && data) setReceipt(data);
-      })
-      .catch(() => {
-        // no-op: si falla, igual mostramos las instrucciones de pago abajo
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [manualResult.orderId]);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-lg font-semibold">Orden de servicio creada</h2>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400">
-          Te mandamos un mail con estos mismos datos. En cuanto confirmemos que el pago llego, te avisamos por mail
-          que nos vamos a poner en contacto para coordinar la entrega.
-        </p>
-      </div>
-
-      {receipt ? (
-        <OrderReceiptCard {...receipt} />
-      ) : (
-        <div className="h-64 animate-pulse rounded-xl border border-neutral-200 bg-neutral-100 dark:border-neutral-800 dark:bg-neutral-900" />
-      )}
-
-      <div className="rounded bg-neutral-100 p-3 text-sm dark:bg-neutral-900">
-        <p className="font-medium">{manualResult.methodLabel}</p>
-        <p className="mt-1 whitespace-pre-line text-neutral-600 dark:text-neutral-400">{manualResult.instructions}</p>
-      </div>
-
-      {manualResult.receiptEligible && <ReceiptUpload orderId={manualResult.orderId} />}
-
-      <Link href="/mi-cuenta/pedidos" className="text-sm underline">
-        Ver mis pedidos
-      </Link>
-
-      <PostPurchaseFollow instagramUrl={instagramUrl} facebookUrl={facebookUrl} whatsappHref={whatsappHref} />
-    </div>
-  );
-}
-
-// Opcional: el cliente puede subir el comprobante ahora mismo (si ya tiene
-// la transferencia hecha) o mas adelante — no bloquea nada, es solo una
-// ayuda para que el admin confirme el pago mas rapido.
-function ReceiptUpload({ orderId }: { orderId: string }) {
-  const [file, setFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleUpload() {
-    if (!file) return;
-    setError(null);
-    setIsUploading(true);
-    try {
-      await uploadPaymentReceipt(orderId, file);
-      setUploaded(true);
-      toast.success("Comprobante subido.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo subir el comprobante.");
-    } finally {
-      setIsUploading(false);
-    }
-  }
-
-  if (uploaded) {
-    return <p className="text-sm text-green-700 dark:text-green-400">Comprobante subido, gracias.</p>;
-  }
-
-  return (
-    <div className="flex flex-col gap-2 rounded border border-neutral-200 p-3 dark:border-neutral-800">
-      <p className="text-sm font-medium">Ya tenes el comprobante? Subilo aca (opcional)</p>
-      <input
-        type="file"
-        accept=".jpg,.jpeg,.png,.webp,.pdf"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        className="text-sm"
-      />
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <button
-        type="button"
-        onClick={handleUpload}
-        disabled={!file || isUploading}
-        className="flex items-center justify-center gap-2 self-start rounded border border-neutral-300 px-3 py-1.5 text-sm active:scale-[0.98] disabled:opacity-50 dark:border-neutral-700"
-      >
-        {isUploading && <Spinner size={14} />}
-        {isUploading ? "Subiendo..." : "Subir comprobante"}
-      </button>
-    </div>
-  );
-}

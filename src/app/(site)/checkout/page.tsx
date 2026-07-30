@@ -4,7 +4,7 @@ import { getCartItems } from "@/lib/cart/actions";
 import { getAvailableManualPaymentMethods, getDefaultShippingAddress, getMyLastPaymentMethod } from "@/lib/orders/actions";
 import { listActiveShippingZones } from "@/lib/shipping/actions";
 import { getDefaultStoreId } from "@/lib/db/store";
-import { getPublicStoreContact, getVacationStatus } from "@/lib/settings/actions";
+import { getVacationStatus } from "@/lib/settings/actions";
 import { CheckoutWizard } from "./checkout-wizard";
 
 // Consulta la DB: sin esto, el build de Docker en EasyPanel la pre-renderiza
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function CheckoutPage() {
   const storeId = await getDefaultStoreId();
-  const [{ items, total }, session, manualPaymentMethods, shippingZones, vacation, defaultShipping, lastPaymentMethod, contact] =
+  const [{ items, total }, session, manualPaymentMethods, shippingZones, vacation, defaultShipping, lastPaymentMethod] =
     await Promise.all([
       getCartItems(),
       auth(),
@@ -22,9 +22,7 @@ export default async function CheckoutPage() {
       getVacationStatus(),
       getDefaultShippingAddress(),
       getMyLastPaymentMethod(),
-      getPublicStoreContact(),
     ]);
-  const whatsappHref = contact.contactPhone ? `https://wa.me/${contact.contactPhone.replace(/\D/g, "")}` : null;
 
   if (items.length === 0) redirect("/carrito");
 
@@ -51,9 +49,6 @@ export default async function CheckoutPage() {
           initialShippingAddress={defaultShipping.address}
           initialShippingZoneId={defaultShipping.shippingZoneId}
           initialPaymentMethod={lastPaymentMethod}
-          instagramUrl={contact.instagramUrl}
-          facebookUrl={contact.facebookUrl}
-          whatsappHref={whatsappHref}
           manualPaymentMethods={manualPaymentMethods}
           shippingZones={shippingZones.map((zone) => ({
             id: zone.id,

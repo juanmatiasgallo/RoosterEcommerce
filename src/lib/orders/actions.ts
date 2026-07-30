@@ -19,6 +19,7 @@ import { notify, notifyStaff } from "@/lib/notifications/notify";
 import { sendMail } from "@/lib/mail";
 import { formatCurrency } from "@/lib/format";
 import { getVacationStatus } from "@/lib/settings/actions";
+import { RECEIPT_ELIGIBLE_METHODS } from "@/lib/orders/receipt-eligibility";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
 
@@ -53,10 +54,6 @@ const MANUAL_METHOD_COLUMNS = {
   prex: "paymentInstructionsPrex",
   contra_entrega: "paymentInstructionsContraentrega",
 } as const satisfies Record<ManualPaymentMethod, keyof typeof stores.$inferSelect>;
-
-// Los medios que involucran plata que el cliente ya mando (no contra
-// entrega) son los unicos donde tiene sentido pedir/subir un comprobante.
-const RECEIPT_ELIGIBLE_METHODS: ManualPaymentMethod[] = ["transferencia", "abitab", "redpagos", "mi_dinero", "prex"];
 
 // Publico (no admin-gated a proposito): el checkout necesita saber que
 // medios de pago manuales estan configurados (tienen instrucciones
