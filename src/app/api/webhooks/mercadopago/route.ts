@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { getDefaultStoreId } from "@/lib/db/store";
@@ -82,42 +83,64 @@ export async function POST(req: NextRequest) {
 
   if (!isValidSignature(req, String(dataId), webhookSecret)) {
     console.error("Webhook de Mercado Pago con firma invalida, rechazado.");
+    // No es una excepcion (es un chequeo de seguridad que fallo), asi que
+    // onRequestError de instrumentation.ts no la va a ver -- se manda
+    // explicita. Una firma invalida repetida puede ser alguien probando
+    // pegarle al webhook sin ser realmente Mercado Pago, vale la pena que
+    // quede registrado en GlitchTip y no solo en el log del contenedor.
+    Sentry.captureMessage("Webhook de Mercado Pago rechazado: firma invalida", {
+      level: "warning",
+      extra: { dataId },
+    });
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 
-  const payment = await getPayment(String(dataId), storeId);
-  const orderId = payment.external_reference;
-  if (!orderId) {
+  // A partir de aca, cualquier excepcion (falla de red con la API de MP,
+  // error de DB, etc.) se captura explicita con contexto propio antes de
+  // responder -- este es el punto mas sensible del sitio (confirma pagos y
+  // descuenta stock), no vale la pena depender solo de onRequestError.
+  try {
+    const payment = await getPayment(String(dataId), storeId);
+    const orderId = payment.external_reference;
+    if (!orderId) {
+      return NextResponse.json({ received: true });
+    }
+
+    const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
+    if (!order) {
+      // No es un error de firma ni de payload: puede ser una orden de otro
+      // ambiente (test vs prod) pegandole a este webhook. Se responde 200
+      // para no generar reintentos infinitos.
+      return NextResponse.json({ received: true });
+    }
+
+    const paymentId = String(payment.id);
+
+    // Idempotencia: MP reintenta la notificacion (hasta 8 veces) hasta
+    // recibir 200. Si este pago ya quedo aplicado, no se reprocesa.
+    if (order.mpPaymentId === paymentId) {
+      return NextResponse.json({ received: true });
+    }
+
+    if (payment.status === "approved") {
+      // markOrderAsPaid ya es idempotente (no-op si ya esta "pagado"), pero
+      // ademas descuenta stock / actualiza el pedido a medida / escribe
+      // audit_logs en una sola transaccion — mismo lugar que usa la
+      // confirmacion manual de pagos offline (ver src/lib/orders/actions.ts).
+      await markOrderAsPaid({ orderId: order.id, actorUserId: order.userId, paymentReference: paymentId });
+    } else if (payment.status === "rejected" || payment.status === "cancelled") {
+      // Estados no aprobados: se deja la orden en su estado (no se toca
+      // stock), solo se guarda el mpPaymentId para idempotencia.
+      await db.update(orders).set({ mpPaymentId: paymentId }).where(eq(orders.id, order.id));
+    }
+
     return NextResponse.json({ received: true });
+  } catch (error) {
+    Sentry.captureException(error, { extra: { dataId, storeId } });
+    console.error("Error procesando webhook de Mercado Pago:", error);
+    // 500 (no 200): a diferencia de los casos "no es para nosotros" de
+    // arriba, aca queremos que MP reintente -- este error es nuestro, no
+    // del payload.
+    return NextResponse.json({ error: "internal error" }, { status: 500 });
   }
-
-  const [order] = await db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
-  if (!order) {
-    // No es un error de firma ni de payload: puede ser una orden de otro
-    // ambiente (test vs prod) pegandole a este webhook. Se responde 200
-    // para no generar reintentos infinitos.
-    return NextResponse.json({ received: true });
-  }
-
-  const paymentId = String(payment.id);
-
-  // Idempotencia: MP reintenta la notificacion (hasta 8 veces) hasta
-  // recibir 200. Si este pago ya quedo aplicado, no se reprocesa.
-  if (order.mpPaymentId === paymentId) {
-    return NextResponse.json({ received: true });
-  }
-
-  if (payment.status === "approved") {
-    // markOrderAsPaid ya es idempotente (no-op si ya esta "pagado"), pero
-    // ademas descuenta stock / actualiza el pedido a medida / escribe
-    // audit_logs en una sola transaccion — mismo lugar que usa la
-    // confirmacion manual de pagos offline (ver src/lib/orders/actions.ts).
-    await markOrderAsPaid({ orderId: order.id, actorUserId: order.userId, paymentReference: paymentId });
-  } else if (payment.status === "rejected" || payment.status === "cancelled") {
-    // Estados no aprobados: se deja la orden en su estado (no se toca
-    // stock), solo se guarda el mpPaymentId para idempotencia.
-    await db.update(orders).set({ mpPaymentId: paymentId }).where(eq(orders.id, order.id));
-  }
-
-  return NextResponse.json({ received: true });
 }
