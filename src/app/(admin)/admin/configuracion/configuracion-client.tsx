@@ -16,6 +16,7 @@ import {
 } from "@/lib/settings/schema";
 import {
   sendTestEmail,
+  sendTestErrorToGlitchTip,
   updateLoyaltySettings,
   updateMercadoPagoSettings,
   updatePaymentInstructions,
@@ -176,6 +177,18 @@ export function ConfiguracionClient({
         </p>
         <div className="mt-4">
           <UmamiSettingsForm initial={initialUmami} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">Monitoreo de errores (GlitchTip)</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Se configura por variables de entorno del servidor (GLITCHTIP_DSN / NEXT_PUBLIC_GLITCHTIP_DSN), no desde
+          este panel. Este boton manda una excepcion de prueba directo a tu instancia de GlitchTip, para confirmar
+          que la conexion esta funcionando sin tener que esperar a que ocurra un error real.
+        </p>
+        <div className="mt-4">
+          <GlitchTipTestCard />
         </div>
       </section>
 
@@ -1162,6 +1175,39 @@ function ShippingZonesManager({ initialZones }: { initialZones: ShippingZoneRow[
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function GlitchTipTestCard() {
+  const [isSending, setIsSending] = useState(false);
+
+  async function handleSendTestError() {
+    setIsSending(true);
+    try {
+      const result = await sendTestErrorToGlitchTip();
+      toast.success(`Excepcion de prueba enviada (event id: ${result.eventId.slice(0, 8)}...). Deberia aparecer en GlitchTip en unos segundos.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar la prueba.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Probar la conexion</p>
+          <p className="text-xs text-neutral-500">
+            Manda una excepcion de prueba a GlitchTip. Si no aparece nada alla en un minuto, revisa GLITCHTIP_DSN en
+            las variables de entorno de EasyPanel.
+          </p>
+        </div>
+        <Button type="button" variant="outline" onClick={handleSendTestError} disabled={isSending}>
+          {isSending ? "Enviando..." : "Probar notificacion de error"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import * as Sentry from "@sentry/nextjs";
 import type { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -544,4 +545,26 @@ export async function sendTestEmail() {
     return { success: false as const, error: "Falta completar la configuracion SMTP antes de poder probarla." };
   }
   return { success: false as const, error: result.error };
+}
+
+/**
+ * Prueba deliberada del pipe de GlitchTip (task #86): manda una excepcion
+ * de prueba directo con Sentry.captureException en vez de dejarla escapar
+ * sin capturar -- asi confirmamos DSN + env vars funcionando sin depender
+ * de onRequestError (que solo se dispara con errores realmente no
+ * atrapados) ni de esperar a que ocurra un error real en produccion.
+ */
+export async function sendTestErrorToGlitchTip() {
+  await requireAdmin();
+
+  const eventId = Sentry.captureException(
+    new Error("Prueba manual desde /admin/configuracion — si ves esto en GlitchTip, la integracion funciona."),
+  );
+
+  // Sentry.init hace flush async en background; sin esto el proceso de la
+  // Server Action puede terminar (y el runtime "congelar" el contexto)
+  // antes de que el evento realmente salga por la red.
+  await Sentry.flush(3000);
+
+  return { success: true as const, eventId };
 }
