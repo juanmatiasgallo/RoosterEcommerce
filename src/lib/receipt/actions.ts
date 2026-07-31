@@ -39,7 +39,9 @@ const STATUS_LABELS: Record<string, string> = {
  * catalogo (los pedidos a medida no tienen este comprobante, ver
  * getMyOrders en orders/actions.ts).
  */
-export async function getReceiptData(orderId: string): Promise<(ReceiptData & { orderId: string }) | null> {
+export async function getReceiptData(
+  orderId: string,
+): Promise<(ReceiptData & { orderId: string; paymentReceiptUrl: string | null }) | null> {
   const session = await auth();
   if (!session) return null;
 
@@ -82,6 +84,14 @@ export async function getReceiptData(orderId: string): Promise<(ReceiptData & { 
     shippingAddress: (row.order.shippingAddress as ShippingAddress | null) ?? null,
     trackingCarrier: row.order.trackingCarrier,
     trackingCode: row.order.trackingCode,
+    // Comprobante ya subido (si lo hay): antes no se traia aca, asi que
+    // ReceiptUpload siempre arrancaba en blanco del lado del cliente y un
+    // refresh "perdia" el archivo aunque siguiera guardado en la orden --
+    // ahora la pagina hidrata el estado inicial con esto, ver
+    // receipt-upload.tsx. Nombrado distinto a getReceiptUrl() (de mas
+    // arriba en este archivo, el link publico al comprobante para el QR)
+    // para no confundir dos cosas totalmente distintas.
+    paymentReceiptUrl: row.order.receiptUrl,
   };
 }
 

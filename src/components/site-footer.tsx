@@ -32,7 +32,7 @@ export function SiteFooter({
   const hasSocialLinks = Boolean(instagramUrl || facebookUrl);
 
   return (
-    <footer className="relative mt-16 overflow-hidden bg-neutral-950 text-white">
+    <footer className="relative mt-16 overflow-hidden bg-neutral-800 text-white">
       {/* Mismo fondo animado (hex-grid + chispas + barrido) que Hero,
           Newsletter, Proyectos y el banner de Pedido a medida (ver
           printer-grid-background.tsx): antes el footer quedaba como una
@@ -45,28 +45,28 @@ export function SiteFooter({
           con el degrade de transicion ni el contenido de abajo. */}
       <PrinterGridBackground />
 
-      {/* Transicion real de color (no solo un brillo encima) para el limite
-          con lo que venga antes del footer: en modo claro el salto es
-          grande (fondo crema -> footer casi negro), un glow chico no
-          alcanza a disimular eso. Arranca en var(--background) -- el mismo
-          color que ya tiene la pagina justo arriba del footer, sea cual sea
-          el tema -- y termina en el neutral-950 real del footer, con varios
-          stops intermedios (color-mix) para que la rampa sea perceptual y
-          no bandeada, como paso con un degrade de 2 stops sobre un fondo
-          oscuro solido (ver historial). En oscuro --background y
-          neutral-950 ya son el mismo color, asi que ahi el degrade no hace
-          nada (correcto: no hay salto que disimular). */}
+      {/* Transicion de color para el limite con lo que venga antes del
+          footer (pedido explicito, 2da vuelta): la version anterior (h-48,
+          ~192px, terminando en neutral-950 casi negro) dejaba el titulo y
+          el nav "Tienda 3D" sentados sobre una zona todavia a medio
+          transicionar -- se leia lavado/poco legible en vez de contra un
+          fondo solido. Ahora: (a) mucho mas chica (h-12, ~48px, resuelve
+          practicamente al mismo alto que el padding superior del contenido
+          de abajo, asi el texto ya cae sobre color solido) y (b) el tono
+          final es neutral-800 en vez de neutral-950 -- sigue siendo
+          claramente un footer oscuro, pero un carbon calido en vez de un
+          muro de negro puro, menos brusco contra el fondo claro. En oscuro
+          --background y neutral-800 quedan muy cerca (ver .dark en
+          globals.css), asi que ahi el salto sigue siendo minimo. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-48"
+        className="pointer-events-none absolute inset-x-0 top-0 h-12"
         style={{
           background: [
             "linear-gradient(to bottom,",
             "var(--background) 0%,",
-            "color-mix(in srgb, var(--background) 75%, var(--color-neutral-950) 25%) 25%,",
-            "color-mix(in srgb, var(--background) 50%, var(--color-neutral-950) 50%) 50%,",
-            "color-mix(in srgb, var(--background) 25%, var(--color-neutral-950) 75%) 75%,",
-            "var(--color-neutral-950) 100%)",
+            "color-mix(in srgb, var(--background) 50%, var(--color-neutral-800) 50%) 45%,",
+            "var(--color-neutral-800) 100%)",
           ].join(" "),
         }}
       />

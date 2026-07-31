@@ -105,7 +105,7 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
 
       {isReceiptUploadEligible(receipt.paymentMethod, receipt.status) && (
         <div className="mt-4">
-          <ReceiptUpload orderId={receipt.orderId} />
+          <ReceiptUpload orderId={receipt.orderId} initialReceiptUrl={receipt.paymentReceiptUrl} />
         </div>
       )}
 
