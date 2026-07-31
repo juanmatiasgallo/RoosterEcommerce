@@ -6,6 +6,7 @@ import type { AdminUserListItem } from "@/lib/users/actions";
 import { adminResetUserPassword, adminSetUserActive } from "@/lib/users/actions";
 import { UsuarioFormDialog } from "./usuario-form-dialog";
 import { UsuarioEditDialog } from "./usuario-edit-dialog";
+import { TempPasswordDialog } from "./temp-password-dialog";
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
@@ -22,6 +23,9 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
   const [editingUser, setEditingUser] = useState<AdminUserListItem | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
+  const [tempPasswordFor, setTempPasswordFor] = useState<{ user: AdminUserListItem; tempPassword: string } | null>(
+    null,
+  );
   const [isPending, startTransition] = useTransition();
   const [isResetting, startResetTransition] = useTransition();
 
@@ -54,9 +58,9 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
   // Task pedida por el owner: el admin necesita poder resetear la
   // contrasena de cualquier usuario (no solo que cada uno la cambie por su
   // cuenta) -- mismo mecanismo que "olvide mi contrasena", pero disparado
-  // desde el panel. Se muestra la temporal en un alert (no un toast, que
-  // desaparece solo) para que el admin la pueda copiar y pasarsela a mano
-  // si el mail no llega.
+  // desde el panel. La temporal se muestra en TempPasswordDialog (con boton
+  // de copiar) en vez de un window.alert() -- pedido explicito, el texto de
+  // un alert nativo no da una forma comoda de copiarlo.
   function handleResetPassword(user: AdminUserListItem) {
     const confirmed = window.confirm(
       `Resetear la contrasena de ${user.name}? Se le va a generar una temporal y se le va a pedir que la cambie en el proximo login.`,
@@ -68,7 +72,7 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
       try {
         const { tempPassword } = await adminResetUserPassword(user.id);
         toast.success(`Contrasena reseteada. Se le mando por mail a ${user.email}.`);
-        window.alert(`Contrasena temporal para ${user.name} (${user.email}):\n\n${tempPassword}\n\nValida por 24 horas.`);
+        setTempPasswordFor({ user, tempPassword });
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "No se pudo resetear la contrasena.");
       } finally {
@@ -166,6 +170,14 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
 
       {dialogOpen && <UsuarioFormDialog onClose={() => setDialogOpen(false)} />}
       {editingUser && <UsuarioEditDialog user={editingUser} onClose={() => setEditingUser(null)} />}
+      {tempPasswordFor && (
+        <TempPasswordDialog
+          userName={tempPasswordFor.user.name}
+          userEmail={tempPasswordFor.user.email}
+          tempPassword={tempPasswordFor.tempPassword}
+          onClose={() => setTempPasswordFor(null)}
+        />
+      )}
     </div>
   );
 }

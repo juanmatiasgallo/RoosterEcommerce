@@ -84,7 +84,11 @@ export function NotificationBell({
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-20 mt-2 flex max-h-96 w-80 flex-col overflow-y-auto rounded border border-neutral-200 bg-white shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
+          {/* w-[min(20rem,90vw)] en vez de w-80 fijo: en el sidebar de admin
+              (mobile) la campana esta cerca del borde derecho del header
+              angosto -- un ancho fijo de 320px podia salirse del viewport
+              por la izquierda, cortando el inicio del texto de cada item. */}
+          <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-20 mt-2 flex max-h-96 w-[min(20rem,90vw)] flex-col overflow-y-auto rounded border border-neutral-200 bg-white shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
             <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
               <p className="text-sm font-medium">Notificaciones</p>
               {unreadCount > 0 && (
@@ -110,10 +114,10 @@ export function NotificationBell({
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="font-medium">{item.title}</p>
+                      <p className="min-w-0 break-words font-medium">{item.title}</p>
                       {!item.readAt && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
                     </div>
-                    {item.body && <p className="text-neutral-500">{item.body}</p>}
+                    {item.body && <p className="min-w-0 break-words text-neutral-500">{item.body}</p>}
                     <p className="text-xs text-neutral-400">{formatRelative(item.createdAt)}</p>
                   </div>
                 );
