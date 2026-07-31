@@ -8,16 +8,7 @@ import * as Sentry from "@sentry/nextjs";
 function initSentry() {
   const dsn = process.env.GLITCHTIP_DSN;
   if (dsn) {
-    Sentry.init({
-      dsn,
-      tracesSampleRate: 0.2,
-      // Temporal (task #86, diagnostico): el transporte de Sentry es
-      // silencioso por defecto si falla la red/DNS/TLS contra el DSN --
-      // con esto, cualquier error de envio queda impreso en los logs del
-      // contenedor. Sacar una vez confirmado que los eventos llegan a
-      // GlitchTip.
-      debug: true,
-    });
+    Sentry.init({ dsn, tracesSampleRate: 0.2 });
   }
 }
 
