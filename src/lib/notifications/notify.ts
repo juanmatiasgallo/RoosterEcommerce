@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
 import { sendTelegramNotification } from "@/lib/telegram/send";
 import type { TelegramEventType } from "@/lib/telegram/event-types";
+import { sendN8nWebhook } from "@/lib/webhooks/send";
 
 // Nunca bloquea el flujo principal si falla (mismo criterio de resiliencia
 // que sendMail): una notificacion in-app que no se pudo guardar no puede
@@ -54,4 +55,10 @@ export async function notifyStaff(params: {
     body: params.body,
     link: params.link,
   });
+
+  // Webhook saliente generico (task #113, ver src/lib/webhooks/send.ts):
+  // mismo choke point, mismos eventos -- pensado para automatizaciones
+  // externas (ej. n8n del owner en otro VPS) sin agregar infraestructura a
+  // este repo.
+  await sendN8nWebhook(params);
 }

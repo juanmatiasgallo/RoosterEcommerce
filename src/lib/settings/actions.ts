@@ -7,11 +7,13 @@ import type { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { auditLogs, stores } from "@/lib/db/schema";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, decrypt } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
+import { sendN8nWebhook } from "@/lib/webhooks/send";
 import {
   updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
+  updateN8nSettingsSchema,
   updatePaymentInstructionsSchema,
   updateSmtpSettingsSchema,
   updateStoreInfoSchema,
@@ -522,6 +524,97 @@ export async function getPublicUmamiConfig() {
     websiteId: store?.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || null,
     scriptUrl: store?.umamiScriptUrl || process.env.NEXT_PUBLIC_UMAMI_SRC || null,
   };
+}
+
+// Nunca se expone el secret real (ni encriptado) al frontend ni a
+// audit_logs -- mismo criterio que smtpPasswordSet/mpAccessTokenSet.
+function toPublicN8nSettings(store: typeof stores.$inferSelect) {
+  return {
+    n8nWebhookUrl: store.n8nWebhookUrl,
+    n8nWebhookSecretSet: Boolean(store.n8nWebhookSecretEncrypted),
+  };
+}
+
+export async function getN8nSettings() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return toPublicN8nSettings(store);
+}
+
+export type N8nSettings = Awaited<ReturnType<typeof getN8nSettings>>;
+
+export async function updateN8nSettings(input: z.infer<typeof updateN8nSettingsSchema>) {
+  const session = await requireAdmin();
+  const data = updateN8nSettingsSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      // La URL no es secreta, vacio SI la pisa (permite desconectar el
+      // webhook). El secret si es sensible -- vacio/ausente = mantener el
+      // que ya habia, mismo criterio que mpAccessToken/smtpPassword.
+      ...(data.n8nWebhookUrl !== undefined && { n8nWebhookUrl: data.n8nWebhookUrl || null }),
+      ...(data.n8nWebhookSecret && { n8nWebhookSecretEncrypted: encrypt(data.n8nWebhookSecret) }),
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "n8n_webhook_settings",
+    entityId: session.user.storeId,
+    before: toPublicN8nSettings(existing),
+    after: toPublicN8nSettings(updated),
+  });
+
+  revalidatePath("/admin/configuracion");
+  return toPublicN8nSettings(updated);
+}
+
+export async function sendTestN8nWebhook() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+  if (!store.n8nWebhookUrl) {
+    return { success: false as const, error: "Falta cargar la URL del webhook antes de poder probarlo." };
+  }
+
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (store.n8nWebhookSecretEncrypted) {
+      headers["X-Webhook-Secret"] = decrypt(store.n8nWebhookSecretEncrypted);
+    }
+
+    const res = await fetch(store.n8nWebhookUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        type: "test",
+        title: "Prueba de webhook",
+        body: `Si ves esto en tu flujo de n8n, la conexion con ${store.name} esta funcionando.`,
+        link: null,
+        storeName: store.name,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { success: false as const, error: `El webhook devolvio un error: ${res.status} ${body.slice(0, 200)}` };
+    }
+    return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Error desconocido." };
+  }
 }
 
 export async function sendTestEmail() {

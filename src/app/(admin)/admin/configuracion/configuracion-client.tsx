@@ -8,6 +8,7 @@ import type { z } from "zod";
 import {
   updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
+  updateN8nSettingsSchema,
   updatePaymentInstructionsSchema,
   updateSmtpSettingsSchema,
   updateStoreInfoSchema,
@@ -17,8 +18,10 @@ import {
 import {
   sendTestEmail,
   sendTestErrorToGlitchTip,
+  sendTestN8nWebhook,
   updateLoyaltySettings,
   updateMercadoPagoSettings,
+  updateN8nSettings,
   updatePaymentInstructions,
   updateSmtpSettings,
   updateStoreInfo,
@@ -26,6 +29,7 @@ import {
   updateVacationMode,
   type LoyaltySettings,
   type MercadoPagoSettings,
+  type N8nSettings,
   type PaymentInstructionsSettings,
   type SmtpSettings,
   type StoreInfoSettings,
@@ -60,6 +64,7 @@ type ShippingZoneFormValues = z.infer<typeof createShippingZoneSchema>;
 type LoyaltyFormValues = z.infer<typeof updateLoyaltySettingsSchema>;
 type UmamiFormValues = z.infer<typeof updateUmamiSettingsSchema>;
 type TelegramFormValues = z.infer<typeof updateTelegramSettingsSchema>;
+type N8nFormValues = z.infer<typeof updateN8nSettingsSchema>;
 
 export function ConfiguracionClient({
   initialSmtp,
@@ -71,6 +76,7 @@ export function ConfiguracionClient({
   initialLoyalty,
   initialUmami,
   initialTelegram,
+  initialN8n,
 }: {
   initialSmtp: SmtpSettings;
   initialMp: MercadoPagoSettings;
@@ -81,6 +87,7 @@ export function ConfiguracionClient({
   initialLoyalty: LoyaltySettings;
   initialUmami: UmamiSettings;
   initialTelegram: TelegramSettings;
+  initialN8n: N8nSettings;
 }) {
   return (
     <div className="flex flex-col gap-10">
@@ -205,6 +212,19 @@ export function ConfiguracionClient({
         </p>
         <div className="mt-4">
           <TelegramSettingsForm initial={initialTelegram} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">Webhook (n8n / automatizaciones)</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Manda un POST con los mismos eventos de negocio que Telegram (pedido nuevo, comprobante subido, etc.) a
+          una URL propia -- pensado para conectar con n8n u otra automatizacion externa sin instalar nada nuevo en
+          este servidor. El secret es opcional, se manda como header <code>X-Webhook-Secret</code> para que el otro
+          lado pueda validar que el POST vino de aca.
+        </p>
+        <div className="mt-4">
+          <N8nSettingsForm initial={initialN8n} />
         </div>
       </section>
     </div>
@@ -1172,6 +1192,120 @@ function ShippingZonesManager({ initialZones }: { initialZones: ShippingZoneRow[
               {isSubmitting ? "Agregando..." : "Agregar zona"}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function N8nSettingsForm({ initial }: { initial: N8nSettings }) {
+  const [settings, setSettings] = useState(initial);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<N8nFormValues>({
+    resolver: zodResolver(updateN8nSettingsSchema),
+    defaultValues: {
+      n8nWebhookUrl: settings.n8nWebhookUrl ?? "",
+      n8nWebhookSecret: "",
+    },
+  });
+
+  async function onSubmit(values: N8nFormValues) {
+    try {
+      const updated = await updateN8nSettings(values);
+      setSettings(updated);
+      toast.success("Configuracion del webhook guardada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar la configuracion.");
+    }
+  }
+
+  async function handleSendTest() {
+    setIsSendingTest(true);
+    try {
+      const result = await sendTestN8nWebhook();
+      if (result.success) {
+        toast.success("Webhook de prueba enviado.");
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar el webhook de prueba.");
+    } finally {
+      setIsSendingTest(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="n8nWebhookUrl" className="mb-1 block text-sm font-medium">
+                URL del webhook
+              </label>
+              <input
+                id="n8nWebhookUrl"
+                {...register("n8nWebhookUrl")}
+                placeholder="https://tu-n8n.tudominio.com/webhook/xxxxx"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm font-mono dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.n8nWebhookUrl && <p className="mt-1 text-xs text-red-600">{errors.n8nWebhookUrl.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="n8nWebhookSecret" className="mb-1 block text-sm font-medium">
+                Secret (opcional)
+              </label>
+              <input
+                id="n8nWebhookSecret"
+                type="password"
+                autoComplete="new-password"
+                {...register("n8nWebhookSecret")}
+                placeholder={
+                  settings.n8nWebhookSecretSet ? "Ya hay uno guardado (dejar vacio para no cambiarlo)" : ""
+                }
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                {settings.n8nWebhookSecretSet ? (
+                  <Badge variant="success">Configurado</Badge>
+                ) : (
+                  <Badge variant="neutral">Sin secret (el webhook igual funciona)</Badge>
+                )}
+              </p>
+            </div>
+
+            <Button type="submit" disabled={isSubmitting} className="self-start">
+              {isSubmitting ? "Guardando..." : "Guardar"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Probar la conexion</p>
+            <p className="text-xs text-neutral-500">
+              {settings.n8nWebhookUrl
+                ? "Manda un POST de prueba a la URL configurada."
+                : "Guarda la URL antes de poder probarla."}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSendTest}
+            disabled={!settings.n8nWebhookUrl || isSendingTest}
+          >
+            {isSendingTest ? "Enviando..." : "Enviar webhook de prueba"}
+          </Button>
         </CardContent>
       </Card>
     </div>

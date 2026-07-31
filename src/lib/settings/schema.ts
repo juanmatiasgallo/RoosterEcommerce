@@ -69,3 +69,12 @@ export const updateUmamiSettingsSchema = z.object({
   umamiWebsiteId: z.string().max(100).optional(),
   umamiScriptUrl: z.union([z.url(), z.literal("")]).optional(),
 });
+
+// La URL no es secreta (se puede ver en cualquier request saliente), vacio
+// SI la pisa (permite desconectar el webhook sin borrar el secret ya
+// guardado). El secret si es sensible -- vacio/ausente = no tocar el que
+// ya habia, mismo criterio que mpAccessToken/smtpPassword arriba.
+export const updateN8nSettingsSchema = z.object({
+  n8nWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
+  n8nWebhookSecret: z.string().max(500).optional(),
+});

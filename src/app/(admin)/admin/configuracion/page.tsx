@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import {
   getLoyaltySettings,
   getMercadoPagoSettings,
+  getN8nSettings,
   getPaymentInstructions,
   getSmtpSettings,
   getStoreInfo,
@@ -42,6 +43,7 @@ export default async function ConfiguracionAdminPage() {
     loyaltySettings,
     umamiSettings,
     telegramSettings,
+    n8nSettings,
   ] = await Promise.all([
     getSmtpSettings(),
     getMercadoPagoSettings(),
@@ -52,6 +54,7 @@ export default async function ConfiguracionAdminPage() {
     getLoyaltySettings(),
     getUmamiSettings(),
     getTelegramSettings(),
+    getN8nSettings(),
   ]);
 
   return (
@@ -72,6 +75,7 @@ export default async function ConfiguracionAdminPage() {
           initialLoyalty={loyaltySettings}
           initialUmami={umamiSettings}
           initialTelegram={telegramSettings}
+          initialN8n={n8nSettings}
         />
       </div>
     </div>

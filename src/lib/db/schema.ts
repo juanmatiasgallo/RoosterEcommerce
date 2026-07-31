@@ -109,6 +109,16 @@ export const stores = pgTable("stores", {
   // telegram_templates, no aca (ver mas abajo).
   telegramBotTokenEncrypted: text("telegram_bot_token_encrypted"),
   telegramChatId: varchar("telegram_chat_id", { length: 100 }),
+  // Webhook saliente generico (task #113): pensado para automatizaciones
+  // externas (ej. n8n ya corriendo en otro VPS del owner) -- dispara un
+  // POST con {type, title, body, link, storeName} en los mismos eventos que
+  // ya usa notifyStaff() (pedido nuevo, comprobante subido, etc.), sin
+  // necesidad de que ese sistema externo viva en este repo ni en este VPS.
+  // El secret es opcional (header X-Webhook-Secret, para que el workflow
+  // externo pueda validar que el POST realmente vino de aca) y va
+  // encriptado, mismo criterio que el resto de los secretos de esta tabla.
+  n8nWebhookUrl: varchar("n8n_webhook_url", { length: 500 }),
+  n8nWebhookSecretEncrypted: text("n8n_webhook_secret_encrypted"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
