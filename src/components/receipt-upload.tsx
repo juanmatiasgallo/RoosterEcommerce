@@ -88,7 +88,10 @@ export function ReceiptUpload({
 
     return (
       <>
-        <div className="flex items-center gap-3 rounded-lg border border-green-300 bg-green-50 p-3 dark:border-green-800 dark:bg-green-950/40">
+        <div
+          id="comprobante-upload"
+          className="flex scroll-mt-24 items-center gap-3 rounded-lg border border-green-300 bg-green-50 p-3 target:ring-2 target:ring-accent dark:border-green-800 dark:bg-green-950/40"
+        >
           <a
             href={receiptUrl}
             target="_blank"
@@ -144,7 +147,10 @@ export function ReceiptUpload({
   // accion disponible, no solo un detalle mas de la pantalla.
   return (
     <>
-      <div className="flex flex-col gap-3 rounded-lg border-2 border-dashed border-accent/40 bg-accent/[0.06] p-4">
+      <div
+        id="comprobante-upload"
+        className="flex scroll-mt-24 flex-col gap-3 rounded-lg border-2 border-dashed border-accent/40 bg-accent/[0.06] p-4 target:ring-2 target:ring-accent"
+      >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Upload className="text-accent" size={17} strokeWidth={2} />

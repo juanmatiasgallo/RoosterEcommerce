@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { AdminUserListItem } from "@/lib/users/actions";
-import { adminSetUserActive } from "@/lib/users/actions";
+import { adminResetUserPassword, adminSetUserActive } from "@/lib/users/actions";
 import { UsuarioFormDialog } from "./usuario-form-dialog";
 import { UsuarioEditDialog } from "./usuario-edit-dialog";
 
@@ -21,7 +21,9 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUserListItem | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isResetting, startResetTransition] = useTransition();
 
   // Task #22: antes la tabla listaba clientes pero no habia ninguna accion
   // para tocarlos ("no tiene opciones", segun el owner). Desactivar es soft
@@ -45,6 +47,32 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
         toast.error(error instanceof Error ? error.message : "No se pudo actualizar el estado.");
       } finally {
         setPendingId(null);
+      }
+    });
+  }
+
+  // Task pedida por el owner: el admin necesita poder resetear la
+  // contrasena de cualquier usuario (no solo que cada uno la cambie por su
+  // cuenta) -- mismo mecanismo que "olvide mi contrasena", pero disparado
+  // desde el panel. Se muestra la temporal en un alert (no un toast, que
+  // desaparece solo) para que el admin la pueda copiar y pasarsela a mano
+  // si el mail no llega.
+  function handleResetPassword(user: AdminUserListItem) {
+    const confirmed = window.confirm(
+      `Resetear la contrasena de ${user.name}? Se le va a generar una temporal y se le va a pedir que la cambie en el proximo login.`,
+    );
+    if (!confirmed) return;
+
+    setResettingId(user.id);
+    startResetTransition(async () => {
+      try {
+        const { tempPassword } = await adminResetUserPassword(user.id);
+        toast.success(`Contrasena reseteada. Se le mando por mail a ${user.email}.`);
+        window.alert(`Contrasena temporal para ${user.name} (${user.email}):\n\n${tempPassword}\n\nValida por 24 horas.`);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo resetear la contrasena.");
+      } finally {
+        setResettingId(null);
       }
     });
   }
@@ -106,6 +134,14 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
                         className="text-accent hover:underline"
                       >
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleResetPassword(user)}
+                        disabled={isResetting && resettingId === user.id}
+                        className="text-neutral-500 hover:underline disabled:opacity-50 dark:text-neutral-400"
+                      >
+                        {isResetting && resettingId === user.id ? "Reseteando..." : "Resetear contrasena"}
                       </button>
                       <button
                         type="button"

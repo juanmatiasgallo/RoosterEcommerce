@@ -8,6 +8,8 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { auditLogs, users } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
+import { sendMail } from "@/lib/mail";
+import { generateTempPassword, TEMP_PASSWORD_VALID_HOURS } from "@/lib/auth/temp-password";
 import { adminCreateUserSchema, adminUpdateUserSchema } from "./schema";
 
 // A diferencia del molde CRUD habitual (admin + empleado), crear cuentas de
@@ -129,6 +131,59 @@ export async function adminUpdateUser(id: string, input: z.infer<typeof adminUpd
   revalidatePath("/admin/usuarios");
 
   return { id: updated.id, name: updated.name, phone: updated.phone };
+}
+
+// Reseteo de contrasena por el admin (a diferencia de adminUpdateUser, que
+// deliberadamente no toca contrasena/email/rol): mismo mecanismo que
+// requestPasswordReset ("olvide mi contrasena") en src/lib/auth/actions.ts
+// -- genera una temporal, la hashea, fuerza mustChangePassword para que la
+// cambie en el proximo login (src/proxy.ts ya redirige a
+// /mi-cuenta/cambiar-contrasena mientras ese flag este prendido), y se la
+// manda por mail. No hace falta la contrasena actual (a diferencia de
+// changePassword): el admin ya esta autenticado como admin, no como el
+// usuario objetivo.
+export async function adminResetUserPassword(id: string) {
+  const session = await requireAdmin();
+  const target = await getOwnedUser(id, session.user.storeId);
+
+  const tempPassword = generateTempPassword();
+  const passwordHash = await bcrypt.hash(tempPassword, 10);
+  const expiresAt = new Date(Date.now() + TEMP_PASSWORD_VALID_HOURS * 60 * 60 * 1000);
+
+  await db
+    .update(users)
+    .set({ passwordHash, tempPasswordExpiresAt: expiresAt, mustChangePassword: true })
+    .where(eq(users.id, id));
+
+  await db.insert(auditLogs).values({
+    storeId: session.user.storeId,
+    userId: session.user.id,
+    action: "admin_reset_user_password",
+    entityType: "user",
+    entityId: id,
+  });
+
+  revalidatePath("/admin/usuarios");
+
+  // Resiliente a proposito (no relanza si el mail falla, mismo criterio que
+  // requestPasswordReset): la contrasena ya quedo reseteada en la base, asi
+  // que igual devolvemos la temporal para que el admin se la pueda pasar a
+  // mano si el mail no llega.
+  try {
+    await sendMail({
+      storeId: session.user.storeId,
+      to: target.email,
+      subject: "Tu contrasena fue reseteada",
+      text: [
+        `Un administrador reseteo tu contrasena. Tu nueva contrasena temporal es: ${tempPassword}`,
+        `Es valida por ${TEMP_PASSWORD_VALID_HOURS} horas. Al iniciar sesion con ella te vamos a pedir que la cambies por una definitiva.`,
+      ].join("\n\n"),
+    });
+  } catch {
+    // No-op: ver comentario de arriba.
+  }
+
+  return { tempPassword };
 }
 
 // "Eliminar" un cliente = desactivar (soft delete), mismo criterio que

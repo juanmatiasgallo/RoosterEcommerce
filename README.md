@@ -37,6 +37,12 @@ Mismo patron que ChickenHouseContab: build por `Dockerfile`
 (`src/instrumentation.ts`), variables de entorno cargadas directo en
 EasyPanel (no como archivo `.env`). Detalle completo en `CLAUDE.md`.
 
+## Backup y restore
+
+Ver `docs/backup-restore.md` — que respaldar (base + uploads + variables de
+entorno), como restaurarlo, y checklist para migrar a otro VPS/entorno sin
+perder nada.
+
 ## Estructura
 
 ```

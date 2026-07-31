@@ -59,5 +59,10 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // "uploads" excluido: son archivos estaticos servidos por Next desde
+  // public/uploads (comprobantes, fotos de producto, archivos 3D de
+  // pedidos a medida) -- antes pasaban igual por auth() en cada request sin
+  // necesidad (la logica de arriba de todas formas los deja pasar, esto es
+  // solo para no pagar ese costo en cada imagen/archivo).
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|uploads).*)"],
 };

@@ -41,6 +41,10 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
   const paymentInstructions = manualMethods.find((m) => m.value === receipt.paymentMethod)?.instructions ?? null;
   const isPending = receipt.status === "pendiente_confirmacion";
   const whatsappHref = contact.contactPhone ? `https://wa.me/${contact.contactPhone.replace(/\D/g, "")}` : null;
+  // Distingue "esperando que el cliente suba el comprobante" de "esperando
+  // que el admin confirme el pago" -- ver comentario en OrderStatusTracker.
+  const receiptEligible = isReceiptUploadEligible(receipt.paymentMethod, receipt.status);
+  const awaitingReceiptUpload = receiptEligible && !receipt.paymentReceiptUrl;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
@@ -66,7 +70,7 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
       </div>
 
       <div className="mt-4">
-        <OrderStatusTracker status={receipt.status} />
+        <OrderStatusTracker status={receipt.status} awaitingReceiptUpload={awaitingReceiptUpload} />
       </div>
 
       {isPending && (
@@ -103,7 +107,7 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
         </div>
       )}
 
-      {isReceiptUploadEligible(receipt.paymentMethod, receipt.status) && (
+      {receiptEligible && (
         <div className="mt-4">
           <ReceiptUpload orderId={receipt.orderId} initialReceiptUrl={receipt.paymentReceiptUrl} />
         </div>

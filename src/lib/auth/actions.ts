@@ -1,6 +1,5 @@
 "use server";
 
-import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import type { z } from "zod";
@@ -9,9 +8,8 @@ import { db } from "@/lib/db";
 import { auditLogs, users } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
 import { sendMail } from "@/lib/mail";
+import { generateTempPassword, TEMP_PASSWORD_VALID_HOURS } from "./temp-password";
 import { changePasswordSchema, forgotPasswordSchema, registerSchema, updateProfileSchema } from "./schema";
-
-const TEMP_PASSWORD_VALID_HOURS = 24;
 
 export async function registerUser(input: z.infer<typeof registerSchema>) {
   const data = registerSchema.parse(input);
@@ -124,20 +122,6 @@ export async function checkEmailExists(email: string) {
   const normalized = email.trim().toLowerCase();
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, normalized)).limit(1);
   return { exists: Boolean(existing) };
-}
-
-// Sin 0/O/1/l/I: evita que una contrasena generada al azar sea imposible de
-// tipear a mano si hace falta (aunque el flujo esperado es copiar/pegar
-// desde el mail).
-const TEMP_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-
-function generateTempPassword(length = 12): string {
-  const bytes = randomBytes(length);
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += TEMP_PASSWORD_ALPHABET[bytes[i] % TEMP_PASSWORD_ALPHABET.length];
-  }
-  return password;
 }
 
 // "Olvide mi contrasena": genera una contrasena temporal segura, la guarda

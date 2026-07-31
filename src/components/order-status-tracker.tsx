@@ -12,11 +12,36 @@ const PIPELINE: { value: string; label: string }[] = [
   { value: "entregado", label: "Entregado" },
 ];
 
-export function OrderStatusTracker({ status }: { status: string }) {
+export function OrderStatusTracker({
+  status,
+  // Pedido explicito del owner: mientras el pago es manual (transferencia,
+  // Abitab, etc.) y todavia no se subio el comprobante, el mensaje generico
+  // "esperando confirmacion" no deja claro que hay una accion pendiente del
+  // cliente. Solo la pagina del comprobante (mi-cuenta/compras/[id]) pasa
+  // esto en true -- las listas de /mi-cuenta/compras, /mi-cuenta/pedidos y
+  // /admin/pedidos no tienen el widget de subida al lado, asi que ahi sigue
+  // el texto plano de siempre. Es un <a> a #comprobante-upload (ancla
+  // simple, sin JS) para no tener que convertir este componente en client.
+  awaitingReceiptUpload = false,
+}: {
+  status: string;
+  awaitingReceiptUpload?: boolean;
+}) {
   if (status === "cancelado") {
     return <p className="text-sm text-neutral-500">Este pedido fue cancelado.</p>;
   }
   if (status === "pendiente_pago" || status === "pendiente_confirmacion") {
+    if (awaitingReceiptUpload) {
+      return (
+        <a
+          href="#comprobante-upload"
+          className="flex items-center gap-1.5 text-sm font-medium text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent"
+        >
+          Esperando subir comprobante del pago
+          <span aria-hidden>→</span>
+        </a>
+      );
+    }
     return <p className="text-sm text-neutral-500">Esperando confirmacion del pago.</p>;
   }
 
