@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -13,15 +14,63 @@ import { cn } from "@/lib/utils";
 // sin sumar ni un KB de dependencia nueva.
 const DEPTH_LAYERS = 11;
 
-function buildExtrudeShadow() {
+type Material = {
+  name: string;
+  // Uno de los dos: fill (color solido, via `color`) o gradient (acabado
+  // con brillo, via background-clip:text). shadowBase es el color base que
+  // arma las capas de profundidad (color-mix hacia negro) -- para el
+  // gradiente se usa un tono intermedio representativo, ya que
+  // text-shadow no puede degradar color el mismo.
+  fill?: string;
+  gradient?: string;
+  shadowBase: string;
+};
+
+// Ciclo de "materiales de impresion" (pedido explicito: el relieve solido
+// de un solo color se sentia plano -- "mas textura... que vaya cambiando de
+// texturas"). Tres acabados que rotan solos, tematicamente ligados a la
+// seccion de Materiales que ya existe en la home: plastico/acento (el
+// original), metalico plateado, y cobre (ligado a la paleta "Carbon y
+// cobre" del sitio, con mas presencia en modo oscuro donde el acento no es
+// cobre sino celeste).
+const MATERIALS: Material[] = [
+  { name: "plastico", fill: "var(--color-accent)", shadowBase: "var(--color-accent)" },
+  {
+    name: "metal",
+    gradient: "linear-gradient(135deg, #eef0f3 0%, #ffffff 22%, #8f96a3 48%, #c7cbd4 70%, #eef0f3 100%)",
+    shadowBase: "#7d8492",
+  },
+  {
+    name: "cobre",
+    gradient: "linear-gradient(135deg, #f2b27a 0%, #ffd9ad 20%, #8a4a1f 50%, #d9834f 75%, #f2b27a 100%)",
+    shadowBase: "#a85a2c",
+  },
+];
+
+// Cuanto dura cada material visible (incluye su propio fade in/out) --
+// el ciclo completo es MATERIAL_DURATION * MATERIALS.length.
+const MATERIAL_DURATION = 5;
+
+function buildExtrudeShadow(base: string) {
   return Array.from({ length: DEPTH_LAYERS }, (_, i) => {
     const offset = i + 1;
     const mix = Math.max(12, 100 - i * 9);
-    return `${offset}px ${offset}px 0 color-mix(in srgb, var(--color-accent) ${mix}%, black)`;
+    return `${offset}px ${offset}px 0 color-mix(in srgb, ${base} ${mix}%, black)`;
   }).join(", ");
 }
 
-const EXTRUDE_SHADOW = buildExtrudeShadow();
+// Estilo via inline style solo para lo que varia por material (imagen de
+// fondo, sombra, color solido) -- el recorte del gradiente al texto usa las
+// utilidades de Tailwind (bg-clip-text text-transparent) en vez de
+// backgroundClip/-webkit-backgroundClip en el style object, para no
+// depender de que csstype tipe "text" como valor valido de background-clip.
+function materialStyle(material: Material): CSSProperties {
+  const textShadow = buildExtrudeShadow(material.shadowBase);
+  if (material.gradient) {
+    return { backgroundImage: material.gradient, textShadow };
+  }
+  return { color: material.fill, textShadow };
+}
 
 /**
  * La palabra "3D" del Hero, con relieve real (no solo el mismo texto en
@@ -30,7 +79,10 @@ const EXTRUDE_SHADOW = buildExtrudeShadow();
  * con rebote al aparecer, glow pulsante detras para que tenga presencia
  * propia, y una rotacion 3D continua bastante mas amplia que antes que deja
  * ver la profundidad de las capas -- "mucha mas animacion" pedido
- * explicitamente.
+ * explicitamente. Ahora ademas el relieve en si va rotando entre 3
+ * "materiales" (ver MATERIALS arriba) via crossfade de opacity -- 3 copias
+ * del texto apiladas exactamente una encima de otra (mismo font/tamano, asi
+ * que coinciden pixel a pixel), solo una visible a la vez.
  */
 export function Extruded3DText({
   text = "3D",
@@ -82,14 +134,36 @@ export function Extruded3DText({
           cuando el pop-in ya termino (delay = delay del padre + su
           duracion), para que no se pisen las dos animaciones. Tamano en em
           (no un valor fijo en px/rem): 2.2x el tamano del texto que lo
-          rodea, en cualquier breakpoint, sin duplicar clases sm:/md:. */}
+          rodea, en cualquier breakpoint, sin duplicar clases sm:/md:. La
+          rotacion se aplica ACA (al contenedor), no a cada copia de
+          material de abajo -- asi las 3 giran como un solo objeto rigido,
+          sin importar cual esta visible en un momento dado. */}
       <motion.span
-        className="inline-block font-heading font-black text-accent"
-        style={{ fontSize: "2.2em", lineHeight: 1, textShadow: EXTRUDE_SHADOW, transformStyle: "preserve-3d" }}
+        className="relative inline-block font-heading font-black"
+        style={{ fontSize: "2.2em", lineHeight: 1, transformStyle: "preserve-3d" }}
         animate={{ rotateY: [-28, 28, -28], rotateX: [10, -10, 10], scale: [1, 1.08, 1] }}
         transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut", delay: delay + 0.7 }}
       >
-        {text}
+        {MATERIALS.map((material, index) => (
+          <motion.span
+            key={material.name}
+            aria-hidden={index > 0 ? "true" : undefined}
+            className={cn(index > 0 && "absolute inset-0", material.gradient && "bg-clip-text text-transparent")}
+            style={materialStyle(material)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 1, 0] }}
+            transition={{
+              duration: MATERIAL_DURATION,
+              repeat: Infinity,
+              delay: delay + 0.7 + index * MATERIAL_DURATION,
+              repeatDelay: (MATERIALS.length - 1) * MATERIAL_DURATION,
+              times: [0, 0.15, 0.85, 1],
+              ease: "easeInOut",
+            }}
+          >
+            {text}
+          </motion.span>
+        ))}
       </motion.span>
     </motion.span>
   );

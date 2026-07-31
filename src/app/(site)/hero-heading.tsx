@@ -40,7 +40,7 @@ export function HeroHeading() {
   const threeDDelay = IMPRESION.length * LETTER_STAGGER + LETTER_DURATION * 0.55;
 
   return (
-    <h1 className="relative mt-3 text-4xl font-semibold tracking-tight sm:text-6xl">
+    <h1 className="relative mt-3 text-5xl font-semibold tracking-tight sm:text-7xl">
       <span
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 scale-150 rounded-full bg-accent/25 blur-3xl"

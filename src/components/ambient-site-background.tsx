@@ -3,6 +3,20 @@
 import { useId } from "react";
 import { motion } from "framer-motion";
 
+// Chispas/pulso (pedido explicito, 2da vuelta: "mas movimiento y un pulso
+// corriendo... una animacion que acompañe una buena experiencia") -- este
+// fondo tenia drift lento + blobs, pero nada que de la sensacion de
+// "corriente circulando" como si tiene PrinterGridBackground (ver ese
+// archivo). Mismo mecanismo (punto chico con glow, entra/sale con opacity,
+// recorrido diagonal), posiciones y tiempos propios para no sentirse un
+// copy-paste 1:1.
+const PULSES = [
+  { top: "18%", left: "10%", dx: 160, dy: 200, duration: 9, delay: 0 },
+  { top: "62%", left: "34%", dx: -140, dy: 180, duration: 10.5, delay: 2.4 },
+  { top: "30%", left: "62%", dx: 130, dy: -160, duration: 8.5, delay: 4.8 },
+  { top: "72%", left: "84%", dx: -120, dy: -190, duration: 11, delay: 1.6 },
+];
+
 /**
  * Fondo ambiente para el TRAMO DEL MEDIO de la home (Como funciona, Value
  * props, Servicios, Tiempos de entrega, Material, Categorias destacadas) --
@@ -13,10 +27,13 @@ import { motion } from "framer-motion";
  * sin nada de esto.
  *
  * Por eso ahora es `absolute inset-0` (no fixed): se monta DENTRO de un
- * wrapper `relative` que envuelve solo esas secciones del medio (ver
+ * wrapper full-bleed que envuelve solo esas secciones del medio (ver
  * page.tsx), asi que su alto es exactamente el de ese tramo -- ni un pixel
  * mas, no llega ni al Hero (que ya tiene su propio fondo mas fuerte, ver
- * printer-grid-background.tsx) ni a Catalogo/Newsletter/Footer.
+ * printer-grid-background.tsx) ni a Catalogo/Newsletter/Footer. El wrapper
+ * en si es full-bleed (2da vuelta -- antes quedaba scoped a max-w-6xl, dejaba
+ * franjas vacias a los costados en pantallas anchas), el contenido real se
+ * re-centra adentro con su propio max-w-6xl.
  *
  * El mask hace dos cosas: (a) funde el arranque rapido contra el final del
  * Hero (que ya se desvanece solo, no hace falta mucho aca) y (b) un cierre
@@ -79,9 +96,8 @@ export function AmbientSiteBackground() {
         />
       ))}
 
-      {/* Mismo glow lento que antes, pero recorriendo solo este tramo. Todo
-          en porcentajes (no vw/vh): este bloque ya no es full-bleed, su
-          ancho real es el del contenido (max-w-6xl), no el viewport. */}
+      {/* Mismo glow lento que antes, recorriendo todo el tramo (ahora
+          full-bleed, ver comentario de arriba). */}
       <motion.div
         className="absolute h-[420px] w-[420px] rounded-full bg-accent/[0.05] blur-3xl"
         animate={{
@@ -90,6 +106,22 @@ export function AmbientSiteBackground() {
         }}
         transition={{ duration: 38, repeat: Infinity, ease: "easeInOut" }}
       />
+
+      {PULSES.map((pulse, index) => (
+        <motion.span
+          key={index}
+          className="absolute h-1.5 w-1.5 rounded-full bg-accent"
+          style={{ top: pulse.top, left: pulse.left, boxShadow: "0 0 10px 2px var(--color-accent)" }}
+          animate={{ x: [0, pulse.dx, 0], y: [0, pulse.dy, 0], opacity: [0, 0.9, 0] }}
+          transition={{
+            duration: pulse.duration,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: pulse.delay,
+            times: [0, 0.5, 1],
+          }}
+        />
+      ))}
     </div>
   );
 }

@@ -119,15 +119,25 @@ export default async function HomePage({
           ver ambient-site-background.tsx): arranca despues del Hero -- que
           ya tiene su propio fondo mas fuerte, no hace falta superponer otro
           ahi -- y termina justo antes de Catalogo, que se pidio explicito
-          que quede con el color de fondo natural, sin animacion. */}
-      <div className="relative">
+          que quede con el color de fondo natural, sin animacion.
+          Full-bleed (mismo truco que Hero/Newsletter/Footer: left-1/2
+          right-1/2 -mx-[50vw] w-screen) -- antes este wrapper vivia
+          scoped dentro de max-w-6xl (el mismo ancho que <main>), asi que en
+          pantallas anchas quedaban franjas vacias grandes a los costados
+          sin nada de patron, muy visible contra el resto del sitio que si
+          es full-bleed. El contenido real se re-centra adentro con su
+          propio max-w-6xl para que no cambie nada de layout, solo el
+          fondo pasa a cubrir todo el ancho. */}
+      <div className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden">
         <AmbientSiteBackground />
-        <HowItWorks />
-        <ValueProps />
-        <ServicesSection />
-        <DeliveryTimesSection />
-        <MaterialSection />
-        <FeaturedCategories categoryTree={categoryTree} />
+        <div className="relative mx-auto max-w-6xl px-4">
+          <HowItWorks />
+          <ValueProps />
+          <ServicesSection />
+          <DeliveryTimesSection />
+          <MaterialSection />
+          <FeaturedCategories categoryTree={categoryTree} />
+        </div>
       </div>
 
       <div id="catalogo" className="scroll-mt-6 border-t border-neutral-200 pt-10 dark:border-neutral-800">

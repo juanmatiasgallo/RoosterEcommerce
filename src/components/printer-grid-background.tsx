@@ -55,13 +55,18 @@ export function PrinterGridBackground() {
       <motion.div
         className="absolute inset-[-42px]"
         style={{
-          // Fade mas grande todavia (antes 30%/70%, ahora 38%/62% = 76% de
-          // la seccion desvaneciendo hacia cada punta -- el owner marco que
-          // el borde donde una seccion con grilla terminaba y la siguiente
-          // (blanca, sin grilla) empezaba se notaba como un corte). Con solo
-          // un 24% solido en el medio, la transicion es mucho mas gradual.
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 38%, black 62%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 38%, black 62%, transparent 100%)",
+          // Fade en PIXELES fijos, no porcentaje (2da vuelta -- el
+          // porcentaje 38%/62% se calibro pensando en el Hero, que ocupa
+          // toda la pantalla; en secciones cortas como Newsletter o el
+          // Footer, ese mismo 38%/62% deja solo un 24% solido en el medio,
+          // asi que el patron se percibia practicamente vacio/difuminado en
+          // vez de animado. Con una distancia fija (72px), el fade es
+          // apenas perceptible en el Hero -alto- y sigue siendo un borde
+          // suave en secciones cortas, pero deja el resto de la seccion con
+          // el patron bien visible sin importar cuanto mida.
+          maskImage: "linear-gradient(to bottom, transparent 0, black 72px, black calc(100% - 72px), transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0, black 72px, black calc(100% - 72px), transparent 100%)",
         }}
         animate={{ x: [0, 14, 0], y: [0, 10, 0] }}
         transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
