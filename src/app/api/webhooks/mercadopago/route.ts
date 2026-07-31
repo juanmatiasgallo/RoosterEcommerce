@@ -7,6 +7,7 @@ import { getDefaultStoreId } from "@/lib/db/store";
 import { orders } from "@/lib/db/schema";
 import { getPayment, getWebhookSecret } from "@/lib/mercadopago/client";
 import { markOrderAsPaid } from "@/lib/orders/mark-paid";
+import { notifyStaff } from "@/lib/notifications/notify";
 
 /**
  * Paso 5 de docs/spec-ecommerce-base.md (critico, no saltear seguridad).
@@ -132,6 +133,18 @@ export async function POST(req: NextRequest) {
       // Estados no aprobados: se deja la orden en su estado (no se toca
       // stock), solo se guarda el mpPaymentId para idempotencia.
       await db.update(orders).set({ mpPaymentId: paymentId }).where(eq(orders.id, order.id));
+
+      // Aviso opcional por Telegram (evento "payment_rejected", apagado por
+      // defecto -- ver src/lib/telegram/event-types.ts). No hay
+      // notificacion in-app equivalente hoy: notifyStaff igual escribe una
+      // fila en `notifications`, es un aviso nuevo, no solo un hook de
+      // Telegram.
+      await notifyStaff({
+        storeId: order.storeId,
+        type: "payment_rejected",
+        title: `Pago ${payment.status === "rejected" ? "rechazado" : "cancelado"} — orden #${order.orderNumber}`,
+        link: "/admin/pedidos",
+      });
     }
 
     return NextResponse.json({ received: true });

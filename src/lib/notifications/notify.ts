@@ -3,6 +3,8 @@
 // el cliente llame directo — mismo patron que mark-paid.ts.
 import { db } from "@/lib/db";
 import { notifications } from "@/lib/db/schema";
+import { sendTelegramNotification } from "@/lib/telegram/send";
+import type { TelegramEventType } from "@/lib/telegram/event-types";
 
 // Nunca bloquea el flujo principal si falla (mismo criterio de resiliencia
 // que sendMail): una notificacion in-app que no se pudo guardar no puede
@@ -39,4 +41,17 @@ export async function notifyStaff(params: {
   link?: string;
 }) {
   await notify({ ...params, recipientUserId: null });
+
+  // Telegram (avisos de negocio, ver src/lib/telegram/): unico choke point,
+  // no hace falta tocar los call sites existentes de notifyStaff. El cast
+  // es seguro en runtime: si params.type no coincide con ningun
+  // TelegramEventType conocido, send.ts simplemente no encuentra template y
+  // no manda nada (mismo resultado que un evento deshabilitado).
+  await sendTelegramNotification({
+    storeId: params.storeId,
+    eventType: params.type as TelegramEventType,
+    title: params.title,
+    body: params.body,
+    link: params.link,
+  });
 }

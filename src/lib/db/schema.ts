@@ -101,6 +101,14 @@ export const stores = pgTable("stores", {
   // actual (con esas env vars ya seteadas) sigue andando sin cambios.
   umamiWebsiteId: varchar("umami_website_id", { length: 100 }),
   umamiScriptUrl: varchar("umami_script_url", { length: 500 }),
+  // Telegram (avisos de negocio: pedido nuevo, comprobante subido, etc. --
+  // distinto del bot de infraestructura de Uptime Kuma/GlitchTip, que vive
+  // fuera de este repo). Bot token encriptado igual que smtpPassword/
+  // mpAccessToken; el chat ID no es sensible (es solo el destino del
+  // mensaje) asi que va directo. Los templates por tipo de evento viven en
+  // telegram_templates, no aca (ver mas abajo).
+  telegramBotTokenEncrypted: text("telegram_bot_token_encrypted"),
+  telegramChatId: varchar("telegram_chat_id", { length: 100 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -400,6 +408,29 @@ export const notifications = pgTable("notifications", {
   readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
+
+// --- Telegram (avisos de negocio) --------------------------------------
+
+// Un row por tipo de evento (ver TELEGRAM_EVENT_TYPES en
+// src/lib/telegram/event-types.ts), sembrado la primera vez que el admin
+// abre /admin/configuracion (ver ensureTemplatesSeeded en
+// src/lib/telegram/actions.ts) -- asi sumar un evento nuevo en el futuro es
+// agregar una entrada en ese array, no una migracion de datos. `enabled`
+// deja prender/apagar un aviso sin borrar el template cargado. `template`
+// es HTML (el subset que soporta Telegram: <b>, <i>, <a>, <code>, etc.),
+// editable por el admin para que mantenga la forma que ya viene usando.
+export const telegramTemplates = pgTable(
+  "telegram_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeId: uuid("store_id").notNull().references(() => stores.id),
+    eventType: varchar("event_type", { length: 50 }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    template: text("template").notNull(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [unique("telegram_templates_store_event_unique").on(table.storeId, table.eventType)],
+);
 
 // --- Envios -----------------------------------------------------------
 

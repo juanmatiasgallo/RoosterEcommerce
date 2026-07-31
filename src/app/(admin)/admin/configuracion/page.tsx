@@ -10,6 +10,7 @@ import {
   getVacationSettings,
 } from "@/lib/settings/actions";
 import { listShippingZonesForAdmin } from "@/lib/shipping/actions";
+import { getTelegramSettings } from "@/lib/telegram/actions";
 import { ConfiguracionClient } from "./configuracion-client";
 
 // Consulta la DB: sin esto, el build de Docker en EasyPanel la
@@ -40,6 +41,7 @@ export default async function ConfiguracionAdminPage() {
     shippingZones,
     loyaltySettings,
     umamiSettings,
+    telegramSettings,
   ] = await Promise.all([
     getSmtpSettings(),
     getMercadoPagoSettings(),
@@ -49,6 +51,7 @@ export default async function ConfiguracionAdminPage() {
     listShippingZonesForAdmin(),
     getLoyaltySettings(),
     getUmamiSettings(),
+    getTelegramSettings(),
   ]);
 
   return (
@@ -68,6 +71,7 @@ export default async function ConfiguracionAdminPage() {
           initialShippingZones={shippingZones}
           initialLoyalty={loyaltySettings}
           initialUmami={umamiSettings}
+          initialTelegram={telegramSettings}
         />
       </div>
     </div>

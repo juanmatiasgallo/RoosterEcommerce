@@ -38,6 +38,14 @@ import {
   updateShippingZone,
   type ShippingZoneRow,
 } from "@/lib/shipping/actions";
+import { updateTelegramSettingsSchema } from "@/lib/telegram/schema";
+import {
+  sendTestTelegramMessage,
+  updateTelegramSettings,
+  updateTelegramTemplate,
+  type TelegramSettings,
+} from "@/lib/telegram/actions";
+import { TELEGRAM_PLACEHOLDER_HELP } from "@/lib/telegram/event-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,6 +58,7 @@ type VacationFormValues = z.infer<typeof updateVacationModeSchema>;
 type ShippingZoneFormValues = z.infer<typeof createShippingZoneSchema>;
 type LoyaltyFormValues = z.infer<typeof updateLoyaltySettingsSchema>;
 type UmamiFormValues = z.infer<typeof updateUmamiSettingsSchema>;
+type TelegramFormValues = z.infer<typeof updateTelegramSettingsSchema>;
 
 export function ConfiguracionClient({
   initialSmtp,
@@ -60,6 +69,7 @@ export function ConfiguracionClient({
   initialShippingZones,
   initialLoyalty,
   initialUmami,
+  initialTelegram,
 }: {
   initialSmtp: SmtpSettings;
   initialMp: MercadoPagoSettings;
@@ -69,6 +79,7 @@ export function ConfiguracionClient({
   initialShippingZones: ShippingZoneRow[];
   initialLoyalty: LoyaltySettings;
   initialUmami: UmamiSettings;
+  initialTelegram: TelegramSettings;
 }) {
   return (
     <div className="flex flex-col gap-10">
@@ -165,6 +176,22 @@ export function ConfiguracionClient({
         </p>
         <div className="mt-4">
           <UmamiSettingsForm initial={initialUmami} />
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-semibold">Telegram</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Avisos de negocio (pedido nuevo, comprobante subido, pedido a medida, preguntas de clientes) por un bot
+          propio de Telegram. Usa un bot separado del que ya tengas para alertas de infraestructura (Uptime
+          Kuma/GlitchTip) -- creado con{" "}
+          <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="underline">
+            @BotFather
+          </a>
+          . Cada evento tiene su propio mensaje editable mas abajo, con el mismo HTML que ya usas.
+        </p>
+        <div className="mt-4">
+          <TelegramSettingsForm initial={initialTelegram} />
         </div>
       </section>
     </div>
@@ -1135,5 +1162,227 @@ function ShippingZonesManager({ initialZones }: { initialZones: ShippingZoneRow[
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function TelegramSettingsForm({ initial }: { initial: TelegramSettings }) {
+  const [settings, setSettings] = useState(initial);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { isSubmitting },
+  } = useForm<TelegramFormValues>({
+    resolver: zodResolver(updateTelegramSettingsSchema),
+    defaultValues: {
+      telegramChatId: settings.telegramChatId ?? "",
+      telegramBotToken: "",
+    },
+  });
+
+  const isConfigured = Boolean(settings.telegramBotTokenSet && settings.telegramChatId);
+
+  async function onSubmit(values: TelegramFormValues) {
+    try {
+      const updated = await updateTelegramSettings(values);
+      setSettings((prev) => ({ ...prev, ...updated }));
+      toast.success("Configuracion de Telegram guardada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar la configuracion.");
+    }
+  }
+
+  async function handleSendTest() {
+    setIsSendingTest(true);
+    try {
+      const result = await sendTestTelegramMessage();
+      if (result.success) {
+        toast.success("Mensaje de prueba enviado.");
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo enviar el mensaje de prueba.");
+    } finally {
+      setIsSendingTest(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="telegramBotToken" className="mb-1 block text-sm font-medium">
+                Bot Token
+              </label>
+              <input
+                id="telegramBotToken"
+                type="password"
+                autoComplete="new-password"
+                {...register("telegramBotToken")}
+                placeholder={
+                  settings.telegramBotTokenSet ? "Ya hay uno guardado (dejar vacio para no cambiarlo)" : "123456:ABC-DEF..."
+                }
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                {settings.telegramBotTokenSet ? (
+                  <Badge variant="success">Configurado</Badge>
+                ) : (
+                  <Badge variant="neutral">Sin bot conectado todavia</Badge>
+                )}
+              </p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Lo obtenes hablando con{" "}
+                <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="underline">
+                  @BotFather
+                </a>{" "}
+                en Telegram, comando /newbot.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="telegramChatId" className="mb-1 block text-sm font-medium">
+                ID de Chat
+              </label>
+              <input
+                id="telegramChatId"
+                {...register("telegramChatId")}
+                placeholder="123456789"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm font-mono dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                Numerico, no el nombre de usuario. Mandale un mensaje al bot y consulta
+                https://api.telegram.org/bot&lt;token&gt;/getUpdates para verlo.
+              </p>
+            </div>
+
+            <Button type="submit" disabled={isSubmitting} className="self-start">
+              {isSubmitting ? "Guardando..." : "Guardar"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Probar la conexion</p>
+            <p className="text-xs text-neutral-500">
+              {isConfigured
+                ? "Manda un mensaje de prueba al chat configurado."
+                : "Guarda el bot token y el ID de chat antes de poder probarla."}
+            </p>
+          </div>
+          <Button type="button" variant="outline" onClick={handleSendTest} disabled={!isConfigured || isSendingTest}>
+            {isSendingTest ? "Enviando..." : "Enviar mensaje de prueba"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <TelegramTemplatesEditor
+        templates={settings.templates}
+        onTemplateChange={(eventType, next) =>
+          setSettings((prev) => ({
+            ...prev,
+            templates: prev.templates.map((t) => (t.eventType === eventType ? { ...t, ...next } : t)),
+          }))
+        }
+      />
+    </div>
+  );
+}
+
+function TelegramTemplatesEditor({
+  templates,
+  onTemplateChange,
+}: {
+  templates: TelegramSettings["templates"];
+  onTemplateChange: (eventType: string, next: { enabled: boolean; template: string }) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p className="text-sm font-medium">Mensajes por evento</p>
+        <p className="mt-1 text-xs text-neutral-500">{TELEGRAM_PLACEHOLDER_HELP}</p>
+      </div>
+      {templates.map((tpl) => (
+        <TelegramTemplateCard
+          key={tpl.eventType}
+          template={tpl}
+          onSaved={(next) => onTemplateChange(tpl.eventType, next)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function TelegramTemplateCard({
+  template,
+  onSaved,
+}: {
+  template: TelegramSettings["templates"][number];
+  onSaved: (next: { enabled: boolean; template: string }) => void;
+}) {
+  const [enabled, setEnabled] = useState(template.enabled);
+  const [text, setText] = useState(template.template);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const isDirty = enabled !== template.enabled || text !== template.template;
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const updated = await updateTelegramTemplate({ eventType: template.eventType, enabled, template: text });
+      onSaved({ enabled: updated.enabled, template: updated.template });
+      toast.success(`Mensaje de "${template.label}" guardado.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar el mensaje.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleReset() {
+    setText(template.defaultTemplate);
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-medium">
+              {template.label}
+              {enabled ? <Badge variant="success">Activo</Badge> : <Badge variant="neutral">Apagado</Badge>}
+            </p>
+            <p className="mt-0.5 text-xs text-neutral-500">{template.description}</p>
+          </div>
+          <label className="flex shrink-0 items-center gap-2 text-sm">
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            Enviar
+          </label>
+        </div>
+
+        <textarea
+          rows={3}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          className="w-full rounded border border-neutral-300 px-3 py-2 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-900"
+        />
+
+        <div className="flex items-center gap-2 self-start">
+          <Button type="button" size="sm" onClick={handleSave} disabled={!isDirty || isSaving}>
+            {isSaving ? "Guardando..." : "Guardar"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={handleReset} disabled={text === template.defaultTemplate}>
+            Restaurar por defecto
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
