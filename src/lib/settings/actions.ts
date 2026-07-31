@@ -557,6 +557,12 @@ export async function sendTestEmail() {
 export async function sendTestErrorToGlitchTip() {
   await requireAdmin();
 
+  // Diagnostico (task #86): si esto imprime "false", el cliente de Sentry
+  // nunca se inicializo (sin GLITCHTIP_DSN en este proceso) -- captureException
+  // igual devuelve un eventId aunque sea un no-op, por eso no alcanza con el
+  // toast de "enviado" del lado del cliente para confirmar que llego.
+  console.log("[GlitchTip test] Sentry client presente:", Boolean(Sentry.getClient()));
+
   const eventId = Sentry.captureException(
     new Error("Prueba manual desde /admin/configuracion — si ves esto en GlitchTip, la integracion funciona."),
   );
@@ -564,7 +570,8 @@ export async function sendTestErrorToGlitchTip() {
   // Sentry.init hace flush async en background; sin esto el proceso de la
   // Server Action puede terminar (y el runtime "congelar" el contexto)
   // antes de que el evento realmente salga por la red.
-  await Sentry.flush(3000);
+  const flushed = await Sentry.flush(5000);
+  console.log("[GlitchTip test] flush exitoso:", flushed, "eventId:", eventId);
 
   return { success: true as const, eventId };
 }
