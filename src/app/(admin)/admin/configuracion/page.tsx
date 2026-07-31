@@ -58,7 +58,7 @@ export default async function ConfiguracionAdminPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-semibold">Configuracion</h1>
       <p className="mt-1 text-neutral-500">
         Credenciales de la tienda. Todo lo sensible queda encriptado en la base, nunca en texto plano.

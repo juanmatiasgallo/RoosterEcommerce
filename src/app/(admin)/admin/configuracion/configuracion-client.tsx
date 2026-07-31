@@ -54,6 +54,7 @@ import { TELEGRAM_PLACEHOLDER_HELP } from "@/lib/telegram/event-types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 
 type SmtpFormValues = z.infer<typeof updateSmtpSettingsSchema>;
 type MpFormValues = z.infer<typeof updateMercadoPagoSettingsSchema>;
@@ -90,144 +91,160 @@ export function ConfiguracionClient({
   initialN8n: N8nSettings;
 }) {
   return (
-    <div className="flex flex-col gap-10">
-      <section>
-        <h2 className="text-lg font-semibold">Datos de la tienda</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Razon social, RUT y contacto. Se usan en el footer del sitio y como referencia para numerar comprobantes.
-        </p>
-        <div className="mt-4">
-          <StoreInfoForm initial={initialStoreInfo} />
-        </div>
-      </section>
+    <Tabs defaultValue="tienda">
+      <TabsList>
+        <TabsTab value="tienda">Tienda</TabsTab>
+        <TabsTab value="ventas">Ventas</TabsTab>
+        <TabsTab value="notificaciones">Notificaciones</TabsTab>
+        <TabsTab value="analytics">Analytics y monitoreo</TabsTab>
+        <TabsIndicator />
+      </TabsList>
 
-      <section>
-        <h2 className="text-lg font-semibold">Envios</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Zonas y costos de envio que se muestran en{" "}
-          <a href="/envios" className="underline">
-            /envios
-          </a>
-          . Todavia no se suman automaticamente al total del checkout.
-        </p>
-        <div className="mt-4">
-          <ShippingZonesManager initialZones={initialShippingZones} />
-        </div>
-      </section>
+      <TabsPanel value="tienda">
+        <section>
+          <h2 className="text-lg font-semibold">Datos de la tienda</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Razon social, RUT y contacto. Se usan en el footer del sitio y como referencia para numerar comprobantes.
+          </p>
+          <div className="mt-4">
+            <StoreInfoForm initial={initialStoreInfo} />
+          </div>
+        </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">Modo vacaciones</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Si lo activas, se bloquean nuevas compras (catalogo y pedidos a medida) y se muestra un aviso en todo el
-          sitio. El catalogo sigue navegable.
-        </p>
-        <div className="mt-4">
-          <VacationModeForm initial={initialVacation} />
-        </div>
-      </section>
+        <section>
+          <h2 className="text-lg font-semibold">Modo vacaciones</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Si lo activas, se bloquean nuevas compras (catalogo y pedidos a medida) y se muestra un aviso en todo el
+            sitio. El catalogo sigue navegable.
+          </p>
+          <div className="mt-4">
+            <VacationModeForm initial={initialVacation} />
+          </div>
+        </section>
+      </TabsPanel>
 
-      <section>
-        <h2 className="text-lg font-semibold">Puntos y recompensas</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Cuantos puntos gana un cliente por cada compra confirmada, y cuanto vale 1 punto al canjearlo por un
-          cupon de descuento. En 0 el sistema queda apagado (no se otorgan puntos nuevos).
-        </p>
-        <div className="mt-4">
-          <LoyaltySettingsForm initial={initialLoyalty} />
-        </div>
-      </section>
+      <TabsPanel value="ventas">
+        <section>
+          <h2 className="text-lg font-semibold">Envios</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Zonas y costos de envio que se muestran en{" "}
+            <a href="/envios" className="underline">
+              /envios
+            </a>
+            . Todavia no se suman automaticamente al total del checkout.
+          </p>
+          <div className="mt-4">
+            <ShippingZonesManager initialZones={initialShippingZones} />
+          </div>
+        </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">Mercado Pago</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Credenciales de Checkout Pro. Si dejas esto vacio, se usan las variables de entorno
-          MP_ACCESS_TOKEN / MP_WEBHOOK_SECRET configuradas en el servidor.
-        </p>
-        <div className="mt-4">
-          <MercadoPagoSettingsForm initial={initialMp} />
-        </div>
-      </section>
+        <section>
+          <h2 className="text-lg font-semibold">Puntos y recompensas</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Cuantos puntos gana un cliente por cada compra confirmada, y cuanto vale 1 punto al canjearlo por un
+            cupon de descuento. En 0 el sistema queda apagado (no se otorgan puntos nuevos).
+          </p>
+          <div className="mt-4">
+            <LoyaltySettingsForm initial={initialLoyalty} />
+          </div>
+        </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">Medios de pago manuales</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Alternativa a Mercado Pago: transferencia, Abitab o Red Pagos. Cada uno solo aparece como opcion en
-          el checkout si le cargas instrucciones aca. El cliente que elige uno de estos genera una{" "}
-          <strong>orden de servicio</strong> (no se cobra sola) y vos confirmas el pago a mano desde{" "}
-          <a href="/admin/pedidos" className="underline">
-            /admin/pedidos
-          </a>{" "}
-          cuando lo verificas.
-        </p>
-        <div className="mt-4">
-          <PaymentInstructionsForm initial={initialPaymentInstructions} />
-        </div>
-      </section>
+        <section>
+          <h2 className="text-lg font-semibold">Mercado Pago</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Credenciales de Checkout Pro. Si dejas esto vacio, se usan las variables de entorno
+            MP_ACCESS_TOKEN / MP_WEBHOOK_SECRET configuradas en el servidor.
+          </p>
+          <div className="mt-4">
+            <MercadoPagoSettingsForm initial={initialMp} />
+          </div>
+        </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">SMTP</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Se usa para enviar notificaciones por email.
-        </p>
-        <div className="mt-4">
-          <SmtpSettingsForm initial={initialSmtp} />
-        </div>
-      </section>
+        <section>
+          <h2 className="text-lg font-semibold">Medios de pago manuales</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Alternativa a Mercado Pago: transferencia, Abitab o Red Pagos. Cada uno solo aparece como opcion en
+            el checkout si le cargas instrucciones aca. El cliente que elige uno de estos genera una{" "}
+            <strong>orden de servicio</strong> (no se cobra sola) y vos confirmas el pago a mano desde{" "}
+            <a href="/admin/pedidos" className="underline">
+              /admin/pedidos
+            </a>{" "}
+            cuando lo verificas.
+          </p>
+          <div className="mt-4">
+            <PaymentInstructionsForm initial={initialPaymentInstructions} />
+          </div>
+        </section>
+      </TabsPanel>
 
-      <section>
-        <h2 className="text-lg font-semibold">Analytics (Umami)</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Website ID y URL del script de tu instancia de Umami (self-hosted). Si dejas esto vacio, se usan las
-          variables de entorno NEXT_PUBLIC_UMAMI_WEBSITE_ID / NEXT_PUBLIC_UMAMI_SRC configuradas en el servidor.
-          Cargarlo aca en vez de por env var permite cambiarlo sin rebuild -- pensado para poder reusar este mismo
-          panel en otra implementacion/cliente sin tocar codigo, solo con los datos de su propia instancia.
-        </p>
-        <div className="mt-4">
-          <UmamiSettingsForm initial={initialUmami} />
-        </div>
-      </section>
+      <TabsPanel value="notificaciones">
+        <section>
+          <h2 className="text-lg font-semibold">SMTP</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Se usa para enviar notificaciones por email.
+          </p>
+          <div className="mt-4">
+            <SmtpSettingsForm initial={initialSmtp} />
+          </div>
+        </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">Monitoreo de errores (GlitchTip)</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Se configura por variables de entorno del servidor (GLITCHTIP_DSN / NEXT_PUBLIC_GLITCHTIP_DSN), no desde
-          este panel. Este boton manda una excepcion de prueba directo a tu instancia de GlitchTip, para confirmar
-          que la conexion esta funcionando sin tener que esperar a que ocurra un error real.
-        </p>
-        <div className="mt-4">
-          <GlitchTipTestCard />
-        </div>
-      </section>
+        <section>
+          <h2 className="text-lg font-semibold">Telegram</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Avisos de negocio (pedido nuevo, comprobante subido, pedido a medida, preguntas de clientes) por un bot
+            propio de Telegram. Usa un bot separado del que ya tengas para alertas de infraestructura (Uptime
+            Kuma/GlitchTip) -- creado con{" "}
+            <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="underline">
+              @BotFather
+            </a>
+            . Cada evento tiene su propio mensaje editable mas abajo, con el mismo HTML que ya usas.
+          </p>
+          <div className="mt-4">
+            <TelegramSettingsForm initial={initialTelegram} />
+          </div>
+        </section>
 
-      <section>
-        <h2 className="text-lg font-semibold">Telegram</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Avisos de negocio (pedido nuevo, comprobante subido, pedido a medida, preguntas de clientes) por un bot
-          propio de Telegram. Usa un bot separado del que ya tengas para alertas de infraestructura (Uptime
-          Kuma/GlitchTip) -- creado con{" "}
-          <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="underline">
-            @BotFather
-          </a>
-          . Cada evento tiene su propio mensaje editable mas abajo, con el mismo HTML que ya usas.
-        </p>
-        <div className="mt-4">
-          <TelegramSettingsForm initial={initialTelegram} />
-        </div>
-      </section>
+        <section>
+          <h2 className="text-lg font-semibold">Webhook (n8n / automatizaciones)</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Manda un POST con los mismos eventos de negocio que Telegram (pedido nuevo, comprobante subido, etc.) a
+            una URL propia -- pensado para conectar con n8n u otra automatizacion externa sin instalar nada nuevo en
+            este servidor. El secret es opcional, se manda como header <code>X-Webhook-Secret</code> para que el otro
+            lado pueda validar que el POST vino de aca.
+          </p>
+          <div className="mt-4">
+            <N8nSettingsForm initial={initialN8n} />
+          </div>
+        </section>
+      </TabsPanel>
 
-      <section>
-        <h2 className="text-lg font-semibold">Webhook (n8n / automatizaciones)</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Manda un POST con los mismos eventos de negocio que Telegram (pedido nuevo, comprobante subido, etc.) a
-          una URL propia -- pensado para conectar con n8n u otra automatizacion externa sin instalar nada nuevo en
-          este servidor. El secret es opcional, se manda como header <code>X-Webhook-Secret</code> para que el otro
-          lado pueda validar que el POST vino de aca.
-        </p>
-        <div className="mt-4">
-          <N8nSettingsForm initial={initialN8n} />
-        </div>
-      </section>
-    </div>
+      <TabsPanel value="analytics">
+        <section>
+          <h2 className="text-lg font-semibold">Analytics (Umami)</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Website ID y URL del script de tu instancia de Umami (self-hosted). Si dejas esto vacio, se usan las
+            variables de entorno NEXT_PUBLIC_UMAMI_WEBSITE_ID / NEXT_PUBLIC_UMAMI_SRC configuradas en el servidor.
+            Cargarlo aca en vez de por env var permite cambiarlo sin rebuild -- pensado para poder reusar este mismo
+            panel en otra implementacion/cliente sin tocar codigo, solo con los datos de su propia instancia.
+          </p>
+          <div className="mt-4">
+            <UmamiSettingsForm initial={initialUmami} />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold">Monitoreo de errores (GlitchTip)</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Se configura por variables de entorno del servidor (GLITCHTIP_DSN / NEXT_PUBLIC_GLITCHTIP_DSN), no desde
+            este panel. Este boton manda una excepcion de prueba directo a tu instancia de GlitchTip, para confirmar
+            que la conexion esta funcionando sin tener que esperar a que ocurra un error real.
+          </p>
+          <div className="mt-4">
+            <GlitchTipTestCard />
+          </div>
+        </section>
+      </TabsPanel>
+    </Tabs>
   );
 }
 
