@@ -119,6 +119,17 @@ export const stores = pgTable("stores", {
   // encriptado, mismo criterio que el resto de los secretos de esta tabla.
   n8nWebhookUrl: varchar("n8n_webhook_url", { length: 500 }),
   n8nWebhookSecretEncrypted: text("n8n_webhook_secret_encrypted"),
+  // Listmonk (newsletter self-hosted, ver docs/): mismo criterio que Umami/
+  // Telegram/n8n arriba -- configurable desde /admin/configuracion, pensado
+  // para poder reusar este mismo patron en otro cliente sin tocar codigo,
+  // solo cargando la URL y las credenciales de SU instancia de Listmonk. El
+  // usuario de API y el ID de lista no son sensibles, pero el token si (da
+  // acceso de escritura sobre los suscriptores de la cuenta) -- va
+  // encriptado igual que el resto de los secretos de esta tabla.
+  listmonkUrl: varchar("listmonk_url", { length: 300 }),
+  listmonkApiUser: varchar("listmonk_api_user", { length: 100 }),
+  listmonkApiTokenEncrypted: text("listmonk_api_token_encrypted"),
+  listmonkListId: varchar("listmonk_list_id", { length: 100 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

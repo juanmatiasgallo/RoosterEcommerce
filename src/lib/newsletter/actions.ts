@@ -8,6 +8,7 @@ import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
 import { newsletterSubscribers } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
+import { syncSubscriberToListmonk } from "./listmonk";
 import { subscribeToNewsletterSchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -37,6 +38,12 @@ export async function subscribeToNewsletter(input: z.infer<typeof subscribeToNew
     await db.insert(newsletterSubscribers).values({ storeId, email: data.email });
     revalidatePath("/admin/newsletter");
   }
+
+  // Se llama siempre (no solo en altas nuevas): un suscriptor ya guardado
+  // localmente puede no estar sincronizado todavia (ej. si se suscribio
+  // antes de que esta integracion existiera). Nunca tira excepcion -- ver
+  // syncSubscriberToListmonk.
+  await syncSubscriberToListmonk(storeId, data.email);
 
   return { subscribed: true as const };
 }

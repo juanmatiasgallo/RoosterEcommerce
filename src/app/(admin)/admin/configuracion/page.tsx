@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import {
+  getListmonkSettings,
   getLoyaltySettings,
   getMercadoPagoSettings,
   getN8nSettings,
@@ -44,6 +45,7 @@ export default async function ConfiguracionAdminPage() {
     umamiSettings,
     telegramSettings,
     n8nSettings,
+    listmonkSettings,
   ] = await Promise.all([
     getSmtpSettings(),
     getMercadoPagoSettings(),
@@ -55,6 +57,7 @@ export default async function ConfiguracionAdminPage() {
     getUmamiSettings(),
     getTelegramSettings(),
     getN8nSettings(),
+    getListmonkSettings(),
   ]);
 
   return (
@@ -76,6 +79,7 @@ export default async function ConfiguracionAdminPage() {
           initialUmami={umamiSettings}
           initialTelegram={telegramSettings}
           initialN8n={n8nSettings}
+          initialListmonk={listmonkSettings}
         />
       </div>
     </div>

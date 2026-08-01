@@ -190,6 +190,13 @@
       "when": 1785531877143,
       "tag": "0026_ambitious_johnny_blaze",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1785609542849,
+      "tag": "0027_empty_ender_wiggin",
+      "breakpoints": true
     }
   ]
 }

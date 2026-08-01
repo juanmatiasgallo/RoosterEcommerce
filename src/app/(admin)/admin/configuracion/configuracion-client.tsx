@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import type { z } from "zod";
 import {
+  updateListmonkSettingsSchema,
   updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
   updateN8nSettingsSchema,
@@ -18,7 +19,9 @@ import {
 import {
   sendTestEmail,
   sendTestErrorToGlitchTip,
+  sendTestListmonkConnection,
   sendTestN8nWebhook,
+  updateListmonkSettings,
   updateLoyaltySettings,
   updateMercadoPagoSettings,
   updateN8nSettings,
@@ -27,6 +30,7 @@ import {
   updateStoreInfo,
   updateUmamiSettings,
   updateVacationMode,
+  type ListmonkSettings,
   type LoyaltySettings,
   type MercadoPagoSettings,
   type N8nSettings,
@@ -67,6 +71,7 @@ type LoyaltyFormValues = z.infer<typeof updateLoyaltySettingsSchema>;
 type UmamiFormValues = z.infer<typeof updateUmamiSettingsSchema>;
 type TelegramFormValues = z.infer<typeof updateTelegramSettingsSchema>;
 type N8nFormValues = z.infer<typeof updateN8nSettingsSchema>;
+type ListmonkFormValues = z.infer<typeof updateListmonkSettingsSchema>;
 
 export function ConfiguracionClient({
   initialSmtp,
@@ -79,6 +84,7 @@ export function ConfiguracionClient({
   initialUmami,
   initialTelegram,
   initialN8n,
+  initialListmonk,
 }: {
   initialSmtp: SmtpSettings;
   initialMp: MercadoPagoSettings;
@@ -90,6 +96,7 @@ export function ConfiguracionClient({
   initialUmami: UmamiSettings;
   initialTelegram: TelegramSettings;
   initialN8n: N8nSettings;
+  initialListmonk: ListmonkSettings;
 }) {
   return (
     <Tabs defaultValue="tienda">
@@ -215,6 +222,18 @@ export function ConfiguracionClient({
           </p>
           <div className="mt-4">
             <N8nSettingsForm initial={initialN8n} />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold">Newsletter (Listmonk)</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Cada alta en el formulario de newsletter del sitio se sincroniza automaticamente con una lista de tu
+            instancia de Listmonk (self-hosted). Usuario y token de API se crean en Listmonk desde Settings → Users
+            (tipo API), con un rol que solo tenga permisos de suscriptores.
+          </p>
+          <div className="mt-4">
+            <ListmonkSettingsForm initial={initialListmonk} />
           </div>
         </section>
       </TabsPanel>
@@ -1334,6 +1353,144 @@ function N8nSettingsForm({ initial }: { initial: N8nSettings }) {
             disabled={!settings.n8nWebhookUrl || isSendingTest}
           >
             {isSendingTest ? "Enviando..." : "Enviar webhook de prueba"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ListmonkSettingsForm({ initial }: { initial: ListmonkSettings }) {
+  const [settings, setSettings] = useState(initial);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ListmonkFormValues>({
+    resolver: zodResolver(updateListmonkSettingsSchema),
+    defaultValues: {
+      listmonkUrl: settings.listmonkUrl ?? "",
+      listmonkApiUser: settings.listmonkApiUser ?? "",
+      listmonkApiToken: "",
+      listmonkListId: settings.listmonkListId ?? "",
+    },
+  });
+
+  async function onSubmit(values: ListmonkFormValues) {
+    try {
+      const updated = await updateListmonkSettings(values);
+      setSettings(updated);
+      toast.success("Configuracion de Listmonk guardada.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar la configuracion.");
+    }
+  }
+
+  async function handleTest() {
+    setIsTesting(true);
+    try {
+      const result = await sendTestListmonkConnection();
+      if (result.success) {
+        toast.success(`Conexion OK. Lista: "${result.listName}".`);
+      } else {
+        toast.error(result.error);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo probar la conexion.");
+    } finally {
+      setIsTesting(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="listmonkUrl" className="mb-1 block text-sm font-medium">
+                URL de Listmonk
+              </label>
+              <input
+                id="listmonkUrl"
+                {...register("listmonkUrl")}
+                placeholder="https://newsletter.tudominio.com"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm font-mono dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.listmonkUrl && <p className="mt-1 text-xs text-red-600">{errors.listmonkUrl.message}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="listmonkApiUser" className="mb-1 block text-sm font-medium">
+                Usuario de API
+              </label>
+              <input
+                id="listmonkApiUser"
+                {...register("listmonkApiUser")}
+                placeholder="tienda3d-sync"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm font-mono dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="listmonkApiToken" className="mb-1 block text-sm font-medium">
+                Token de API
+              </label>
+              <input
+                id="listmonkApiToken"
+                type="password"
+                autoComplete="new-password"
+                {...register("listmonkApiToken")}
+                placeholder={settings.listmonkApiTokenSet ? "Ya hay uno guardado (dejar vacio para no cambiarlo)" : ""}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                {settings.listmonkApiTokenSet ? (
+                  <Badge variant="success">Configurado</Badge>
+                ) : (
+                  <Badge variant="neutral">Sin token</Badge>
+                )}
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="listmonkListId" className="mb-1 block text-sm font-medium">
+                ID de la lista
+              </label>
+              <input
+                id="listmonkListId"
+                {...register("listmonkListId")}
+                placeholder="1"
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm font-mono dark:border-neutral-700 dark:bg-neutral-900"
+              />
+            </div>
+
+            <Button type="submit" disabled={isSubmitting} className="self-start">
+              {isSubmitting ? "Guardando..." : "Guardar"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Probar la conexion</p>
+            <p className="text-xs text-neutral-500">
+              {settings.listmonkUrl && settings.listmonkApiTokenSet && settings.listmonkListId
+                ? "Confirma que la URL, credenciales y lista son correctas (no toca suscriptores)."
+                : "Guarda la configuracion completa antes de poder probarla."}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleTest}
+            disabled={!settings.listmonkUrl || !settings.listmonkApiTokenSet || !settings.listmonkListId || isTesting}
+          >
+            {isTesting ? "Probando..." : "Probar conexion"}
           </Button>
         </CardContent>
       </Card>

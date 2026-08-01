@@ -78,3 +78,14 @@ export const updateN8nSettingsSchema = z.object({
   n8nWebhookUrl: z.union([z.url(), z.literal("")]).optional(),
   n8nWebhookSecret: z.string().max(500).optional(),
 });
+
+// URL/usuario/ID de lista no son secretos, vacio SI pisa el valor guardado
+// (permite desconectar Listmonk sin borrar el token). El token de API si es
+// sensible -- vacio/ausente = no tocar el que ya habia, mismo criterio que
+// mpAccessToken/smtpPassword/n8nWebhookSecret arriba.
+export const updateListmonkSettingsSchema = z.object({
+  listmonkUrl: z.union([z.url(), z.literal("")]).optional(),
+  listmonkApiUser: z.union([z.string().max(100), z.literal("")]).optional(),
+  listmonkApiToken: z.string().max(500).optional(),
+  listmonkListId: z.union([z.string().max(100), z.literal("")]).optional(),
+});

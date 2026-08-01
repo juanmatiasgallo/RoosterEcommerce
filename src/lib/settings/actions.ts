@@ -11,6 +11,7 @@ import { encrypt, decrypt } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
 import { sendN8nWebhook } from "@/lib/webhooks/send";
 import {
+  updateListmonkSettingsSchema,
   updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
   updateN8nSettingsSchema,
@@ -612,6 +613,89 @@ export async function sendTestN8nWebhook() {
       return { success: false as const, error: `El webhook devolvio un error: ${res.status} ${body.slice(0, 200)}` };
     }
     return { success: true as const };
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Error desconocido." };
+  }
+}
+
+// Nunca se expone el token real (ni encriptado), mismo criterio que
+// n8nWebhookSecretSet arriba.
+function toPublicListmonkSettings(store: typeof stores.$inferSelect) {
+  return {
+    listmonkUrl: store.listmonkUrl,
+    listmonkApiUser: store.listmonkApiUser,
+    listmonkApiTokenSet: Boolean(store.listmonkApiTokenEncrypted),
+    listmonkListId: store.listmonkListId,
+  };
+}
+
+export async function getListmonkSettings() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+
+  return toPublicListmonkSettings(store);
+}
+
+export type ListmonkSettings = Awaited<ReturnType<typeof getListmonkSettings>>;
+
+export async function updateListmonkSettings(input: z.infer<typeof updateListmonkSettingsSchema>) {
+  const session = await requireAdmin();
+  const data = updateListmonkSettingsSchema.parse(input);
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  const [updated] = await db
+    .update(stores)
+    .set({
+      ...(data.listmonkUrl !== undefined && { listmonkUrl: data.listmonkUrl || null }),
+      ...(data.listmonkApiUser !== undefined && { listmonkApiUser: data.listmonkApiUser || null }),
+      ...(data.listmonkApiToken && { listmonkApiTokenEncrypted: encrypt(data.listmonkApiToken) }),
+      ...(data.listmonkListId !== undefined && { listmonkListId: data.listmonkListId || null }),
+    })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "listmonk_settings",
+    entityId: session.user.storeId,
+    before: toPublicListmonkSettings(existing),
+    after: toPublicListmonkSettings(updated),
+  });
+
+  revalidatePath("/admin/configuracion");
+  return toPublicListmonkSettings(updated);
+}
+
+// Prueba la conexion pidiendo el detalle de la lista configurada (GET, no
+// modifica nada) -- confirma de una que la URL, las credenciales y el ID de
+// lista son correctos, sin tocar suscriptores reales.
+export async function sendTestListmonkConnection() {
+  const session = await requireAdmin();
+
+  const [store] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!store) throw new Error("Tienda no encontrada.");
+  if (!store.listmonkUrl || !store.listmonkApiUser || !store.listmonkApiTokenEncrypted || !store.listmonkListId) {
+    return { success: false as const, error: "Falta completar la configuracion de Listmonk antes de poder probarla." };
+  }
+
+  try {
+    const token = decrypt(store.listmonkApiTokenEncrypted);
+    const auth = Buffer.from(`${store.listmonkApiUser}:${token}`).toString("base64");
+    const url = `${store.listmonkUrl.replace(/\/$/, "")}/api/lists/${store.listmonkListId}`;
+
+    const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { success: false as const, error: `Listmonk devolvio un error: ${res.status} ${body.slice(0, 200)}` };
+    }
+    const json = (await res.json()) as { data?: { name?: string } };
+    return { success: true as const, listName: json.data?.name ?? store.listmonkListId };
   } catch (error) {
     return { success: false as const, error: error instanceof Error ? error.message : "Error desconocido." };
   }
