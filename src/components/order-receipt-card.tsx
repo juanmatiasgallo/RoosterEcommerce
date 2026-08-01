@@ -2,20 +2,10 @@
 
 import { motion } from "framer-motion";
 import { ExternalLink, MapPin, Package, ShieldCheck, Truck } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateTimeFull } from "@/lib/format";
 import { orderReferenceCode } from "@/lib/orders/reference-code";
 import type { ShippingAddress } from "@/lib/orders/schema";
 import type { ReceiptItem } from "@/lib/receipt/pdf";
-
-function formatDate(date: Date | string): string {
-  return new Date(date).toLocaleDateString("es-UY", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 export type OrderReceiptCardProps = {
   orderId: string;
@@ -91,7 +81,7 @@ export function OrderReceiptCard({
           </div>
           <div className="text-right">
             <p className="text-sm font-medium">Orden #{orderNumber}</p>
-            <p className="text-xs text-neutral-500">Realizado el {formatDate(createdAt)}</p>
+            <p className="text-xs text-neutral-500">Realizado el {formatDateTimeFull(createdAt)}</p>
           </div>
         </div>
 

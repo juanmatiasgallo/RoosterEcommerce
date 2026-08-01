@@ -2,13 +2,9 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { redeemLoyaltyPoints, type CouponRow, type LoyaltyPointRow } from "@/lib/loyalty/actions";
 import { Spinner } from "@/components/ui/spinner";
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 export function PuntosClient({
   initialBalance,

@@ -1,16 +1,12 @@
 import Link from "next/link";
 import { getMyOrders } from "@/lib/orders/actions";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
 
 // Consulta la DB directo (las compras del usuario logueado): sin esto, el
 // build de Docker en EasyPanel la pre-renderiza en build time y falla (no
 // tiene red hacia la base ahi) — mismo criterio que /mi-cuenta/pedidos.
 export const dynamic = "force-dynamic";
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mercado_pago: "Mercado Pago",

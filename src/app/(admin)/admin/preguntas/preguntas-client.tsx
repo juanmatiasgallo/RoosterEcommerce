@@ -8,12 +8,9 @@ import { ExternalLink, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getInquiryMessagesForAdmin, replyProductInquiry, type AdminInquiryRow } from "@/lib/inquiries/actions";
 import type { productInquiryMessages } from "@/lib/db/schema";
+import { formatDateTime } from "@/lib/format";
 
 type Message = typeof productInquiryMessages.$inferSelect;
-
-function formatDateTime(date: Date): string {
-  return new Date(date).toLocaleString("es-UY", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 function MessageBubble({ message }: { message: Message }) {
   const fromStaff = message.senderRole === "empleado";

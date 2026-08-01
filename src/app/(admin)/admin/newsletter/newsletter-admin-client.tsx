@@ -2,11 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatDate } from "@/lib/format";
 import type { NewsletterSubscriberRow } from "@/lib/newsletter/actions";
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 export function NewsletterAdminClient({ subscribers }: { subscribers: NewsletterSubscriberRow[] }) {
   function handleDownloadCsv() {

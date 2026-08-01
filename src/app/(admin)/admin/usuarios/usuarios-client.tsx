@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { AdminUserListItem } from "@/lib/users/actions";
 import { adminResetUserPassword, adminSetUserActive } from "@/lib/users/actions";
+import { formatDate } from "@/lib/format";
 import { UsuarioFormDialog } from "./usuario-form-dialog";
 import { UsuarioEditDialog } from "./usuario-edit-dialog";
 import { TempPasswordDialog } from "./temp-password-dialog";
@@ -13,10 +14,6 @@ const ROLE_LABELS: Record<string, string> = {
   empleado: "Empleado",
   cliente: "Cliente",
 };
-
-function formatDate(date: Date) {
-  return new Intl.DateTimeFormat("es-AR", { dateStyle: "medium" }).format(date);
-}
 
 export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
   const [dialogOpen, setDialogOpen] = useState(false);

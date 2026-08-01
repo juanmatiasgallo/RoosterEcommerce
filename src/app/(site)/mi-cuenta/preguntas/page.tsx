@@ -1,12 +1,9 @@
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { getMyInquiries } from "@/lib/inquiries/actions";
+import { formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 export default async function MiCuentaPreguntasPage() {
   const inquiries = await getMyInquiries();

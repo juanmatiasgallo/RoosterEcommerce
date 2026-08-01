@@ -6,14 +6,11 @@ import { toast } from "sonner";
 import { MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { sendProductQuestion } from "@/lib/inquiries/actions";
+import { formatDateTime } from "@/lib/format";
 import type { productInquiries, productInquiryMessages } from "@/lib/db/schema";
 
 type Inquiry = typeof productInquiries.$inferSelect;
 type Message = typeof productInquiryMessages.$inferSelect;
-
-function formatDateTime(date: Date): string {
-  return new Date(date).toLocaleString("es-UY", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 function MessageBubble({ message }: { message: Message }) {
   const fromStaff = message.senderRole === "empleado";

@@ -2,11 +2,8 @@ import Link from "next/link";
 import { StarRating } from "@/components/star-rating";
 import { Badge } from "@/components/ui/badge";
 import { getProductReviews, getReviewEligibility } from "@/lib/reviews/actions";
+import { formatDate } from "@/lib/format";
 import { ReviewFormClient } from "./review-form-client";
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 export async function ProductReviews({ productId, productSlug }: { productId: string; productSlug: string }) {
   const [{ average, total, reviews }, eligibility] = await Promise.all([

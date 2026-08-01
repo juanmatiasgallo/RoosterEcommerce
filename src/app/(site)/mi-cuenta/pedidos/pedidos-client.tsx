@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
@@ -23,9 +23,6 @@ const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["varian
   cancelado: { label: "Cancelado", variant: "neutral" },
 };
 
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 type ManualOrderResult = { orderNumber: number; methodLabel: string; instructions: string };
 

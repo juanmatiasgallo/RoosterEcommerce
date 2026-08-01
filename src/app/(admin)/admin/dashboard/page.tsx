@@ -4,14 +4,10 @@ import { listProductsForAdmin } from "@/lib/catalog/actions";
 import { listCategoryTree } from "@/lib/catalog/queries";
 import { listCustomOrdersForAdmin } from "@/lib/custom-orders/actions";
 import { listOrdersForAdmin } from "@/lib/orders/actions";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DashboardStatCards } from "@/components/admin/dashboard-stat-cards";
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 // Consulta la DB: sin esto, el build de Docker en EasyPanel la
 // pre-renderiza en build time y falla (no tiene red hacia la base ahi).

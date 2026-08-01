@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Truck } from "lucide-react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { confirmManualPayment, setOrderTracking, updateOrderStatus, type AdminOrderRow } from "@/lib/orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
@@ -40,10 +40,6 @@ const NEXT_STATUS: Record<string, { value: AdvanceableStatus; label: string } | 
   postprocesado: { value: "enviado", label: "Marcar enviado" },
   enviado: { value: "entregado", label: "Marcar entregado" },
 };
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 // shippingAddress es jsonb sin tipo estricto en el schema (puede venir de
 // ordenes viejas sin este campo, o con forma distinta) — se lee con cuidado

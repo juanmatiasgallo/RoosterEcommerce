@@ -1,6 +1,6 @@
 import QRCode from "qrcode";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateFull } from "@/lib/format";
 import { orderReferenceCode } from "@/lib/orders/reference-code";
 import type { ShippingAddress } from "@/lib/orders/schema";
 
@@ -86,7 +86,7 @@ export async function generateReceiptPdf(orderId: string, data: ReceiptData): Pr
   text(`Comprobante de compra - Orden #${data.orderNumber}`, { size: 12, bold: true });
   text(`Codigo de referencia: ${orderReferenceCode(orderId)}`, { size: 10, bold: true, color: [0.85, 0.34, 0.05] });
   y -= 4;
-  text(`Fecha: ${data.createdAt.toLocaleDateString("es-UY", { year: "numeric", month: "long", day: "numeric" })}`);
+  text(`Fecha: ${formatDateFull(data.createdAt)}`);
   text(`Cliente: ${data.customerName}`);
   text(`Medio de pago: ${data.paymentMethodLabel}`);
   text(`Estado: ${data.statusLabel}`);

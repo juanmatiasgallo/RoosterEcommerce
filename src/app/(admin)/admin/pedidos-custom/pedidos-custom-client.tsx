@@ -1,14 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import type { AdminCustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge } from "@/components/ui/badge";
 import { CotizarFormDialog } from "./cotizar-form-dialog";
-
-function formatDate(date: Date): string {
-  return new Date(date).toLocaleDateString("es-UY", { year: "numeric", month: "short", day: "numeric" });
-}
 
 function FileLink({ order }: { order: AdminCustomOrderRow }) {
   return (
