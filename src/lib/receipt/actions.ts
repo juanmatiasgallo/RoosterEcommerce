@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { orderItems, orders, stores, users } from "@/lib/db/schema";
 import { generateReceiptQrDataUrl, type ReceiptData, type ReceiptItem } from "@/lib/receipt/pdf";
 import type { ShippingAddress } from "@/lib/orders/schema";
+import { resolveFileUrl } from "@/lib/storage";
 
 // Mismas labels que /mi-cuenta/compras y /admin/pedidos (duplicadas ahi
 // tambien) — no vale la pena centralizarlas en un modulo compartido todavia,
@@ -91,7 +92,10 @@ export async function getReceiptData(
     // receipt-upload.tsx. Nombrado distinto a getReceiptUrl() (de mas
     // arriba en este archivo, el link publico al comprobante para el QR)
     // para no confundir dos cosas totalmente distintas.
-    paymentReceiptUrl: row.order.receiptUrl,
+    //
+    // Resuelto aca (puede ser una key de MinIO, ver resolveFileUrl) porque
+    // este es el unico punto de lectura que alimenta a ReceiptUpload.
+    paymentReceiptUrl: await resolveFileUrl(row.order.receiptUrl),
   };
 }
 

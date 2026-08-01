@@ -1,8 +1,6 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
@@ -16,6 +14,7 @@ import { createPreference } from "@/lib/mercadopago/client";
 import { getAvailableManualPaymentMethods, type ManualPaymentMethod, type PaymentMethod } from "@/lib/orders/actions";
 import { getVacationStatus } from "@/lib/settings/actions";
 import { notify, notifyStaff } from "@/lib/notifications/notify";
+import { contentTypeForExtension, resolveFileUrl, uploadToStorage } from "@/lib/storage";
 import { CUSTOM_ORDER_ALLOWED_EXTENSIONS, createCustomOrderSchema, quoteCustomOrderSchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -68,23 +67,27 @@ export async function createCustomOrder(input: z.infer<typeof createCustomOrderS
     throw new Error(`El archivo supera el tamano maximo permitido (${maxSizeMb} MB).`);
   }
 
-  const uploadsDir = process.env.UPLOADS_DIR ?? "./public/uploads";
-  const customOrdersDir = path.resolve(uploadsDir, "custom-orders");
-  await mkdir(customOrdersDir, { recursive: true });
-
   // Nombre generado server-side (nunca el original del cliente) para evitar
   // path traversal y colisiones, mismo criterio que uploadProductImage en
   // catalog/actions.ts. El nombre original se guarda aparte solo para mostrar.
+  //
+  // El id se genera aca (en vez de dejar que Postgres lo autogenere con
+  // defaultRandom()) porque la key del objeto en MinIO necesita el id del
+  // pedido *antes* de insertar la fila -- mismo criterio de key con "carpeta
+  // por pedido" que uploadPaymentReceipt en orders/actions.ts.
+  const customOrderId = randomUUID();
   const filename = `${randomUUID()}.${ext}`;
+  const objectKey = `custom-orders/${customOrderId}/${filename}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(customOrdersDir, filename), buffer);
+  await uploadToStorage(objectKey, buffer, contentTypeForExtension(ext));
 
   const [created] = await db
     .insert(customOrders)
     .values({
+      id: customOrderId,
       storeId: session.user.storeId,
       userId: session.user.id,
-      fileUrl: `/uploads/custom-orders/${filename}`,
+      fileUrl: objectKey,
       fileName: file.name.slice(0, 255),
       material: data.material,
       color: data.color,
@@ -136,11 +139,17 @@ export async function getMyCustomOrders() {
     .where(eq(customOrders.userId, session.user.id))
     .orderBy(desc(customOrders.createdAt));
 
-  return rows.map((row) => ({
-    ...row.customOrder,
-    linkedOrderStatus: row.linkedOrderStatus,
-    linkedOrderNumber: row.linkedOrderNumber,
-  }));
+  // fileUrl puede ser una key de MinIO -- resolver a URL firmada aca (ver
+  // resolveFileUrl en lib/storage), mismo criterio que listOrdersForAdmin en
+  // orders/actions.ts.
+  return Promise.all(
+    rows.map(async (row) => ({
+      ...row.customOrder,
+      fileUrl: (await resolveFileUrl(row.customOrder.fileUrl)) ?? row.customOrder.fileUrl,
+      linkedOrderStatus: row.linkedOrderStatus,
+      linkedOrderNumber: row.linkedOrderNumber,
+    })),
+  );
 }
 
 export type CustomOrderRow = Awaited<ReturnType<typeof getMyCustomOrders>>[number];
@@ -152,7 +161,7 @@ export type CustomOrderRow = Awaited<ReturnType<typeof getMyCustomOrders>>[numbe
 export async function listCustomOrdersForAdmin() {
   const session = await requireStaff();
 
-  return db
+  const rows = await db
     .select()
     .from(customOrders)
     .where(
@@ -162,6 +171,10 @@ export async function listCustomOrdersForAdmin() {
       ),
     )
     .orderBy(desc(customOrders.createdAt));
+
+  return Promise.all(
+    rows.map(async (row) => ({ ...row, fileUrl: (await resolveFileUrl(row.fileUrl)) ?? row.fileUrl })),
+  );
 }
 
 // Tipo propio (distinto de CustomOrderRow): esta lectura no tiene el join a

@@ -1,8 +1,6 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
@@ -20,6 +18,7 @@ import { sendMail } from "@/lib/mail";
 import { formatCurrency } from "@/lib/format";
 import { getVacationStatus } from "@/lib/settings/actions";
 import { RECEIPT_ELIGIBLE_METHODS } from "@/lib/orders/receipt-eligibility";
+import { contentTypeForExtension, resolveFileUrl, uploadToStorage } from "@/lib/storage";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
 
@@ -558,7 +557,17 @@ export async function listOrdersForAdmin() {
     itemsByOrder.set(item.orderId, list);
   }
 
-  return orderRows.map((row) => ({ ...row, items: itemsByOrder.get(row.order.id) ?? [] }));
+  // receiptUrl puede ser una key de MinIO (bucket privado) -- se resuelve a
+  // una URL firmada aca, antes de pasarlo al client component, para que
+  // "Ver comprobante subido" en /admin/pedidos funcione sin tocar el
+  // componente cliente.
+  return Promise.all(
+    orderRows.map(async (row) => ({
+      ...row,
+      order: { ...row.order, receiptUrl: await resolveFileUrl(row.order.receiptUrl) },
+      items: itemsByOrder.get(row.order.id) ?? [],
+    })),
+  );
 }
 
 export type AdminOrderRow = Awaited<ReturnType<typeof listOrdersForAdmin>>[number];
@@ -831,17 +840,17 @@ export async function uploadPaymentReceipt(orderId: string, file: File) {
     throw new Error(`El archivo supera el tamano maximo permitido (${maxSizeMb} MB).`);
   }
 
-  const uploadsDir = process.env.UPLOADS_DIR ?? "./public/uploads";
-  const receiptsDir = path.resolve(uploadsDir, "receipts");
-  await mkdir(receiptsDir, { recursive: true });
-
+  // Key con el orderId como "carpeta": permite listar todos los comprobantes
+  // de un pedido filtrando por prefijo (ver listFilesByPrefix en
+  // lib/storage), sin mantener un indice aparte.
   const filename = `${randomUUID()}.${ext}`;
+  const objectKey = `receipts/${orderId}/${filename}`;
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(receiptsDir, filename), buffer);
+  await uploadToStorage(objectKey, buffer, contentTypeForExtension(ext));
 
   const [updated] = await db
     .update(orders)
-    .set({ receiptUrl: `/uploads/receipts/${filename}`, receiptUploadedAt: new Date() })
+    .set({ receiptUrl: objectKey, receiptUploadedAt: new Date() })
     .where(eq(orders.id, orderId))
     .returning();
 
@@ -863,5 +872,7 @@ export async function uploadPaymentReceipt(orderId: string, file: File) {
 
   revalidatePath("/admin/pedidos");
 
-  return { receiptUrl: updated.receiptUrl };
+  // Se devuelve ya resuelto (URL firmada si es de MinIO) para que el cliente
+  // pueda mostrarlo de una, sin un segundo viaje al server.
+  return { receiptUrl: await resolveFileUrl(updated.receiptUrl) };
 }

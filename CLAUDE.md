@@ -67,12 +67,18 @@ Mismo patron que ChickenHouseContab, adaptado:
 - **Puerto**: EasyPanel pisa `PORT` a **80**; el dominio apunta al puerto 80.
 - **NextAuth detras del reverse proxy**: requiere `AUTH_TRUST_HOST=true` y
   `AUTH_URL` con la URL publica https.
-- **Archivos subidos (STL/OBJ de pedidos a medida)**: van a un volumen
-  persistente montado en `/app/public/uploads` (ver `docker-compose.yml`,
-  servicio `uploads_data`). NO se guardan en la imagen del contenedor ni en
-  el filesystem efimero. Si el volumen de archivos crece mucho, migrar a
-  MinIO (self-hosted, S3-compatible) sin cambiar el resto del codigo — recien
-  ahi, no antes.
+- **Archivos subidos (comprobantes de pago y STL/OBJ de pedidos a medida)**:
+  van a MinIO (self-hosted, S3-compatible, bucket privado) via
+  `src/lib/storage`, misma VPS que `web`. Key con el id del pedido como
+  "carpeta" (`receipts/{orderId}/...`, `custom-orders/{customOrderId}/...`)
+  para poder listar archivos por pedido filtrando por prefijo. Las URLs que
+  ve el cliente son firmadas (`getSignedFileUrl`, vencen en 1h) porque el
+  bucket no es de lectura publica. Archivos subidos antes de esta migracion
+  pueden seguir sirviendo desde el volumen local viejo
+  (`/app/public/uploads`, `UPLOADS_DIR`) — `resolveFileUrl` distingue los dos
+  formatos por prefijo, no hace falta tocarlos a mano. Para migrarlos a
+  MinIO: `npm run uploads:migrate-to-minio` (correr una sola vez, adentro del
+  contenedor del VPS donde vive el volumen).
 - **Mercado Pago**: `MP_ACCESS_TOKEN`, `MP_PUBLIC_KEY`, `MP_WEBHOOK_SECRET`
   como variables de entorno en EasyPanel (toggle "Crear archivo .env"
   apagado). Usar credenciales de **test** en cualquier entorno que no sea
