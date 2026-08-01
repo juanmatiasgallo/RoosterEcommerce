@@ -53,7 +53,7 @@ export async function sendProductQuestion(input: z.infer<typeof askProductQuesti
   const data = askProductQuestionSchema.parse(input);
 
   const [product] = await db
-    .select({ id: products.id, name: products.name, storeId: products.storeId, slug: products.slug })
+    .select({ id: products.id, name: products.name, storeId: products.storeId, code: products.code })
     .from(products)
     .where(eq(products.id, data.productId))
     .limit(1);
@@ -76,7 +76,7 @@ export async function sendProductQuestion(input: z.infer<typeof askProductQuesti
     link: "/admin/preguntas",
   });
 
-  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath(`/producto/${product.code}`);
   revalidatePath("/mi-cuenta/preguntas");
   revalidatePath("/admin/preguntas");
 
@@ -95,7 +95,7 @@ export async function replyProductInquiry(input: z.infer<typeof replyInquirySche
   if (!inquiry) throw new Error("Consulta no encontrada.");
 
   const [product] = await db
-    .select({ name: products.name, slug: products.slug })
+    .select({ name: products.name, code: products.code })
     .from(products)
     .where(eq(products.id, inquiry.productId))
     .limit(1);
@@ -116,7 +116,7 @@ export async function replyProductInquiry(input: z.infer<typeof replyInquirySche
     link: "/mi-cuenta/preguntas",
   });
 
-  if (product) revalidatePath(`/producto/${product.slug}`);
+  if (product) revalidatePath(`/producto/${product.code}`);
   revalidatePath("/mi-cuenta/preguntas");
   revalidatePath("/admin/preguntas");
 
@@ -153,7 +153,7 @@ export async function getMyInquiries() {
   if (!session) throw new Error("Debes iniciar sesion.");
 
   const rows = await db
-    .select({ inquiry: productInquiries, productName: products.name, productSlug: products.slug })
+    .select({ inquiry: productInquiries, productName: products.name, productCode: products.code })
     .from(productInquiries)
     .innerJoin(products, eq(products.id, productInquiries.productId))
     .where(eq(productInquiries.customerId, session.user.id))
@@ -189,7 +189,7 @@ export async function listInquiriesForAdmin() {
     .select({
       inquiry: productInquiries,
       productName: products.name,
-      productSlug: products.slug,
+      productCode: products.code,
       customerName: users.name,
       customerEmail: users.email,
     })

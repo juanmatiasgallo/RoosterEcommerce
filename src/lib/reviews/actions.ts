@@ -112,7 +112,7 @@ async function hasVerifiedPurchase(userId: string, productId: string) {
 export async function createReview(
   productId: string,
   input: z.infer<typeof createReviewSchema>,
-  productSlug?: string,
+  productCode?: string,
   // Fotos opcionales que el cliente adjunta con la reseña (task #104). Se
   // suben aca mismo, en la misma llamada, en vez de un flujo separado tipo
   // uploadPaymentReceipt: una reseña no tiene una pantalla de edicion
@@ -187,7 +187,7 @@ export async function createReview(
     after: review,
   });
 
-  if (productSlug) revalidatePath(`/producto/${productSlug}`);
+  if (productCode) revalidatePath(`/producto/${productCode}`);
 
   return review;
 }

@@ -371,13 +371,18 @@ export async function listAvailableFilters(): Promise<AvailableFilters> {
 
 // cache() dedupea la query dentro del mismo request: generateMetadata y el
 // propio Server Component de la pagina de producto la llaman las dos.
-export const getProductBySlug = cache(async (slug: string) => {
+// Reemplaza a la vieja getProductBySlug (task #88): la ficha publica ahora
+// resuelve por codigo (/producto/[codigo]), no por slug -- el codigo es
+// mas facil de decir/anotar/buscar que un slug de texto libre, y viene
+// garantizado unico por la base (a diferencia del slug, que hoy es texto
+// libre tipeado a mano por el admin).
+export const getProductByCode = cache(async (code: string) => {
   const storeId = await getDefaultStoreId();
 
   const [product] = await db
     .select()
     .from(products)
-    .where(and(eq(products.slug, slug), eq(products.storeId, storeId), eq(products.active, true)))
+    .where(and(eq(products.code, code), eq(products.storeId, storeId), eq(products.active, true)))
     .limit(1);
 
   if (!product) return null;

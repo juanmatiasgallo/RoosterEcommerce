@@ -88,6 +88,7 @@ export function ProductoFormDialog(props: Props) {
     control,
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(productFormSchema),
@@ -243,8 +244,16 @@ export function ProductoFormDialog(props: Props) {
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/40" />
         <Dialog.Popup className="fixed top-1/2 left-1/2 max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-6 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
-          <Dialog.Title className="text-lg font-semibold">
+          <Dialog.Title className="flex items-center gap-2 text-lg font-semibold">
             {mode === "edit" ? "Editar producto" : "Nuevo producto"}
+            {/* Codigo publico (task #88): generado solo al crear, no editable
+                -- arma la URL de la ficha (/producto/[codigo]). Solo existe
+                una vez creado el producto, por eso no aparece en modo "create". */}
+            {mode === "edit" && (
+              <code className="rounded bg-accent/10 px-1.5 py-0.5 text-xs font-semibold text-accent">
+                {props.product.code}
+              </code>
+            )}
           </Dialog.Title>
 
           <form onSubmit={handleSubmit(onSubmit)} className="mt-4 flex flex-col gap-6">
@@ -410,7 +419,23 @@ export function ProductoFormDialog(props: Props) {
                       </div>
                       <div className="flex items-end gap-1">
                         <div className="flex-1">
-                          <label className="mb-0.5 block text-xs text-neutral-500">Codigo</label>
+                          <label className="mb-0.5 flex items-center gap-1 text-xs text-neutral-500">
+                            SKU
+                            {/* Codigo publico jerarquico (task #88): distinto del SKU de
+                                abajo (legacy, editable) -- solo existe si la variante ya
+                                esta creada, se busca por id en los datos originales del
+                                producto porque el id no esta registrado como input. */}
+                            {mode === "edit" &&
+                              (() => {
+                                const variantId = watch(`variants.${index}.id`);
+                                const code = props.product.variants.find((v) => v.id === variantId)?.code;
+                                return code ? (
+                                  <code className="rounded bg-accent/10 px-1 py-0.5 text-[10px] font-semibold text-accent">
+                                    {code}
+                                  </code>
+                                ) : null;
+                              })()}
+                          </label>
                           <input
                             placeholder="Auto"
                             {...register(`variants.${index}.sku`)}

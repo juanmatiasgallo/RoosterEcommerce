@@ -204,6 +204,15 @@ export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(),
   storeId: uuid("store_id").notNull().references(() => stores.id),
   slug: varchar("slug", { length: 220 }).notNull().unique(),
+  // Codigo publico unico (task #88, "SKU unificado"): PRD-0001, PRD-0002...
+  // Reemplaza al slug como identificador en la URL publica (/producto/[codigo])
+  // -- mas facil de decir por telefono, anotar en una etiqueta fisica, o
+  // buscar, que un slug de texto libre. Se genera solo (ver
+  // lib/catalog/code.ts, nextProductCode) via una secuencia de Postgres
+  // (product_code_seq, ver migracion) para que la asignacion sea atomica
+  // aunque haya altas concurrentes. El slug se mantiene en la tabla (uso
+  // interno/legacy) pero deja de usarse para armar rutas.
+  code: varchar("code", { length: 20 }).notNull().unique(),
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
   categoryId: uuid("category_id").references(() => categories.id),
@@ -271,6 +280,13 @@ export const productVariants = pgTable("product_variants", {
   compareAtPrice: numeric("compare_at_price", { precision: 12, scale: 2 }),
   stock: integer("stock").notNull().default(0),
   sku: varchar("sku", { length: 100 }),
+  // Codigo publico jerarquico (task #88): codigo del producto + sufijo tipo
+  // hoja de calculo (PRD-0001-A, PRD-0001-B, ..., PRD-0001-Z, PRD-0001-AA...).
+  // Se ve de un vistazo a que producto pertenece -- util para
+  // inventario/etiquetado fisico mas adelante. Se genera solo (ver
+  // lib/catalog/code.ts, nextVariantCode), no reemplaza a `sku` (que sigue
+  // siendo editable a mano/opcional, uso interno).
+  code: varchar("code", { length: 24 }).notNull().unique(),
   active: boolean("active").notNull().default(true),
 });
 

@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { archiveProduct, type AdminProductListItem } from "@/lib/catalog/actions";
+import { seedDemoCatalogAction } from "@/lib/catalog/seed-demo-actions";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import { Badge } from "@/components/ui/badge";
 import { ProductoFormDialog } from "./producto-form-dialog";
@@ -28,6 +29,25 @@ export function ProductosClient({
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [dialogState, setDialogState] = useState<DialogState>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  // Boton de una sola vez para poblar el catalogo con productos de
+  // demostracion (task #88/#139): idempotente por slug -- se puede apretar
+  // de nuevo sin duplicar nada, solo agrega lo que todavia no exista.
+  async function handleSeedDemo() {
+    setIsSeeding(true);
+    try {
+      const summary = await seedDemoCatalogAction();
+      toast.success(
+        `Catalogo demo: ${summary.productsCreated} productos nuevos, ${summary.productsSkipped} ya existian.`,
+      );
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo cargar el catalogo demo.");
+    } finally {
+      setIsSeeding(false);
+    }
+  }
 
   // Debounce ~300ms, mismo patron que el buscador del catalogo publico.
   useEffect(() => {
@@ -67,13 +87,23 @@ export function ProductosClient({
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-xl font-semibold">Productos</h1>
-        <button
-          type="button"
-          onClick={() => setDialogState({ mode: "create" })}
-          className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
-        >
-          Nuevo producto
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={handleSeedDemo}
+            disabled={isSeeding}
+            className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium hover:bg-neutral-100 disabled:opacity-50 dark:border-neutral-700 dark:hover:bg-neutral-800"
+          >
+            {isSeeding ? "Cargando..." : "Cargar catalogo demo"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDialogState({ mode: "create" })}
+            className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900"
+          >
+            Nuevo producto
+          </button>
+        </div>
       </div>
 
       <input
@@ -106,23 +136,30 @@ export function ProductosClient({
                   className="border-b border-neutral-100 transition-colors hover:bg-neutral-50 dark:border-neutral-900 dark:hover:bg-neutral-900/50"
                 >
                   <td className="py-2 pr-4">
-                    <div className="font-medium">{product.name}</div>
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium">{product.name}</div>
+                      {/* Codigo publico (task #88): identificador unico que ahora arma
+                          la URL de la ficha (/producto/[codigo]), reemplaza al slug
+                          para ese fin -- el slug se sigue mostrando abajo, uso interno. */}
+                      <code className="rounded bg-accent/10 px-1.5 py-0.5 text-xs font-semibold text-accent">
+                        {product.code}
+                      </code>
+                    </div>
                     <div className="text-xs text-neutral-500">{product.slug}</div>
                   </td>
                   <td className="py-2 pr-4">{formatCurrency(Number(product.basePrice))}</td>
                   <td className="py-2 pr-4">{product.variants.length}</td>
                   <td className="py-2 pr-4">
                     <div className="flex flex-wrap gap-1">
-                      {product.variants
-                        .filter((variant) => variant.sku)
-                        .map((variant) => (
-                          <code
-                            key={variant.id}
-                            className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
-                          >
-                            {variant.sku}
-                          </code>
-                        ))}
+                      {product.variants.map((variant) => (
+                        <code
+                          key={variant.id}
+                          title={variant.sku ? `SKU: ${variant.sku}` : undefined}
+                          className="rounded bg-neutral-100 px-1.5 py-0.5 text-xs text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+                        >
+                          {variant.code}
+                        </code>
+                      ))}
                     </div>
                   </td>
                   <td className="py-2 pr-4">

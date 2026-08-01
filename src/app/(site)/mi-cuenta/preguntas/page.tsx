@@ -23,10 +23,10 @@ export default async function MiCuentaPreguntasPage() {
         </p>
       ) : (
         <div className="mt-6 flex flex-col gap-3">
-          {inquiries.map(({ inquiry, productName, productSlug, lastMessage }) => (
+          {inquiries.map(({ inquiry, productName, productCode, lastMessage }) => (
             <Link
               key={inquiry.id}
-              href={`/producto/${productSlug}#preguntas`}
+              href={`/producto/${productCode}#preguntas`}
               className="rounded border border-neutral-200 p-4 transition-shadow hover:shadow-sm dark:border-neutral-800"
             >
               <div className="flex items-start justify-between gap-2">

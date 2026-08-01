@@ -5,7 +5,7 @@ import { getProductReviews, getReviewEligibility } from "@/lib/reviews/actions";
 import { formatDate } from "@/lib/format";
 import { ReviewFormClient } from "./review-form-client";
 
-export async function ProductReviews({ productId, productSlug }: { productId: string; productSlug: string }) {
+export async function ProductReviews({ productId, productCode }: { productId: string; productCode: string }) {
   const [{ average, total, reviews }, eligibility] = await Promise.all([
     getProductReviews(productId),
     getReviewEligibility(productId),
@@ -67,7 +67,7 @@ export async function ProductReviews({ productId, productSlug }: { productId: st
         </div>
 
         <div>
-          {eligibility.canReview && <ReviewFormClient productId={productId} productSlug={productSlug} />}
+          {eligibility.canReview && <ReviewFormClient productId={productId} productCode={productCode} />}
           {eligibility.reason === "already_reviewed" && (
             <p className="text-sm text-neutral-500 dark:text-neutral-400">Ya dejaste tu reseña de este producto.</p>
           )}

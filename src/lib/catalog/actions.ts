@@ -10,6 +10,7 @@ import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
 import { auditLogs, categories, productImages, products, productVariants } from "@/lib/db/schema";
+import { NEXT_PRODUCT_CODE_SQL, nextVariantCode } from "./code";
 import { listProducts, listProductsByIds } from "./queries";
 import {
   createCategorySchema,
@@ -154,6 +155,9 @@ export async function createProduct(input: z.infer<typeof createProductSchema>) 
     .values({
       storeId: session.user.storeId,
       slug: data.slug,
+      // Codigo publico (task #88): generado por la base via nextval(), no
+      // por el admin -- ver code.ts.
+      code: NEXT_PRODUCT_CODE_SQL,
       name: data.name,
       description: data.description,
       categoryId: data.categoryId,
@@ -209,7 +213,7 @@ export async function updateProduct(id: string, input: z.infer<typeof updateProd
   });
 
   revalidatePath("/");
-  revalidatePath(`/producto/${existing.slug}`);
+  revalidatePath(`/producto/${existing.code}`);
   revalidatePath("/admin/productos");
   return updated;
 }
@@ -237,7 +241,7 @@ export async function archiveProduct(id: string) {
   });
 
   revalidatePath("/");
-  revalidatePath(`/producto/${existing.slug}`);
+  revalidatePath(`/producto/${existing.code}`);
   revalidatePath("/admin/productos");
   return updated;
 }
@@ -267,10 +271,15 @@ export async function createVariant(input: z.infer<typeof createVariantSchema>) 
   const product = await getOwnedProduct(data.productId, session.user.storeId);
   if (!product) throw new Error("Producto no encontrado.");
 
+  // Codigo publico jerarquico (task #88): codigo del producto + sufijo,
+  // calculado antes del insert (ver nextVariantCode en code.ts).
+  const variantCode = await nextVariantCode(data.productId, product.code);
+
   const [created] = await db
     .insert(productVariants)
     .values({
       productId: data.productId,
+      code: variantCode,
       material: data.material,
       color: data.color,
       size: data.size,
@@ -282,7 +291,9 @@ export async function createVariant(input: z.infer<typeof createVariantSchema>) 
     .returning();
 
   // Sin sku manual: generamos uno ahora que ya tenemos el id real de la
-  // variante (ver generateVariantSku arriba).
+  // variante (ver generateVariantSku arriba). Distinto del `code` de arriba
+  // -- code es el identificador publico jerarquico, sku sigue siendo el
+  // campo legacy editable a mano (uso interno).
   let finalVariant = created;
   if (!data.sku) {
     const [withSku] = await db
@@ -302,7 +313,7 @@ export async function createVariant(input: z.infer<typeof createVariantSchema>) 
     after: finalVariant,
   });
 
-  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath(`/producto/${product.code}`);
   revalidatePath("/admin/productos");
   return finalVariant;
 }
@@ -347,7 +358,7 @@ export async function updateVariant(id: string, input: z.infer<typeof updateVari
     after: updated,
   });
 
-  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath(`/producto/${product.code}`);
   revalidatePath("/admin/productos");
   return updated;
 }
@@ -377,7 +388,7 @@ export async function archiveVariant(id: string) {
     after: updated,
   });
 
-  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath(`/producto/${product.code}`);
   revalidatePath("/admin/productos");
   return updated;
 }
@@ -582,7 +593,7 @@ export async function uploadProductImage(productId: string, file: File, position
     after: created,
   });
 
-  revalidatePath(`/producto/${product.slug}`);
+  revalidatePath(`/producto/${product.code}`);
   revalidatePath("/admin/productos");
   return created;
 }
@@ -627,7 +638,7 @@ export async function deleteProductImage(id: string) {
     before: owned.image,
   });
 
-  revalidatePath(`/producto/${owned.product.slug}`);
+  revalidatePath(`/producto/${owned.product.code}`);
   revalidatePath("/admin/productos");
   return { id };
 }

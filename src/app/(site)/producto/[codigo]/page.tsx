@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { findCategoryPath, getProductBySlug, listCategoryTree, listProducts } from "@/lib/catalog/queries";
+import { findCategoryPath, getProductByCode, listCategoryTree, listProducts } from "@/lib/catalog/queries";
 import { Breadcrumb, type BreadcrumbItem } from "../../breadcrumb";
 import { ProductCarousel } from "../../product-carousel";
 import { ProductDetailsTabs } from "./product-details-tabs";
@@ -26,15 +26,15 @@ function truncate(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
-// getProductBySlug esta cacheada (cache() de React) asi que llamarla aca y
+// getProductByCode esta cacheada (cache() de React) asi que llamarla aca y
 // de nuevo en el componente de la pagina no duplica la query real.
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ codigo: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const { codigo } = await params;
+  const product = await getProductByCode(codigo);
   if (!product) return {};
 
   const description = product.description
@@ -53,10 +53,10 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
+export default async function ProductPage({ params }: { params: Promise<{ codigo: string }> }) {
+  const { codigo } = await params;
 
-  const product = await getProductBySlug(slug);
+  const product = await getProductByCode(codigo);
   if (!product) notFound();
 
   const categoryTree = await listCategoryTree();
@@ -105,11 +105,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
       <RecentlyViewedCarousel productId={product.id} isLoggedIn={isLoggedIn} />
 
-      <ProductReviews productId={product.id} productSlug={product.slug} />
+      <ProductReviews productId={product.id} productCode={product.code} />
 
       <ProductInquiry
         productId={product.id}
-        productSlug={product.slug}
+        productCode={product.code}
         isLoggedIn={isLoggedIn}
         role={session?.user.role}
       />

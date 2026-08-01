@@ -9,12 +9,12 @@ import { ProductInquiryClient } from "./product-inquiry-client";
 // integrarse a ProductReviews.
 export async function ProductInquiry({
   productId,
-  productSlug,
+  productCode,
   isLoggedIn,
   role,
 }: {
   productId: string;
-  productSlug: string;
+  productCode: string;
   isLoggedIn: boolean;
   role?: string;
 }) {
@@ -32,7 +32,7 @@ export async function ProductInquiry({
         {isCliente ? (
           <ProductInquiryClient
             productId={productId}
-            productSlug={productSlug}
+            productCode={productCode}
             initialInquiry={thread?.inquiry ?? null}
             initialMessages={thread?.messages ?? []}
           />

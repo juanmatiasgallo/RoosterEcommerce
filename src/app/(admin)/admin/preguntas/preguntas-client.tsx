@@ -117,7 +117,7 @@ export function PreguntasClient({ inquiries }: { inquiries: AdminInquiryRow[] })
                 <p className="text-xs text-neutral-500">{selected.customerName ?? selected.customerEmail}</p>
               </div>
               <Link
-                href={`/producto/${selected.productSlug}`}
+                href={`/producto/${selected.productCode}`}
                 target="_blank"
                 className="flex shrink-0 items-center gap-1 text-xs text-neutral-500 underline"
               >

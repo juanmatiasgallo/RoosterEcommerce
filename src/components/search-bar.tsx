@@ -132,7 +132,7 @@ export function SearchBar() {
                 return (
                   <Link
                     key={product.id}
-                    href={`/producto/${product.slug}`}
+                    href={`/producto/${product.code}`}
                     onClick={close}
                     className="flex items-center gap-3 border-b border-neutral-100 p-3 text-sm last:border-b-0 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:bg-neutral-800/50"
                   >

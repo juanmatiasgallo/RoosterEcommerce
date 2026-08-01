@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { db } from "@/lib/db";
 import { stores, categories, products, productVariants } from "@/lib/db/schema";
+import { NEXT_PRODUCT_CODE_SQL, nextVariantCode } from "@/lib/catalog/code";
 
 async function main() {
   let [store] = await db.select().from(stores).limit(1);
@@ -28,6 +29,9 @@ async function main() {
     .values({
       storeId: store.id,
       slug: "figura-articulada-dragon",
+      // Codigo publico (task #88): requiere que la migracion que crea
+      // product_code_seq ya este aplicada contra la base de destino.
+      code: NEXT_PRODUCT_CODE_SQL,
       name: "Figura articulada dragon",
       description: "Dragon articulado impreso en una sola pieza, sin ensamblaje.",
       categoryId: categoriaHija.id,
@@ -35,11 +39,15 @@ async function main() {
     })
     .returning();
 
-  await db.insert(productVariants).values([
-    { productId: product.id, material: "PLA", color: "Rojo", size: "25cm", price: "890.00", stock: 5 },
-    { productId: product.id, material: "PLA", color: "Azul", size: "25cm", price: "890.00", stock: 3 },
-    { productId: product.id, material: "PETG", color: "Negro", size: "35cm", price: "1190.00", stock: 2 },
-  ]);
+  const seedVariants = [
+    { material: "PLA", color: "Rojo", size: "25cm", price: "890.00", stock: 5 },
+    { material: "PLA", color: "Azul", size: "25cm", price: "890.00", stock: 3 },
+    { material: "PETG", color: "Negro", size: "35cm", price: "1190.00", stock: 2 },
+  ];
+  for (const variant of seedVariants) {
+    const code = await nextVariantCode(product.id, product.code);
+    await db.insert(productVariants).values({ productId: product.id, code, ...variant });
+  }
 
   console.log("Seed completo.");
   process.exit(0);

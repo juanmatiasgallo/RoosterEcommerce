@@ -34,12 +34,12 @@ function MessageBubble({ message }: { message: Message }) {
 
 export function ProductInquiryClient({
   productId,
-  productSlug,
+  productCode,
   initialInquiry,
   initialMessages,
 }: {
   productId: string;
-  productSlug: string;
+  productCode: string;
   initialInquiry: Inquiry | null;
   initialMessages: Message[];
 }) {
@@ -104,11 +104,11 @@ export function ProductInquiryClient({
       )}
 
       <form onSubmit={handleSubmit} className="p-4">
-        <label htmlFor={`inquiry-${productSlug}`} className="text-sm font-medium">
+        <label htmlFor={`inquiry-${productCode}`} className="text-sm font-medium">
           {hasThread ? "Seguir la conversacion" : "Hacer una pregunta"}
         </label>
         <textarea
-          id={`inquiry-${productSlug}`}
+          id={`inquiry-${productCode}`}
           value={text}
           onChange={(event) => setText(event.target.value)}
           rows={2}

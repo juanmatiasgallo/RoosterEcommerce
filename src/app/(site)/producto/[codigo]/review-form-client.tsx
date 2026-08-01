@@ -11,7 +11,7 @@ import { createReviewSchema } from "@/lib/reviews/schema";
 
 const MAX_REVIEW_IMAGES = 5;
 
-export function ReviewFormClient({ productId, productSlug }: { productId: string; productSlug: string }) {
+export function ReviewFormClient({ productId, productCode }: { productId: string; productCode: string }) {
   const router = useRouter();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -53,7 +53,7 @@ export function ReviewFormClient({ productId, productSlug }: { productId: string
 
     setIsSubmitting(true);
     try {
-      await createReview(productId, parsed.data, productSlug, images);
+      await createReview(productId, parsed.data, productCode, images);
       toast.success("Gracias por tu reseña.");
       setRating(0);
       setComment("");
