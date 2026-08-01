@@ -51,6 +51,7 @@ import {
   type TelegramSettings,
 } from "@/lib/telegram/actions";
 import { TELEGRAM_PLACEHOLDER_HELP } from "@/lib/telegram/event-types";
+import { migrateUploadsToMinioAction } from "@/lib/storage/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -241,6 +242,17 @@ export function ConfiguracionClient({
           </p>
           <div className="mt-4">
             <GlitchTipTestCard />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold">Storage (MinIO)</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Migra a MinIO los comprobantes y archivos STL/OBJ que todavia estan en el volumen local viejo
+            (/uploads). Se puede correr las veces que haga falta -- solo toca lo que no fue migrado todavia.
+          </p>
+          <div className="mt-4">
+            <MigrateUploadsCard />
           </div>
         </section>
       </TabsPanel>
@@ -1357,6 +1369,65 @@ function GlitchTipTestCard() {
         <Button type="button" variant="outline" onClick={handleSendTestError} disabled={isSending}>
           {isSending ? "Enviando..." : "Probar notificacion de error"}
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MigrateUploadsCard() {
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof migrateUploadsToMinioAction>> | null>(null);
+
+  async function handleMigrate() {
+    setIsMigrating(true);
+    setResult(null);
+    try {
+      const summary = await migrateUploadsToMinioAction();
+      setResult(summary);
+      const total = summary.receipts.ok + summary.customOrderFiles.ok;
+      const failed = summary.receipts.failed + summary.customOrderFiles.failed;
+      if (failed === 0) {
+        toast.success(`${total} archivo(s) migrado(s) a MinIO.`);
+      } else {
+        toast.error(`${total} migrado(s), ${failed} con error. Ver detalle abajo.`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo migrar.");
+    } finally {
+      setIsMigrating(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Migrar archivos legacy a MinIO</p>
+            <p className="text-xs text-neutral-500">
+              Sube a MinIO lo que todavia esta en /uploads y actualiza los registros en la base.
+            </p>
+          </div>
+          <Button type="button" variant="outline" onClick={handleMigrate} disabled={isMigrating}>
+            {isMigrating ? "Migrando..." : "Migrar ahora"}
+          </Button>
+        </div>
+
+        {result && (
+          <div className="rounded border border-neutral-200 p-3 text-xs dark:border-neutral-800">
+            <p>
+              Comprobantes: {result.receipts.ok} migrados, {result.receipts.failed} con error.
+            </p>
+            <p>
+              Pedidos a medida: {result.customOrderFiles.ok} migrados, {result.customOrderFiles.failed} con error.
+            </p>
+            {[...result.receipts.errors, ...result.customOrderFiles.errors].map((err) => (
+              <p key={err} className="mt-1 text-red-600">
+                {err}
+              </p>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
