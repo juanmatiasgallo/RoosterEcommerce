@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { and, asc, desc, eq, ilike, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, exists, ilike, inArray, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { auth } from "@/auth";
@@ -77,7 +77,30 @@ export async function listProductsForAdmin(search?: string) {
 
   const conditions = [eq(products.storeId, session.user.storeId)];
   if (search) {
-    conditions.push(ilike(products.name, `%${search}%`));
+    // Mismo criterio que listProducts() (catalog/queries.ts): matchear
+    // tambien descripcion y SKU/material/color de variantes, no solo el
+    // nombre -- el admin necesita poder buscar un producto por su SKU.
+    const term = `%${search}%`;
+    const searchCondition = or(
+      ilike(products.name, term),
+      ilike(products.description, term),
+      exists(
+        db
+          .select({ id: productVariants.id })
+          .from(productVariants)
+          .where(
+            and(
+              eq(productVariants.productId, products.id),
+              or(
+                ilike(productVariants.sku, term),
+                ilike(productVariants.material, term),
+                ilike(productVariants.color, term),
+              ),
+            ),
+          ),
+      ),
+    );
+    if (searchCondition) conditions.push(searchCondition);
   }
 
   const matched = await db

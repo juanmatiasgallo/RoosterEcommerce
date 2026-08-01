@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { and, asc, avg, count, desc, eq, exists, gt, gte, ilike, inArray, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, avg, count, desc, eq, exists, gt, gte, ilike, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { categories, productImages, productReviews, products, productVariants } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
@@ -79,8 +79,35 @@ export async function listProducts(params: ListProductsParams = {}) {
   const storeId = await getDefaultStoreId();
   const conditions = [eq(products.storeId, storeId), eq(products.active, true)];
 
+  // Antes solo matcheaba products.name -- buscar por SKU, material o color
+  // (ej. "PLA", "azul", el codigo de una variante) no traia nada. Se amplia
+  // a nombre + descripcion + EXISTS contra variantes activas (mismo patron
+  // EXISTS que el filtro de material/color unas lineas mas abajo), sin
+  // sumar infra nueva (planificacion Typesense: con el volumen actual esto
+  // alcanza, se reevalua mas adelante con datos reales).
   if (params.search) {
-    conditions.push(ilike(products.name, `%${params.search}%`));
+    const term = `%${params.search}%`;
+    const searchCondition = or(
+      ilike(products.name, term),
+      ilike(products.description, term),
+      exists(
+        db
+          .select({ id: productVariants.id })
+          .from(productVariants)
+          .where(
+            and(
+              eq(productVariants.productId, products.id),
+              eq(productVariants.active, true),
+              or(
+                ilike(productVariants.sku, term),
+                ilike(productVariants.material, term),
+                ilike(productVariants.color, term),
+              ),
+            ),
+          ),
+      ),
+    );
+    if (searchCondition) conditions.push(searchCondition);
   }
 
   if (params.categoryId) {
