@@ -37,7 +37,7 @@ SELECT setval('product_code_seq', (SELECT COUNT(*) FROM "products"), true);--> s
 -- producto). Las variantes creadas DESPUES de esta migracion usan
 -- nextVariantCode() en la app, que si soporta mas de 26 (AA, AB...).
 UPDATE "product_variants" v
-SET "code" = p.code || '-' || chr(64 + sub.rn)
+SET "code" = p.code || '-' || chr((64 + sub.rn)::int)
 FROM (
   SELECT id, product_id, row_number() OVER (PARTITION BY product_id ORDER BY id) AS rn
   FROM "product_variants"
