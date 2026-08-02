@@ -34,11 +34,14 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 /**
- * Datos para el comprobante (pagina web + PDF) de una compra del catalogo.
+ * Datos para el comprobante (pagina web + PDF) de una orden, de catalogo o
+ * de pedido a medida (task: "completar flujo de pedido a medida" -- antes
+ * esto filtraba source="catalogo" a proposito porque en ese momento un
+ * pedido a medida pagado con medio manual no tenia forma de subir el
+ * comprobante desde la app; ahora si, via el link que arma pedidos-client
+ * a partir de linkedOrderId, ver getMyCustomOrders en custom-orders/actions.ts).
  * Scoped al usuario logueado — mismo criterio que getMyOrders. Devuelve
- * null si la orden no existe, no es del usuario, o no es una compra de
- * catalogo (los pedidos a medida no tienen este comprobante, ver
- * getMyOrders en orders/actions.ts).
+ * null si la orden no existe o no es del usuario.
  */
 export async function getReceiptData(
   orderId: string,
@@ -51,7 +54,7 @@ export async function getReceiptData(
     .from(orders)
     .innerJoin(users, eq(users.id, orders.userId))
     .innerJoin(stores, eq(stores.id, orders.storeId))
-    .where(and(eq(orders.id, orderId), eq(orders.userId, session.user.id), eq(orders.source, "catalogo")))
+    .where(and(eq(orders.id, orderId), eq(orders.userId, session.user.id)))
     .limit(1);
   if (!row) return null;
 
@@ -72,6 +75,7 @@ export async function getReceiptData(
     statusLabel: STATUS_LABELS[row.order.status] ?? row.order.status,
     paymentMethod: row.order.paymentMethod,
     paymentMethodLabel: PAYMENT_METHOD_LABELS[row.order.paymentMethod] ?? row.order.paymentMethod,
+    source: row.order.source,
     items: receiptItems,
     shippingCost: row.order.shippingCost,
     discountAmount: row.order.discountAmount,

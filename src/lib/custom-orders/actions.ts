@@ -131,6 +131,7 @@ export async function getMyCustomOrders() {
   const rows = await db
     .select({
       customOrder: customOrders,
+      linkedOrderId: orders.id,
       linkedOrderStatus: orders.status,
       linkedOrderNumber: orders.orderNumber,
     })
@@ -146,6 +147,7 @@ export async function getMyCustomOrders() {
     rows.map(async (row) => ({
       ...row.customOrder,
       fileUrl: (await resolveFileUrl(row.customOrder.fileUrl)) ?? row.customOrder.fileUrl,
+      linkedOrderId: row.linkedOrderId,
       linkedOrderStatus: row.linkedOrderStatus,
       linkedOrderNumber: row.linkedOrderNumber,
     })),
@@ -374,6 +376,13 @@ export async function initiateCustomOrderPayment(id: string, paymentMethod: Paym
     // ya existente.
     if (!existingOrder && session.user.email) {
       try {
+        // Link directo al comprobante (mismo criterio que getReceiptUrl en
+        // receipt/pdf.ts): antes esta orden no tenia ninguna pagina donde
+        // subir el comprobante (getReceiptData excluia source=pedido_custom
+        // a proposito), asi que el mail solo decia "anda a /mi-cuenta/pedidos"
+        // sin explicar el siguiente paso. Ahora /mi-cuenta/compras/[id] ya
+        // acepta esta orden y tiene el widget de subida (ver ReceiptUpload).
+        const receiptLink = `${process.env.AUTH_URL ?? ""}/mi-cuenta/compras/${order.id}`;
         await sendMail({
           storeId: session.user.storeId,
           to: session.user.email,
@@ -384,7 +393,8 @@ export async function initiateCustomOrderPayment(id: string, paymentMethod: Paym
             "",
             manualMethod.instructions,
             "",
-            "En cuanto confirmemos que el pago llego, vas a ver la orden actualizada en tu cuenta (/mi-cuenta/pedidos).",
+            `Una vez que hagas el pago, subi el comprobante desde: ${receiptLink}`,
+            "En cuanto lo confirmemos, vas a ver la orden actualizada en tu cuenta (/mi-cuenta/pedidos).",
           ].join("\n"),
         });
       } catch {

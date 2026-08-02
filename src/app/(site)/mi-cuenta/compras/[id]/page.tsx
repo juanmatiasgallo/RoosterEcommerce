@@ -19,11 +19,14 @@ import { PostPurchaseFollow } from "@/components/post-purchase-follow";
 export const dynamic = "force-dynamic";
 
 /**
- * Comprobante de una compra de catalogo: pagina web con QR (task #103),
- * plantilla propia (task #6, ver order-receipt-card.tsx) que el cliente
- * puede ver desde /mi-cuenta/compras o desde el link que se le manda por
- * mail al confirmarse el pago. El mismo QR y los mismos datos se usan para
- * el PDF descargable, generado en /api/pedidos/[id]/recibo.pdf.
+ * Comprobante de una orden (catalogo o pedido a medida ya cotizado):
+ * pagina web con QR (task #103), plantilla propia (task #6, ver
+ * order-receipt-card.tsx). El cliente llega aca desde /mi-cuenta/compras
+ * (catalogo), desde /mi-cuenta/pedidos (pedido a medida, ver
+ * pedidos-client.tsx), o desde el link que se le manda por mail al
+ * confirmarse el pago o al generar una orden de servicio. El mismo QR y
+ * los mismos datos se usan para el PDF descargable, generado en
+ * /api/pedidos/[id]/recibo.pdf.
  */
 export default async function ComprobanteCompraPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,6 +48,11 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
   // que el admin confirme el pago" -- ver comentario en OrderStatusTracker.
   const receiptEligible = isReceiptUploadEligible(receipt.paymentMethod, receipt.status);
   const awaitingReceiptUpload = receiptEligible && !receipt.paymentReceiptUrl;
+  // Esta pagina ahora tambien sirve comprobantes de pedidos a medida (antes
+  // getReceiptData los excluia) -- el "volver" tiene que ir a la lista
+  // correcta segun de donde viene la orden, no siempre a /mi-cuenta/compras.
+  const backHref = receipt.source === "pedido_custom" ? "/mi-cuenta/pedidos" : "/mi-cuenta/compras";
+  const backLabel = receipt.source === "pedido_custom" ? "← Volver a mis pedidos" : "← Volver a mis compras";
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
@@ -57,8 +65,8 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
       />
 
       <div className="flex items-center justify-between gap-2">
-        <Link href="/mi-cuenta/compras" className="text-sm text-neutral-500 underline">
-          ← Volver a mis compras
+        <Link href={backHref} className="text-sm text-neutral-500 underline">
+          {backLabel}
         </Link>
         <a
           href={`/api/pedidos/${id}/recibo.pdf`}

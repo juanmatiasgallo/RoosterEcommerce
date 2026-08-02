@@ -106,12 +106,14 @@ export async function markOrderAsPaid(params: {
     link: "/mi-cuenta/pedidos",
   });
 
-  // Talon-comprobante con QR por mail (task #103) -- solo para compras de
-  // catalogo, que son las que tienen pagina de comprobante en
-  // /mi-cuenta/compras/[id] (getReceiptData filtra por source="catalogo").
+  // Talon-comprobante con QR por mail (task #103), tanto para compras de
+  // catalogo como para pedidos a medida ya pagados -- antes esto se
+  // mandaba solo para "catalogo" porque getReceiptData filtraba por ese
+  // source (la pagina de comprobante 404eaba para pedido_custom); ahora
+  // /mi-cuenta/compras/[id] acepta las dos, asi que el mail tambien.
   // Resiliente: nunca bloquea la confirmacion del pago si el mail o el PDF
   // fallan, mismo criterio que el resto de los mails de este flujo.
-  if (order.source === "catalogo") {
+  {
     try {
       const [customer] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, order.userId)).limit(1);
       const [store] = await db.select({ name: stores.name }).from(stores).where(eq(stores.id, order.storeId)).limit(1);
@@ -133,6 +135,7 @@ export async function markOrderAsPaid(params: {
           statusLabel: "Pago confirmado",
           paymentMethod: order.paymentMethod,
           paymentMethodLabel: PAYMENT_METHOD_LABELS[order.paymentMethod] ?? order.paymentMethod,
+          source: order.source,
           items: receiptItems,
           shippingCost: order.shippingCost,
           discountAmount: order.discountAmount,

@@ -775,33 +775,12 @@ export async function confirmManualPayment(id: string) {
 
   const updated = await markOrderAsPaid({ orderId: id, actorUserId: session.user.id });
 
-  // Aviso al cliente de que su pago manual quedo confirmado — antes de esto
-  // el unico mail que recibia era el de instrucciones al crear la orden, no
-  // habia ninguna confirmacion de que el admin ya lo verifico. Resiliente
-  // (no bloquea la confirmacion si el mail falla).
-  //
-  // Solo para pedido_custom: las ordenes "catalogo" ya reciben un mail mas
-  // completo (comprobante en PDF con QR, ver getReceiptUrl) desde el propio
-  // markOrderAsPaid de arriba — mandar este tambien seria un mail duplicado
-  // para el mismo evento.
-  if (existing.source !== "catalogo") {
-    try {
-      const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
-      if (customer) {
-        await sendMail({
-          storeId: session.user.storeId,
-          to: customer.email,
-          subject: `Pago confirmado — orden #${updated.orderNumber}`,
-          text: [
-            `Confirmamos que recibimos el pago de tu orden #${updated.orderNumber} por ${formatCurrency(Number(updated.total))}.`,
-            "Nos vamos a poner en contacto para coordinar la entrega.",
-          ].join("\n\n"),
-        });
-      }
-    } catch {
-      // No-op: mismo criterio de resiliencia que el resto de los mails.
-    }
-  }
+  // El aviso de "pago confirmado" al cliente ya lo manda markOrderAsPaid
+  // (comprobante en PDF con QR, ver getReceiptUrl) para cualquier source
+  // desde que /mi-cuenta/compras/[id] acepta tambien pedido_custom -- antes
+  // habia un mail mas simple aca, solo para pedido_custom, porque ese mail
+  // de arriba se mandaba unicamente para "catalogo"; ahora mandarlo aca
+  // tambien seria un mail duplicado para el mismo evento.
 
   revalidatePath("/admin/pedidos");
   revalidatePath("/admin/dashboard");

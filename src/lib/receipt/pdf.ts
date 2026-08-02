@@ -25,6 +25,11 @@ export type ReceiptData = {
   statusLabel: string;
   paymentMethod: string;
   paymentMethodLabel: string;
+  // "catalogo" | "pedido_custom" (ver orderSourceEnum en db/schema.ts) --
+  // la pagina del comprobante lo usa solo para decidir a donde vuelve el
+  // link "Volver" (/mi-cuenta/compras vs /mi-cuenta/pedidos), no cambia el
+  // contenido del comprobante en si.
+  source: string;
   items: ReceiptItem[];
   shippingCost: string;
   discountAmount: string;

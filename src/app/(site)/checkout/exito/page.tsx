@@ -20,15 +20,15 @@ export default async function CheckoutExitoPage({
 }: {
   searchParams: Promise<{ orderId?: string; external_reference?: string }>;
 }) {
-  // Al volver de Mercado Pago (task #39), si la orden es una compra de
-  // catalogo del usuario logueado la llevamos directo a su ticket (mismo
-  // comprobante imprimible que ya existe en /mi-cuenta/compras/[id], con
-  // QR y estado en vivo) en vez de mostrar solo un mensaje generico.
-  // getReceiptData ya filtra por sesion + source "catalogo" -- si la orden
-  // es de otro usuario, no es de catalogo (pedido a medida), o el pago
-  // todavia no se confirmo por webhook, el comprobante igual existe (con
-  // status "pendiente_pago"/"pendiente_confirmacion") y el tracker lo
-  // muestra bien, asi que redirigir siempre que haya id es seguro.
+  // Al volver de Mercado Pago (task #39), si la orden es del usuario
+  // logueado (catalogo o pedido a medida ya cotizado) la llevamos directo a
+  // su ticket (mismo comprobante imprimible que ya existe en
+  // /mi-cuenta/compras/[id], con QR y estado en vivo) en vez de mostrar
+  // solo un mensaje generico. getReceiptData ya filtra por sesion -- si la
+  // orden es de otro usuario, no existe, o el pago todavia no se confirmo
+  // por webhook, el comprobante igual existe (con status
+  // "pendiente_pago"/"pendiente_confirmacion") y el tracker lo muestra
+  // bien, asi que redirigir siempre que haya id es seguro.
   const params = await searchParams;
   const orderId = params.orderId || params.external_reference;
   if (orderId) {

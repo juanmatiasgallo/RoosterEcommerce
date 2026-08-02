@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
@@ -128,6 +129,15 @@ export function PedidosClient({
             {hasLinkedOrder && (
               <div className="mt-4">
                 <OrderStatusTracker status={order.linkedOrderStatus!} />
+                {/* Antes esta pantalla no tenia forma de llegar al comprobante
+                    (getReceiptData excluia pedido_custom a proposito) -- ahora
+                    /mi-cuenta/compras/[id] ya acepta esta orden, incluido el
+                    widget de subida cuando el medio de pago es manual. */}
+                {order.linkedOrderId && (
+                  <Link href={`/mi-cuenta/compras/${order.linkedOrderId}`} className="mt-2 inline-block text-sm underline">
+                    {order.linkedOrderStatus === "pendiente_confirmacion" ? "Subir comprobante" : "Ver comprobante"}
+                  </Link>
+                )}
               </div>
             )}
 
