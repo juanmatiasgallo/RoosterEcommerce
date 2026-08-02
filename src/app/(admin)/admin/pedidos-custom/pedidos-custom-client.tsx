@@ -98,8 +98,18 @@ export function PedidosCustomClient({
                 {order.quotedNotes && (
                   <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">{order.quotedNotes}</p>
                 )}
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-3">
                   <FileLink order={order} />
+                  {order.quotePdfUrl && (
+                    <a
+                      href={order.quotePdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 underline hover:text-blue-800 dark:text-blue-400"
+                    >
+                      Ver presupuesto (PDF)
+                    </a>
+                  )}
                 </div>
               </div>
             ))}

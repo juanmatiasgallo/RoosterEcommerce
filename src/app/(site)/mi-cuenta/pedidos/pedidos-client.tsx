@@ -149,6 +149,16 @@ export function PedidosClient({
                 {order.quotedNotes && (
                   <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">{order.quotedNotes}</p>
                 )}
+                {order.quotePdfUrl && (
+                  <a
+                    href={order.quotePdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-blue-700 underline dark:text-blue-400"
+                  >
+                    Ver presupuesto detallado (PDF)
+                  </a>
+                )}
                 <CotizadoActions order={order} manualPaymentMethods={manualPaymentMethods} />
               </div>
             )}

@@ -539,6 +539,13 @@ export const customOrders = pgTable("custom_orders", {
   quotedPrice: numeric("quoted_price", { precision: 12, scale: 2 }),
   quotedNotes: text("quoted_notes"),
   quotedAt: timestamp("quoted_at"),
+  // PDF de presupuesto (task #149): el admin arma el detalle en otra app de
+  // facturacion (ChickenHouseContab) y lo adjunta aca -- opcional, el precio
+  // (quotedPrice arriba) sigue siendo obligatorio y es lo unico que el
+  // sistema usa para cobrar (nunca se lee un monto del PDF). key de MinIO,
+  // igual criterio que customOrders.fileUrl (resolver con resolveFileUrl).
+  quotePdfUrl: varchar("quote_pdf_url", { length: 300 }),
+  quotePdfName: varchar("quote_pdf_name", { length: 255 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

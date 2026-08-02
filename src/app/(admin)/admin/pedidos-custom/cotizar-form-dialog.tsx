@@ -13,6 +13,8 @@ type FormValues = z.infer<typeof quoteCustomOrderSchema>;
 
 export function CotizarFormDialog({ order, onClose }: { order: AdminCustomOrderRow; onClose: () => void }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [quoteFile, setQuoteFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const {
     register,
@@ -23,10 +25,20 @@ export function CotizarFormDialog({ order, onClose }: { order: AdminCustomOrderR
     defaultValues: { quotedNotes: "" },
   });
 
+  function handleFileChange(selected: File | null) {
+    setFileError(null);
+    if (selected && selected.name.split(".").pop()?.toLowerCase() !== "pdf") {
+      setQuoteFile(null);
+      setFileError("El presupuesto adjunto tiene que ser un PDF.");
+      return;
+    }
+    setQuoteFile(selected);
+  }
+
   async function onSubmit(values: FormValues) {
     setIsSubmitting(true);
     try {
-      const result = await quoteCustomOrder(order.id, values);
+      const result = await quoteCustomOrder(order.id, values, quoteFile);
       if (result.emailSent) {
         toast.success("Cotizacion guardada y mail enviado al cliente.");
       } else {
@@ -80,6 +92,24 @@ export function CotizarFormDialog({ order, onClose }: { order: AdminCustomOrderR
                 {...register("quotedNotes")}
                 className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
               />
+            </div>
+
+            <div>
+              <label htmlFor="quotePdf" className="mb-1 block text-sm font-medium">
+                Presupuesto en PDF (opcional)
+              </label>
+              <p className="mb-1.5 text-xs text-neutral-500">
+                Si lo armaste en ChickenHouseContab u otra app, adjuntalo aca -- el cliente lo va a poder ver junto
+                al precio.
+              </p>
+              <input
+                id="quotePdf"
+                type="file"
+                accept=".pdf"
+                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                className="w-full text-sm file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-neutral-200 file:px-3 file:py-1.5 file:text-sm file:font-medium dark:file:bg-neutral-800"
+              />
+              {fileError && <p className="mt-1 text-xs text-red-600">{fileError}</p>}
             </div>
 
             <div className="flex justify-end gap-2">

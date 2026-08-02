@@ -140,13 +140,14 @@ export async function getMyCustomOrders() {
     .where(eq(customOrders.userId, session.user.id))
     .orderBy(desc(customOrders.createdAt));
 
-  // fileUrl puede ser una key de MinIO -- resolver a URL firmada aca (ver
-  // resolveFileUrl en lib/storage), mismo criterio que listOrdersForAdmin en
-  // orders/actions.ts.
+  // fileUrl y quotePdfUrl pueden ser una key de MinIO -- resolver a URL
+  // firmada aca (ver resolveFileUrl en lib/storage), mismo criterio que
+  // listOrdersForAdmin en orders/actions.ts.
   return Promise.all(
     rows.map(async (row) => ({
       ...row.customOrder,
       fileUrl: (await resolveFileUrl(row.customOrder.fileUrl)) ?? row.customOrder.fileUrl,
+      quotePdfUrl: row.customOrder.quotePdfUrl ? await resolveFileUrl(row.customOrder.quotePdfUrl) : null,
       linkedOrderId: row.linkedOrderId,
       linkedOrderStatus: row.linkedOrderStatus,
       linkedOrderNumber: row.linkedOrderNumber,
@@ -175,7 +176,11 @@ export async function listCustomOrdersForAdmin() {
     .orderBy(desc(customOrders.createdAt));
 
   return Promise.all(
-    rows.map(async (row) => ({ ...row, fileUrl: (await resolveFileUrl(row.fileUrl)) ?? row.fileUrl })),
+    rows.map(async (row) => ({
+      ...row,
+      fileUrl: (await resolveFileUrl(row.fileUrl)) ?? row.fileUrl,
+      quotePdfUrl: row.quotePdfUrl ? await resolveFileUrl(row.quotePdfUrl) : null,
+    })),
   );
 }
 
@@ -184,7 +189,15 @@ export async function listCustomOrdersForAdmin() {
 // orden real vinculada), asi que no trae linkedOrderStatus/linkedOrderNumber.
 export type AdminCustomOrderRow = Awaited<ReturnType<typeof listCustomOrdersForAdmin>>[number];
 
-export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCustomOrderSchema>) {
+// PDF opcional: el precio (quotedPrice) sigue siendo el unico dato que el
+// sistema usa para cobrar -- este archivo es solo el presupuesto detallado
+// que el admin arma en ChickenHouseContab (otra app de facturacion), para
+// que el cliente lo pueda ver/descargar junto a la cotizacion.
+export async function quoteCustomOrder(
+  id: string,
+  input: z.infer<typeof quoteCustomOrderSchema>,
+  quoteFile?: File | null,
+) {
   const session = await requireStaff();
   const data = quoteCustomOrderSchema.parse(input);
 
@@ -201,6 +214,26 @@ export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCu
     throw new Error(`Este pedido ya esta en estado "${existing.status}", no se puede volver a cotizar.`);
   }
 
+  let quotePdfUrl: string | undefined;
+  let quotePdfName: string | undefined;
+  if (quoteFile && quoteFile.size > 0) {
+    const ext = quoteFile.name.split(".").pop()?.toLowerCase() ?? "";
+    if (ext !== "pdf") throw new Error("El presupuesto adjunto tiene que ser un PDF.");
+
+    const maxSizeMb = Number(process.env.UPLOADS_MAX_SIZE_MB ?? 20);
+    if (quoteFile.size > maxSizeMb * 1024 * 1024) {
+      throw new Error(`El archivo supera el tamano maximo permitido (${maxSizeMb} MB).`);
+    }
+
+    // Key con el id del pedido como "carpeta", mismo criterio que fileUrl en
+    // createCustomOrder de arriba.
+    const objectKey = `custom-orders/${id}/quote-${randomUUID()}.pdf`;
+    const buffer = Buffer.from(await quoteFile.arrayBuffer());
+    await uploadToStorage(objectKey, buffer, contentTypeForExtension("pdf"));
+    quotePdfUrl = objectKey;
+    quotePdfName = quoteFile.name.slice(0, 255);
+  }
+
   const [updated] = await db
     .update(customOrders)
     .set({
@@ -208,6 +241,7 @@ export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCu
       quotedNotes: data.quotedNotes,
       quotedAt: new Date(),
       status: "cotizado",
+      ...(quotePdfUrl && { quotePdfUrl, quotePdfName }),
     })
     .where(eq(customOrders.id, id))
     .returning();
@@ -238,6 +272,7 @@ export async function quoteCustomOrder(id: string, input: z.infer<typeof quoteCu
         `Tu pedido a medida ("${updated.fileName}") ya tiene una cotizacion lista.`,
         `Precio: ${formatCurrency(Number(updated.quotedPrice))}`,
         updated.quotedNotes ? `Notas: ${updated.quotedNotes}` : null,
+        updated.quotePdfUrl ? "Te dejamos el presupuesto detallado en PDF, disponible en tu cuenta." : null,
         "Podes verlo en tu cuenta: /mi-cuenta/pedidos",
       ].filter((line): line is string => Boolean(line));
 
