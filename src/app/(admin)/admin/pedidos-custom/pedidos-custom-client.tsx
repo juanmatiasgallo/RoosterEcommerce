@@ -95,6 +95,9 @@ export function PedidosCustomClient({
                 <p className="mt-2 text-sm font-medium">
                   {order.quotedPrice ? formatCurrency(Number(order.quotedPrice)) : "-"}
                 </p>
+                {order.quoteValidUntil && (
+                  <p className="mt-1 text-xs text-neutral-500">Valido hasta el {formatDate(order.quoteValidUntil)}</p>
+                )}
                 {order.quotedNotes && (
                   <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">{order.quotedNotes}</p>
                 )}

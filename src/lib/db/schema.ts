@@ -516,12 +516,19 @@ export const cartItems = pgTable(
 export const customOrderStatusEnum = pgEnum("custom_order_status", [
   "pendiente",   // el cliente lo envio, esperando cotizacion
   "cotizado",    // el admin le puso precio, esperando que el cliente pague
+  // Paso automatico (task #152): si quoteValidUntil ya paso y el cliente
+  // nunca pago, la cotizacion se marca vencida sola (ver expireStaleQuotes
+  // en custom-orders/actions.ts, se corre de forma perezosa en cada lectura
+  // -- no hay un cron aparte, coherente con "gastos operativos = solo el
+  // VPS"). Distinto de "cancelado": ahi es el cliente decidiendo activamente
+  // que no le interesa, aca es que se le paso el plazo sin responder.
+  "vencido",
   "pagado",      // Mercado Pago confirmo el pago (via webhook)
   "en_impresion",
   "listo",
   "entregado",
   "rechazado",   // el admin decide que no se puede cotizar/imprimir
-  "cancelado",   // el cliente lo cancelo antes de pagar
+  "cancelado",   // el cliente lo cancelo antes de pagar (o decidio "no me interesa" sobre una cotizacion)
 ]);
 
 export const customOrders = pgTable("custom_orders", {
@@ -546,6 +553,10 @@ export const customOrders = pgTable("custom_orders", {
   // igual criterio que customOrders.fileUrl (resolver con resolveFileUrl).
   quotePdfUrl: varchar("quote_pdf_url", { length: 300 }),
   quotePdfName: varchar("quote_pdf_name", { length: 255 }),
+  // Plazo del presupuesto (task #152): opcional -- si el admin no carga
+  // fecha, la cotizacion no vence sola (queda igual que el comportamiento
+  // de antes). Se compara contra quotedPrice/status en expireStaleQuotes.
+  quoteValidUntil: timestamp("quote_valid_until"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

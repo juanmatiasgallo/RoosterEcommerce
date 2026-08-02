@@ -95,6 +95,23 @@ export function CotizarFormDialog({ order, onClose }: { order: AdminCustomOrderR
             </div>
 
             <div>
+              <label htmlFor="quoteValidUntil" className="mb-1 block text-sm font-medium">
+                Valido hasta (opcional)
+              </label>
+              <p className="mb-1.5 text-xs text-neutral-500">
+                Si el cliente no paga antes de esta fecha, la cotizacion se marca vencida sola.
+              </p>
+              <input
+                id="quoteValidUntil"
+                type="date"
+                min={new Date().toISOString().slice(0, 10)}
+                {...register("quoteValidUntil")}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              />
+              {errors.quoteValidUntil && <p className="mt-1 text-xs text-red-600">{errors.quoteValidUntil.message}</p>}
+            </div>
+
+            <div>
               <label htmlFor="quotePdf" className="mb-1 block text-sm font-medium">
                 Presupuesto en PDF (opcional)
               </label>

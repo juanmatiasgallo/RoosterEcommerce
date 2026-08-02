@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
-import { initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
+import { declineCustomOrderQuote, initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
 import {
@@ -17,6 +17,7 @@ import {
 const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["variant"] }> = {
   pendiente: { label: "Pendiente de cotizar", variant: "neutral" },
   cotizado: { label: "Cotizado", variant: "info" },
+  vencido: { label: "Presupuesto vencido", variant: "danger" },
   pagado: { label: "Pagado", variant: "success" },
   en_impresion: { label: "En impresion", variant: "warning" },
   listo: { label: "Listo para entregar", variant: "accent" },
@@ -29,6 +30,7 @@ const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["varian
 function CotizadoActions({ order, manualPaymentMethods }: { order: CustomOrderRow; manualPaymentMethods: ManualPaymentMethodOption[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isDeclining, startDeclineTransition] = useTransition();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue>("mercado_pago");
 
   function handlePay() {
@@ -52,17 +54,39 @@ function CotizadoActions({ order, manualPaymentMethods }: { order: CustomOrderRo
     });
   }
 
+  function handleDecline() {
+    if (!window.confirm("¿Seguro que no te interesa esta cotizacion? No se puede deshacer.")) return;
+    startDeclineTransition(async () => {
+      try {
+        await declineCustomOrderQuote(order.id);
+        toast.success("Cotizacion rechazada.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "No se pudo rechazar la cotizacion.");
+      }
+    });
+  }
+
   return (
     <div className="mt-3 flex flex-col gap-3">
       <PaymentMethodPicker manualPaymentMethods={manualPaymentMethods} value={paymentMethod} onChange={setPaymentMethod} />
-      <button
-        type="button"
-        onClick={handlePay}
-        disabled={isPending}
-        className="self-start rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
-      >
-        {isPending ? "Procesando..." : paymentMethod === "mercado_pago" ? "Pagar" : "Generar orden de servicio"}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handlePay}
+          disabled={isPending || isDeclining}
+          className="self-start rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        >
+          {isPending ? "Procesando..." : paymentMethod === "mercado_pago" ? "Pagar" : "Generar orden de servicio"}
+        </button>
+        <button
+          type="button"
+          onClick={handleDecline}
+          disabled={isPending || isDeclining}
+          className="text-sm text-neutral-500 underline hover:text-red-600 disabled:opacity-50"
+        >
+          {isDeclining ? "Rechazando..." : "No me interesa"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -134,6 +158,11 @@ export function PedidosClient({
                 <p className="text-sm font-medium">
                   Cotizacion: {order.quotedPrice ? formatCurrency(Number(order.quotedPrice)) : "-"}
                 </p>
+                {order.quoteValidUntil && (
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Valido hasta el {formatDate(order.quoteValidUntil)}
+                  </p>
+                )}
                 {order.quotedNotes && (
                   <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">{order.quotedNotes}</p>
                 )}
@@ -147,7 +176,13 @@ export function PedidosClient({
                     Ver presupuesto detallado (PDF)
                   </a>
                 )}
-                <CotizadoActions order={order} manualPaymentMethods={manualPaymentMethods} />
+                {/* customOrders.status se queda en "cotizado" hasta que el
+                    pago se confirma de verdad (recien ahi markOrderAsPaid lo
+                    pasa a "pagado") -- sin este chequeo, una vez generada la
+                    orden de servicio esta caja seguia mostrando el selector
+                    de medio de pago + boton "Generar orden de servicio" de
+                    nuevo, duplicado con el tracker/link de arriba. */}
+                {!hasLinkedOrder && <CotizadoActions order={order} manualPaymentMethods={manualPaymentMethods} />}
               </div>
             )}
           </div>

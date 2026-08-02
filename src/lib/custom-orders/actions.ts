@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { auth } from "@/auth";
@@ -51,6 +51,33 @@ async function logAudit(params: {
     before: params.before ?? null,
     after: params.after ?? null,
   });
+}
+
+// Perezoso, sin cron aparte (task #152): se corre en cada lectura de pedidos
+// a medida (getMyCustomOrders / listCustomOrdersForAdmin), no hay un job de
+// fondo -- coherente con "gastos operativos = solo el VPS" del proyecto. Un
+// storeId opcional acota la busqueda cuando ya se conoce (lecturas de
+// admin); getMyCustomOrders no lo pasa porque ya filtra por userId.
+async function expireStaleQuotes(storeId?: string) {
+  const conditions = [eq(customOrders.status, "cotizado"), lt(customOrders.quoteValidUntil, new Date())];
+  if (storeId) conditions.push(eq(customOrders.storeId, storeId));
+
+  const expired = await db
+    .update(customOrders)
+    .set({ status: "vencido" })
+    .where(and(...conditions))
+    .returning({ id: customOrders.id, storeId: customOrders.storeId, userId: customOrders.userId, fileName: customOrders.fileName });
+
+  for (const order of expired) {
+    await logAudit({
+      userId: order.userId,
+      storeId: order.storeId,
+      action: "expire",
+      entityType: "custom_order",
+      entityId: order.id,
+      after: { status: "vencido" },
+    });
+  }
 }
 
 export async function createCustomOrder(input: z.infer<typeof createCustomOrderSchema>, file: File) {
@@ -124,6 +151,12 @@ export async function createCustomOrder(input: z.infer<typeof createCustomOrderS
 export async function getMyCustomOrders() {
   const session = await requireUser();
 
+  // Antes de leer: si alguna cotizacion propia ya paso su "valido hasta" sin
+  // pagarse, pasarla a "vencido" -- asi el badge que ve el cliente siempre
+  // refleja el estado real, no importa cuando haya sido la ultima vez que
+  // alguien miro este pedido.
+  await expireStaleQuotes(session.user.storeId);
+
   // Left join a la orden real (si ya se pago): customOrders.status se queda
   // fijo en "pagado" para siempre (el pipeline de impresion fino vive en
   // orders.status, ver src/lib/orders/actions.ts) — sin este join la pantalla
@@ -163,6 +196,12 @@ export type CustomOrderRow = Awaited<ReturnType<typeof getMyCustomOrders>>[numbe
 // guardado que el resto de las lecturas de admin (listProductsForAdmin, etc).
 export async function listCustomOrdersForAdmin() {
   const session = await requireStaff();
+
+  // Mismo criterio que getMyCustomOrders: las cotizaciones vencidas de esta
+  // tienda pasan a "vencido" antes de leer, asi salen solas de este listado
+  // (que solo trae "pendiente"/"cotizado") sin que el admin tenga que hacer
+  // nada.
+  await expireStaleQuotes(session.user.storeId);
 
   const rows = await db
     .select()
@@ -214,6 +253,17 @@ export async function quoteCustomOrder(
     throw new Error(`Este pedido ya esta en estado "${existing.status}", no se puede volver a cotizar.`);
   }
 
+  // Plazo del presupuesto (task #152), opcional. Fin del dia elegido (23:59)
+  // para que "valido hasta hoy" no venza apenas se guarda -- mismo criterio
+  // que un vencimiento de tarjeta o cupon.
+  let quoteValidUntil: Date | undefined;
+  if (data.quoteValidUntil) {
+    const parsed = new Date(`${data.quoteValidUntil}T23:59:59`);
+    if (Number.isNaN(parsed.getTime())) throw new Error("Fecha de vencimiento invalida.");
+    if (parsed.getTime() < Date.now()) throw new Error("La fecha de vencimiento no puede ser en el pasado.");
+    quoteValidUntil = parsed;
+  }
+
   let quotePdfUrl: string | undefined;
   let quotePdfName: string | undefined;
   if (quoteFile && quoteFile.size > 0) {
@@ -241,6 +291,7 @@ export async function quoteCustomOrder(
       quotedNotes: data.quotedNotes,
       quotedAt: new Date(),
       status: "cotizado",
+      quoteValidUntil: quoteValidUntil ?? null,
       ...(quotePdfUrl && { quotePdfUrl, quotePdfName }),
     })
     .where(eq(customOrders.id, id))
@@ -299,6 +350,55 @@ export async function quoteCustomOrder(
   return { ...updated, emailSent };
 }
 
+// El cliente decide activamente que no le interesa una cotizacion (boton
+// "No me interesa" en /mi-cuenta/pedidos, task #152) -- distinto del
+// vencimiento automatico por fecha (expireStaleQuotes), aunque ambos
+// terminan en el mismo status "cancelado" (ver comentario en el enum,
+// db/schema.ts): el admin ya puede distinguir por status "vencido" vs
+// "cancelado" cual paso en cada caso.
+export async function declineCustomOrderQuote(id: string) {
+  const session = await requireUser();
+
+  const [existing] = await db
+    .select()
+    .from(customOrders)
+    .where(and(eq(customOrders.id, id), eq(customOrders.userId, session.user.id)))
+    .limit(1);
+  if (!existing) throw new Error("Pedido a medida no encontrado.");
+
+  if (existing.status !== "cotizado") {
+    throw new Error(`Este pedido esta en estado "${existing.status}", no se puede rechazar.`);
+  }
+
+  const [updated] = await db
+    .update(customOrders)
+    .set({ status: "cancelado" })
+    .where(eq(customOrders.id, id))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "decline_quote",
+    entityType: "custom_order",
+    entityId: id,
+    before: existing,
+    after: updated,
+  });
+
+  await notifyStaff({
+    storeId: session.user.storeId,
+    type: "custom_order_declined",
+    title: `El cliente rechazo la cotizacion de "${updated.fileName}"`,
+    link: "/admin/pedidos-custom",
+  });
+
+  revalidatePath("/mi-cuenta/pedidos");
+  revalidatePath("/admin/pedidos-custom");
+
+  return updated;
+}
+
 // Paso 4 de docs/spec-ecommerce-base.md, extendido con medios de pago
 // manuales (mismo criterio que checkoutCart en src/lib/orders/actions.ts):
 // crea (o reutiliza) la orden source="pedido_custom" ligada a esta
@@ -326,6 +426,14 @@ export async function initiateCustomOrderPayment(id: string, paymentMethod: Paym
   }
   if (!existing.quotedPrice) {
     throw new Error("Este pedido no tiene un precio cotizado valido.");
+  }
+  // Defensa en profundidad (task #152): expireStaleQuotes ya deberia haber
+  // pasado este pedido a "vencido" en la lectura previa (getMyCustomOrders),
+  // pero esta accion se puede invocar directo -- nunca confiar solo en que
+  // el cliente vio el estado actualizado antes de clickear "Pagar".
+  if (existing.quoteValidUntil && existing.quoteValidUntil.getTime() < Date.now()) {
+    await db.update(customOrders).set({ status: "vencido" }).where(eq(customOrders.id, id));
+    throw new Error("Esta cotizacion vencio. Pedile al admin que te cotice de nuevo.");
   }
 
   let manualMethod: { value: ManualPaymentMethod; label: string; instructions: string } | undefined;
