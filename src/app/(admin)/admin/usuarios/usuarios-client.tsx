@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import type { AdminUserListItem } from "@/lib/users/actions";
 import { adminResetUserPassword, adminSetUserActive } from "@/lib/users/actions";
@@ -112,7 +113,11 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
                   key={user.id}
                   className="border-b border-neutral-100 transition-colors hover:bg-neutral-50 dark:border-neutral-900 dark:hover:bg-neutral-900/50"
                 >
-                  <td className="py-2 pr-4">{user.name}</td>
+                  <td className="py-2 pr-4">
+                    <Link href={`/admin/usuarios/${user.id}`} className="text-accent hover:underline">
+                      {user.name}
+                    </Link>
+                  </td>
                   <td className="py-2 pr-4">{user.email}</td>
                   <td className="py-2 pr-4">{ROLE_LABELS[user.role] ?? user.role}</td>
                   <td className="py-2 pr-4">

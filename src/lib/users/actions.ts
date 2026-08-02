@@ -1,16 +1,22 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sum } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { auditLogs, users } from "@/lib/db/schema";
+import { auditLogs, customOrders, loyaltyPoints, orders, users } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
 import { sendMail } from "@/lib/mail";
 import { generateTempPassword, TEMP_PASSWORD_VALID_HOURS } from "@/lib/auth/temp-password";
+import type { ShippingAddress } from "@/lib/orders/schema";
 import { adminCreateUserSchema, adminUpdateUserSchema } from "./schema";
+
+// Estados que no representan plata efectivamente cobrada -- se excluyen del
+// "total gastado" de la ficha (mismo criterio que cualquier reporte de
+// ventas: una orden pendiente o cancelada no es facturacion real).
+const NON_REVENUE_ORDER_STATUSES = new Set(["pendiente_pago", "pendiente_confirmacion", "cancelado"]);
 
 // A diferencia del molde CRUD habitual (admin + empleado), crear cuentas de
 // admin/empleado es mas sensible que el resto del panel (da acceso al
@@ -102,6 +108,87 @@ async function getOwnedUser(id: string, storeId: string) {
   }
   return user;
 }
+
+// Ficha completa (task #143: "debo de poder ver todo de un usuario cliente
+// [...] y ver toda su ficha completa"). Delete/anonimizado quedo
+// explicitamente descartado por el owner ("desactivar cliente esta bien") --
+// esto es solo lectura agregada, la desactivacion sigue siendo
+// adminSetUserActive de arriba.
+export async function getUserDetailForAdmin(id: string) {
+  const session = await requireAdmin();
+  const user = await getOwnedUser(id, session.user.storeId);
+
+  const userOrders = await db
+    .select({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      source: orders.source,
+      status: orders.status,
+      paymentMethod: orders.paymentMethod,
+      total: orders.total,
+      createdAt: orders.createdAt,
+    })
+    .from(orders)
+    .where(eq(orders.userId, id))
+    .orderBy(desc(orders.createdAt));
+
+  const userCustomOrders = await db
+    .select({
+      id: customOrders.id,
+      fileName: customOrders.fileName,
+      status: customOrders.status,
+      quotedPrice: customOrders.quotedPrice,
+      quoteValidUntil: customOrders.quoteValidUntil,
+      createdAt: customOrders.createdAt,
+    })
+    .from(customOrders)
+    .where(eq(customOrders.userId, id))
+    .orderBy(desc(customOrders.createdAt));
+
+  // Mismo patron ledger que getMyLoyaltyBalance (loyalty/actions.ts), pero
+  // scoped al usuario que esta viendo el admin en vez de session.user.id.
+  const [earnedRow] = await db
+    .select({ total: sum(loyaltyPoints.points) })
+    .from(loyaltyPoints)
+    .where(and(eq(loyaltyPoints.userId, id), eq(loyaltyPoints.type, "earned")));
+  const [redeemedRow] = await db
+    .select({ total: sum(loyaltyPoints.points) })
+    .from(loyaltyPoints)
+    .where(and(eq(loyaltyPoints.userId, id), eq(loyaltyPoints.type, "redeemed")));
+  const loyaltyBalance = Math.max(0, Number(earnedRow?.total ?? 0) - Number(redeemedRow?.total ?? 0));
+
+  const totalSpent = userOrders
+    .filter((o) => !NON_REVENUE_ORDER_STATUSES.has(o.status))
+    .reduce((acc, o) => acc + Number(o.total), 0);
+
+  return {
+    // Subconjunto explicito (nunca passwordHash) -- superset de
+    // AdminUserListItem a proposito, para poder reusar UsuarioEditDialog /
+    // TempPasswordDialog tal cual en la pagina de detalle.
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      active: user.active,
+      createdAt: user.createdAt,
+      termsAcceptedAt: user.termsAcceptedAt,
+      lastPaymentMethod: user.lastPaymentMethod,
+      defaultShippingAddress: (user.defaultShippingAddress as ShippingAddress | null) ?? null,
+    },
+    orders: userOrders,
+    customOrders: userCustomOrders,
+    loyaltyBalance,
+    stats: {
+      orderCount: userOrders.length,
+      customOrderCount: userCustomOrders.length,
+      totalSpent,
+    },
+  };
+}
+
+export type AdminUserDetail = Awaited<ReturnType<typeof getUserDetailForAdmin>>;
 
 // Edicion de datos basicos de cualquier usuario (cliente o staff) desde el
 // panel (task #22: antes el admin no tenia ninguna opcion para tocar los
