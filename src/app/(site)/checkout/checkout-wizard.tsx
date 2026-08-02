@@ -226,7 +226,11 @@ export function CheckoutWizard({
         // evento se dispara solo en esa pagina (ver
         // purchase-confirmed-tracker.tsx) para no contar como Revenue algo
         // que todavia no se cobro de verdad.
-        router.push(`/mi-cuenta/compras/${result.orderId}`);
+        //
+        // "?nuevo=1" dispara PendingReceiptModal (ver ese componente): aviso
+        // inmediato de "falta subir el comprobante" solo la primera vez que
+        // se aterriza aca, no en visitas posteriores.
+        router.push(`/mi-cuenta/compras/${result.orderId}?nuevo=1`);
         return;
       }
       // Paso del funnel: la orden ya se creo (pendiente_pago) y el cliente

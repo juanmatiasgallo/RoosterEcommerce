@@ -11,6 +11,7 @@ import { OrderReceiptCard } from "@/components/order-receipt-card";
 import { PurchaseConfirmedTracker } from "@/components/purchase-confirmed-tracker";
 import { ReceiptUpload } from "@/components/receipt-upload";
 import { PostPurchaseFollow } from "@/components/post-purchase-follow";
+import { PendingReceiptModal } from "@/components/pending-receipt-modal";
 
 // Consulta la DB directo (comprobante de una orden puntual del usuario
 // logueado) — mismo motivo que el resto de /mi-cuenta/*: sin esto el build
@@ -63,6 +64,7 @@ export default async function ComprobanteCompraPage({ params }: { params: Promis
         total={Number(receipt.total)}
         paymentMethodLabel={receipt.paymentMethodLabel}
       />
+      <PendingReceiptModal awaitingReceiptUpload={awaitingReceiptUpload} orderNumber={receipt.orderNumber} />
 
       <div className="flex items-center justify-between gap-2">
         <Link href={backHref} className="text-sm text-neutral-500 underline">

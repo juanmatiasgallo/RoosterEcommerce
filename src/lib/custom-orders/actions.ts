@@ -439,6 +439,7 @@ export async function initiateCustomOrderPayment(id: string, paymentMethod: Paym
 
     return {
       type: "manual" as const,
+      orderId: order.id,
       orderNumber: order.orderNumber,
       methodLabel: manualMethod.label,
       instructions: manualMethod.instructions,

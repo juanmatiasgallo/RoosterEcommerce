@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
@@ -25,19 +26,21 @@ const STATUS_LABELS: Record<string, { label: string; variant: BadgeProps["varian
 };
 
 
-type ManualOrderResult = { orderNumber: number; methodLabel: string; instructions: string };
-
 function CotizadoActions({ order, manualPaymentMethods }: { order: CustomOrderRow; manualPaymentMethods: ManualPaymentMethodOption[] }) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodValue>("mercado_pago");
-  const [manualResult, setManualResult] = useState<ManualOrderResult | null>(null);
 
   function handlePay() {
     startTransition(async () => {
       try {
         const result = await initiateCustomOrderPayment(order.id, paymentMethod);
         if (result.type === "manual") {
-          setManualResult(result);
+          // Mismo criterio que checkout-wizard.tsx: redirige al comprobante
+          // real en vez de mostrar un resumen inline aca -- "?nuevo=1"
+          // dispara PendingReceiptModal (ver ese componente) para que quede
+          // clarisimo que falta subir el comprobante para seguir.
+          router.push(`/mi-cuenta/compras/${result.orderId}?nuevo=1`);
           return;
         }
         // Recarga completa hacia el Checkout Pro de Mercado Pago, mismo
@@ -47,21 +50,6 @@ function CotizadoActions({ order, manualPaymentMethods }: { order: CustomOrderRo
         toast.error(error instanceof Error ? error.message : "No se pudo iniciar el pago.");
       }
     });
-  }
-
-  if (manualResult) {
-    return (
-      <div className="mt-3 rounded bg-neutral-100 p-3 dark:bg-neutral-900">
-        <p className="text-sm font-medium">Orden de servicio #{manualResult.orderNumber} creada</p>
-        <p className="mt-1 text-xs text-neutral-500">
-          Te mandamos un mail con estos mismos datos. Confirmamos el pago a mano en cuanto lo verifiquemos.
-        </p>
-        <p className="mt-2 text-sm font-medium">{manualResult.methodLabel}</p>
-        <p className="mt-1 whitespace-pre-line text-sm text-neutral-600 dark:text-neutral-400">
-          {manualResult.instructions}
-        </p>
-      </div>
-    );
   }
 
   return (
