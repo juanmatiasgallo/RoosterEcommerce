@@ -24,5 +24,25 @@ export function UmamiScript({ websiteId, src }: { websiteId: string | null; src:
 
   if (!websiteId || !src || pathname?.startsWith("/admin")) return null;
 
-  return <Script src={src} data-website-id={websiteId} strategy="afterInteractive" />;
+  // recorder.js (task #82, Umami v3): habilita Replays + Heatmaps -- va
+  // ADEMAS del tracker normal, no lo reemplaza (mismo website-id). Se
+  // deriva del origen de `src` en vez de pedir una URL aparte en
+  // /admin/configuracion: siempre vive en la misma instancia de Umami que
+  // script.js, asi que no hay una segunda fuente de verdad que mantener
+  // sincronizada. Descargarlo no hace nada por si solo -- todavia hay que
+  // prender los toggles "Replays" y "Heatmaps" para este sitio dentro del
+  // dashboard de Umami (Websites -> Editar -> Replays & Heatmaps).
+  let recorderSrc: string | null = null;
+  try {
+    recorderSrc = new URL("/recorder.js", src).toString();
+  } catch {
+    recorderSrc = null;
+  }
+
+  return (
+    <>
+      <Script src={src} data-website-id={websiteId} strategy="afterInteractive" />
+      {recorderSrc && <Script src={recorderSrc} data-website-id={websiteId} strategy="afterInteractive" />}
+    </>
+  );
 }
