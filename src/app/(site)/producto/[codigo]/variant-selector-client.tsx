@@ -1,6 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
 import { addToCart, getCartItems, type CartRow } from "@/lib/cart/actions";
@@ -93,6 +95,19 @@ export function VariantSelectorClient({
   const [drawerItems, setDrawerItems] = useState<CartRow[]>([]);
   const [drawerTotal, setDrawerTotal] = useState(0);
 
+  // Feedback tactil del boton (task #156): antes el unico indicio de que
+  // "agregar" funciono era el drawer abriendose -- si el usuario tenia el
+  // ojo en el boton (comun, sobre todo en mobile con el drawer entrando
+  // desde el costado) no pasaba nada ahi. El check + "Agregado" dura poco
+  // (1.1s) y vuelve solo al estado normal, no requiere que el usuario haga
+  // nada para sacarlo.
+  const [justAdded, setJustAdded] = useState(false);
+  useEffect(() => {
+    if (!justAdded) return;
+    const timer = setTimeout(() => setJustAdded(false), 1100);
+    return () => clearTimeout(timer);
+  }, [justAdded]);
+
   const hasAnyStock = variants.some((v) => v.stock > 0);
   const canAddToCart = Boolean(selectedVariant) && (selectedVariant?.stock ?? 0) > 0 && quantity > 0;
 
@@ -115,6 +130,7 @@ export function VariantSelectorClient({
         const fresh = await getCartItems();
         setDrawerItems(fresh.items);
         setDrawerTotal(fresh.total);
+        setJustAdded(true);
         setDrawerOpen(true);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "No se pudo agregar al carrito.");
@@ -154,10 +170,10 @@ export function VariantSelectorClient({
               key={m}
               type="button"
               onClick={() => handleMaterialChange(m)}
-              className={`rounded border px-3 py-1.5 text-sm ${
+              className={`rounded border px-3 py-1.5 text-sm transition-all duration-150 active:scale-95 ${
                 m === material
                   ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900"
-                  : "border-neutral-300 dark:border-neutral-700"
+                  : "border-neutral-300 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-600"
               }`}
             >
               {m}
@@ -175,10 +191,10 @@ export function VariantSelectorClient({
                 key={c || "sin-color"}
                 type="button"
                 onClick={() => handleColorChange(c)}
-                className={`rounded border px-3 py-1.5 text-sm ${
+                className={`rounded border px-3 py-1.5 text-sm transition-all duration-150 active:scale-95 ${
                   c === color
                     ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900"
-                    : "border-neutral-300 dark:border-neutral-700"
+                    : "border-neutral-300 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-600"
                 }`}
               >
                 {c || "Sin color"}
@@ -197,10 +213,10 @@ export function VariantSelectorClient({
                 key={s || "sin-tamano"}
                 type="button"
                 onClick={() => setSize(s)}
-                className={`rounded border px-3 py-1.5 text-sm ${
+                className={`rounded border px-3 py-1.5 text-sm transition-all duration-150 active:scale-95 ${
                   s === size
                     ? "border-neutral-900 bg-neutral-900 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-900"
-                    : "border-neutral-300 dark:border-neutral-700"
+                    : "border-neutral-300 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-600"
                 }`}
               >
                 {s || "Unico"}
@@ -246,10 +262,42 @@ export function VariantSelectorClient({
         type="button"
         onClick={handleAddToCart}
         disabled={!canAddToCart || isPending}
-        className="flex items-center justify-center gap-2 rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+        className={`flex items-center justify-center gap-2 overflow-hidden rounded px-4 py-2 text-sm font-medium text-white transition-colors duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-900 ${
+          justAdded ? "bg-green-600 dark:bg-green-500 dark:text-white" : "bg-neutral-900 dark:bg-neutral-100"
+        }`}
       >
-        {isPending && <Spinner size={14} />}
-        {isPending ? "Agregando..." : hasAnyStock ? "Agregar al carrito" : "Sin stock"}
+        {/* AnimatePresence mode="wait" (task #156): morph a un check en vez
+            de solo confiar en que el usuario note que se abrio el
+            CartDrawer -- da feedback justo donde tiene puesto el ojo (el
+            boton que acaba de tocar), no solo en un panel que entra por el
+            costado. */}
+        <AnimatePresence mode="wait" initial={false}>
+          {justAdded ? (
+            <motion.span
+              key="added"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="flex items-center gap-1.5"
+            >
+              <Check size={15} />
+              Agregado
+            </motion.span>
+          ) : (
+            <motion.span
+              key="idle"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+              className="flex items-center gap-2"
+            >
+              {isPending && <Spinner size={14} />}
+              {isPending ? "Agregando..." : hasAnyStock ? "Agregar al carrito" : "Sin stock"}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </button>
 
       <CartDrawer
