@@ -15,6 +15,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 const inputClass =
   "w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900";
@@ -50,6 +52,7 @@ function formatUsage(campaign: DiscountCampaignRow): string {
 
 export function OfertasClient({ initialCampaigns }: { initialCampaigns: DiscountCampaignRow[] }) {
   const [campaigns, setCampaigns] = useState(initialCampaigns);
+  const { page, setPage, totalPages, pageItems: pagedCampaigns } = usePagination(campaigns);
 
   const {
     register,
@@ -101,7 +104,7 @@ export function OfertasClient({ initialCampaigns }: { initialCampaigns: Discount
     <div className="flex flex-col gap-4">
       {campaigns.length > 0 && (
         <div className="flex flex-col gap-2">
-          {campaigns.map((campaign) => (
+          {pagedCampaigns.map((campaign) => (
             <Card key={campaign.id}>
               <CardContent className="flex items-center justify-between gap-4 py-3">
                 <div>
@@ -124,6 +127,7 @@ export function OfertasClient({ initialCampaigns }: { initialCampaigns: Discount
               </CardContent>
             </Card>
           ))}
+          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
       )}
 

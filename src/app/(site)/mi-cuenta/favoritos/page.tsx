@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getMyFavoriteProducts } from "@/lib/favorites/actions";
-import { ProductCard } from "../../product-card";
+import { FavoritosClient } from "./favoritos-client";
 
 // Consulta la DB directo (favoritos del usuario logueado): mismo criterio
 // que el resto de /mi-cuenta/*, sin esto el build de Docker en EasyPanel
@@ -24,11 +24,7 @@ export default async function MiCuentaFavoritosPage() {
           .
         </p>
       ) : (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} favorited isLoggedIn />
-          ))}
-        </div>
+        <FavoritosClient products={products} />
       )}
     </div>
   );

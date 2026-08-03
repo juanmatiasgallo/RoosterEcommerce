@@ -7,7 +7,9 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { declineCustomOrderQuote, initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
+import { usePagination } from "@/hooks/use-pagination";
 import {
   PaymentMethodPicker,
   type ManualPaymentMethodOption,
@@ -98,13 +100,15 @@ export function PedidosClient({
   orders: CustomOrderRow[];
   manualPaymentMethods: ManualPaymentMethodOption[];
 }) {
+  const { page, setPage, totalPages, pageItems: pagedOrders } = usePagination(orders);
+
   if (orders.length === 0) {
     return <p className="mt-4 text-neutral-500">Todavia no hiciste ningun pedido a medida.</p>;
   }
 
   return (
     <div className="mt-6 flex flex-col gap-4">
-      {orders.map((order) => {
+      {pagedOrders.map((order) => {
         const status = STATUS_LABELS[order.status] ?? { label: order.status, variant: "neutral" as const };
         const specs = [order.material, order.color, order.approxSize].filter(Boolean).join(" · ");
         // Una vez pagado, el progreso real vive en la orden vinculada (ver
@@ -188,6 +192,8 @@ export function PedidosClient({
           </div>
         );
       })}
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }

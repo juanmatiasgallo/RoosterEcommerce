@@ -6,7 +6,9 @@ import { Truck } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { confirmManualPayment, setOrderTracking, updateOrderStatus, type AdminOrderRow } from "@/lib/orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
+import { usePagination } from "@/hooks/use-pagination";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mercado_pago: "Mercado Pago",
@@ -61,6 +63,7 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
   const [trackingFormId, setTrackingFormId] = useState<string | null>(null);
   const [trackingCarrier, setTrackingCarrier] = useState("");
   const [trackingCode, setTrackingCode] = useState("");
+  const { page, setPage, totalPages, pageItems: pagedOrders } = usePagination(orders);
 
   function openTrackingForm(id: string, carrier: string | null, code: string | null) {
     setTrackingFormId(id);
@@ -117,7 +120,7 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {orders.map((row) => {
+      {pagedOrders.map((row) => {
         const status = STATUS_LABELS[row.order.status] ?? { label: row.order.status, variant: "neutral" as const };
         const next = NEXT_STATUS[row.order.status];
 
@@ -279,6 +282,8 @@ export function PedidosClient({ orders }: { orders: AdminOrderRow[] }) {
           </div>
         );
       })}
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   );
 }

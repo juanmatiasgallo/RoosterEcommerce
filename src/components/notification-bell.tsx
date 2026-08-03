@@ -26,9 +26,20 @@ function formatRelative(date: Date): string {
 export function NotificationBell({
   initialItems,
   initialUnreadCount,
+  positionClassName = "right-0",
 }: {
   initialItems: NotificationRow[];
   initialUnreadCount: number;
+  // "right-0" (default) ancla el borde derecho del dropdown al icono --
+  // anda bien en site-header.tsx, donde la campana siempre esta cerca del
+  // borde derecho del header y el dropdown se abre hacia la izquierda sin
+  // salirse. admin-sidebar.tsx pasa clases distintas por breakpoint (task
+  // #144, bug reportado con captura: el dropdown se disparaba hacia la
+  // izquierda y quedaba cortado contra el borde de la ventana) -- ese
+  // sidebar cambia de layout el mismo breakpoint (barra horizontal en
+  // mobile, columna angosta a la izquierda en sm+), asi que la alineacion
+  // del dropdown tiene que cambiar junto con eso, no un valor fijo.
+  positionClassName?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -84,11 +95,13 @@ export function NotificationBell({
             className="fixed inset-0 z-10 cursor-default"
             onClick={() => setOpen(false)}
           />
-          {/* w-[min(20rem,90vw)] en vez de w-80 fijo: en el sidebar de admin
-              (mobile) la campana esta cerca del borde derecho del header
-              angosto -- un ancho fijo de 320px podia salirse del viewport
-              por la izquierda, cortando el inicio del texto de cada item. */}
-          <div className="animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full right-0 z-20 mt-2 flex max-h-96 w-[min(20rem,90vw)] flex-col overflow-y-auto rounded border border-neutral-200 bg-white shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900">
+          {/* w-[min(20rem,90vw)] en vez de w-80 fijo: evita que el ancho fijo
+              de 320px se pase del viewport en pantallas chicas. El lado por
+              el que se abre lo decide `positionClassName` -- ver comentario
+              en la firma del componente. */}
+          <div
+            className={`animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 absolute top-full z-20 mt-2 flex max-h-96 w-[min(20rem,90vw)] flex-col overflow-y-auto rounded border border-neutral-200 bg-white shadow-lg duration-150 dark:border-neutral-800 dark:bg-neutral-900 ${positionClassName}`}
+          >
             <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
               <p className="text-sm font-medium">Notificaciones</p>
               {unreadCount > 0 && (

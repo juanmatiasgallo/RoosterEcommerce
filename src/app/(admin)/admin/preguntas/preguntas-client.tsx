@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { getInquiryMessagesForAdmin, replyProductInquiry, type AdminInquiryRow } from "@/lib/inquiries/actions";
 import type { productInquiryMessages } from "@/lib/db/schema";
 import { formatDateTime } from "@/lib/format";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 type Message = typeof productInquiryMessages.$inferSelect;
 
@@ -42,6 +44,7 @@ export function PreguntasClient({ inquiries }: { inquiries: AdminInquiryRow[] })
   const [error, setError] = useState<string | null>(null);
 
   const selected = inquiries.find((row) => row.inquiry.id === selectedId) ?? null;
+  const { page, setPage, totalPages, pageItems } = usePagination(inquiries);
 
   async function openInquiry(inquiryId: string) {
     setSelectedId(inquiryId);
@@ -85,7 +88,7 @@ export function PreguntasClient({ inquiries }: { inquiries: AdminInquiryRow[] })
   return (
     <div className="grid gap-4 md:grid-cols-[300px_1fr]">
       <div className="flex flex-col gap-1 overflow-y-auto md:max-h-[560px]">
-        {inquiries.map((row) => (
+        {pageItems.map((row) => (
           <button
             key={row.inquiry.id}
             type="button"
@@ -101,6 +104,7 @@ export function PreguntasClient({ inquiries }: { inquiries: AdminInquiryRow[] })
             <p className="mt-1 text-[11px] text-neutral-400">{formatDateTime(row.inquiry.lastMessageAt)}</p>
           </button>
         ))}
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
 
       <div className="rounded border border-neutral-200 dark:border-neutral-800">

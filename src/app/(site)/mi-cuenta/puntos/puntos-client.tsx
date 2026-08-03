@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { redeemLoyaltyPoints, type CouponRow, type LoyaltyPointRow } from "@/lib/loyalty/actions";
 import { Spinner } from "@/components/ui/spinner";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 
 export function PuntosClient({
   initialBalance,
@@ -22,6 +24,7 @@ export function PuntosClient({
   const [coupons, setCoupons] = useState(initialCoupons);
   const [pointsToRedeem, setPointsToRedeem] = useState(100);
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const { page, setPage, totalPages, pageItems: pagedHistory } = usePagination(history);
 
   const isSystemActive = rates.loyaltyPointsPer100 > 0;
   const previewAmount = pointsToRedeem > 0 ? pointsToRedeem * rates.loyaltyPointValue : 0;
@@ -125,7 +128,7 @@ export function PuntosClient({
           <p className="mt-2 text-sm text-neutral-500">Todavia no tenes movimientos de puntos.</p>
         ) : (
           <ul className="mt-3 flex flex-col gap-2">
-            {history.map((row) => (
+            {pagedHistory.map((row) => (
               <li key={row.id} className="flex items-center justify-between gap-3 text-sm">
                 <div>
                   <p>{row.type === "earned" ? "Puntos ganados" : "Puntos canjeados"}</p>
@@ -142,6 +145,7 @@ export function PuntosClient({
             ))}
           </ul>
         )}
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
     </div>
   );

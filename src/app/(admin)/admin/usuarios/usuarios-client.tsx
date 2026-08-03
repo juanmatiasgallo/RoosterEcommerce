@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import type { AdminUserListItem } from "@/lib/users/actions";
 import { adminResetUserPassword, adminSetUserActive } from "@/lib/users/actions";
 import { formatDate } from "@/lib/format";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { UsuarioFormDialog } from "./usuario-form-dialog";
 import { UsuarioEditDialog } from "./usuario-edit-dialog";
 import { TempPasswordDialog } from "./temp-password-dialog";
@@ -26,6 +28,7 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
   );
   const [isPending, startTransition] = useTransition();
   const [isResetting, startResetTransition] = useTransition();
+  const { page, setPage, totalPages, pageItems: pagedUsers } = usePagination(users);
 
   // Task #22: antes la tabla listaba clientes pero no habia ninguna accion
   // para tocarlos ("no tiene opciones", segun el owner). Desactivar es soft
@@ -108,7 +111,7 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {pagedUsers.map((user) => (
                 <tr
                   key={user.id}
                   className="border-b border-neutral-100 transition-colors hover:bg-neutral-50 dark:border-neutral-900 dark:hover:bg-neutral-900/50"
@@ -169,6 +172,8 @@ export function UsuariosClient({ users }: { users: AdminUserListItem[] }) {
           </table>
         )}
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
       {dialogOpen && <UsuarioFormDialog onClose={() => setDialogOpen(false)} />}
       {editingUser && <UsuarioEditDialog user={editingUser} onClose={() => setEditingUser(null)} />}

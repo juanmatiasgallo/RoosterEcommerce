@@ -99,7 +99,21 @@ export function AdminSidebar({
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <NotificationBell initialItems={notificationItems} initialUnreadCount={notificationUnreadCount} />
+          {/* positionClassName (task #144): este <aside> cambia de layout en
+              el breakpoint sm (barra horizontal de ancho completo en mobile
+              -> columna angosta a la izquierda en sm+, ver className mas
+              abajo), y la campana se mueve con el. En mobile sigue cerca
+              del borde derecho (right-0 default anda bien, igual que
+              site-header.tsx); en sm+ pasa a estar cerca del borde
+              IZQUIERDO de la pantalla, asi que ahi el dropdown tiene que
+              abrirse hacia la derecha (left-0) en vez de dispararse hacia
+              la izquierda y cortarse contra el borde de la ventana (bug
+              reportado con captura). */}
+          <NotificationBell
+            initialItems={notificationItems}
+            initialUnreadCount={notificationUnreadCount}
+            positionClassName="right-0 sm:right-auto sm:left-0"
+          />
           <button
             type="button"
             onClick={() => setMenuOpen((open) => !open)}

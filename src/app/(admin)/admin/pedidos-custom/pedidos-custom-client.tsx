@@ -4,6 +4,8 @@ import { useState } from "react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { AdminCustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { CotizarFormDialog } from "./cotizar-form-dialog";
 
 function FileLink({ order }: { order: AdminCustomOrderRow }) {
@@ -28,6 +30,10 @@ export function PedidosCustomClient({
   cotizados: AdminCustomOrderRow[];
 }) {
   const [cotizando, setCotizando] = useState<AdminCustomOrderRow | null>(null);
+  // Dos listas independientes en esta pantalla -- cada una con su propia
+  // pagina, no comparten estado (task #146).
+  const pendientesPage = usePagination(pendientes);
+  const cotizadosPage = usePagination(cotizados);
 
   return (
     <div className="flex flex-col gap-10">
@@ -38,7 +44,7 @@ export function PedidosCustomClient({
           <p className="mt-2 text-sm text-neutral-500">No hay pedidos pendientes de cotizar.</p>
         ) : (
           <div className="mt-4 flex flex-col gap-3">
-            {pendientes.map((order) => (
+            {pendientesPage.pageItems.map((order) => (
               <div
                 key={order.id}
                 className="rounded border border-neutral-200 p-4 transition-shadow hover:shadow-sm dark:border-neutral-800"
@@ -69,6 +75,7 @@ export function PedidosCustomClient({
             ))}
           </div>
         )}
+        <Pagination page={pendientesPage.page} totalPages={pendientesPage.totalPages} onPageChange={pendientesPage.setPage} />
       </section>
 
       <section>
@@ -78,7 +85,7 @@ export function PedidosCustomClient({
           <p className="mt-2 text-sm text-neutral-500">Todavia no cotizaste ningun pedido.</p>
         ) : (
           <div className="mt-4 flex flex-col gap-3">
-            {cotizados.map((order) => (
+            {cotizadosPage.pageItems.map((order) => (
               <div
                 key={order.id}
                 className="rounded border border-neutral-200 p-4 transition-shadow hover:shadow-sm dark:border-neutral-800"
@@ -118,6 +125,7 @@ export function PedidosCustomClient({
             ))}
           </div>
         )}
+        <Pagination page={cotizadosPage.page} totalPages={cotizadosPage.totalPages} onPageChange={cotizadosPage.setPage} />
       </section>
 
       {cotizando && <CotizarFormDialog order={cotizando} onClose={() => setCotizando(null)} />}

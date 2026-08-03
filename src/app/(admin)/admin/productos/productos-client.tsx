@@ -8,6 +8,8 @@ import { archiveProduct, deleteProduct, type AdminProductListItem } from "@/lib/
 import { seedDemoCatalogAction } from "@/lib/catalog/seed-demo-actions";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import { Badge } from "@/components/ui/badge";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { ProductoFormDialog } from "./producto-form-dialog";
 
 type DialogState = { mode: "create" } | { mode: "edit"; product: AdminProductListItem } | null;
@@ -31,6 +33,7 @@ export function ProductosClient({
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
+  const { page, setPage, totalPages, pageItems: pagedProducts } = usePagination(products);
 
   // Boton de una sola vez para poblar el catalogo con productos de
   // demostracion (task #88/#139): idempotente por slug -- se puede apretar
@@ -149,7 +152,7 @@ export function ProductosClient({
               </tr>
             </thead>
             <tbody>
-              {products.map((product) => (
+              {pagedProducts.map((product) => (
                 <tr
                   key={product.id}
                   className="border-b border-neutral-100 transition-colors hover:bg-neutral-50 dark:border-neutral-900 dark:hover:bg-neutral-900/50"
@@ -223,6 +226,8 @@ export function ProductosClient({
           </table>
         )}
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
       {dialogState?.mode === "create" && (
         <ProductoFormDialog mode="create" categoryTree={categoryTree} onClose={() => setDialogState(null)} />
