@@ -92,11 +92,17 @@ export function ReceiptUpload({
           id="comprobante-upload"
           className="flex scroll-mt-24 items-center gap-3 rounded-lg border border-green-300 bg-green-50 p-3 target:ring-2 target:ring-accent dark:border-green-800 dark:bg-green-950/40"
         >
+          {/* umami-block-receipt (task #158): el Block Selector de Replays
+              en el dashboard de Umami esta configurado con esta clase --
+              la miniatura puede mostrar datos bancarios reales del cliente
+              (comprobante de transferencia), no tiene que quedar grabada en
+              una sesion de replay. El resto de la pantalla se sigue
+              grabando normal. */}
           <a
             href={receiptUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex shrink-0 items-center justify-center overflow-hidden rounded border border-green-300 bg-white dark:border-green-800 dark:bg-neutral-900"
+            className="umami-block-receipt flex shrink-0 items-center justify-center overflow-hidden rounded border border-green-300 bg-white dark:border-green-800 dark:bg-neutral-900"
           >
             {isImage ? (
               <Image
