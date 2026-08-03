@@ -2,9 +2,12 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Star } from "lucide-react";
 import { toast } from "sonner";
 import { reorderProjects, setProjectActive, type AdminProjectListItem } from "@/lib/projects/actions";
+import { getProjectThemeIcon, getProjectThemeLabel } from "@/lib/projects/theme-registry";
+import { Pagination } from "@/components/ui/pagination";
+import { usePagination } from "@/hooks/use-pagination";
 import { ProyectoFormDialog } from "./proyecto-form-dialog";
 
 type DialogState = { mode: "create" } | { mode: "edit"; project: AdminProjectListItem } | null;
@@ -13,6 +16,7 @@ export function ProyectosClient({ items }: { items: AdminProjectListItem[] }) {
   const [isPending, startTransition] = useTransition();
   const [dialogState, setDialogState] = useState<DialogState>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const { page, setPage, totalPages, pageItems } = usePagination(items);
 
   function move(index: number, direction: -1 | 1) {
     const targetIndex = index + direction;
@@ -67,21 +71,43 @@ export function ProyectosClient({ items }: { items: AdminProjectListItem[] }) {
         <p className="text-sm text-neutral-500">Todavia no hay proyectos cargados.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {items.map((project, index) => (
+          {pageItems.map((project) => {
+            // Indice en la lista completa (no en la pagina visible): las
+            // flechas de reordenar swapean posiciones adyacentes en el
+            // orden real, que puede caer en otra pagina.
+            const index = items.findIndex((item) => item.id === project.id);
+            const ThemeIcon = getProjectThemeIcon(project.theme);
+            const themeLabel = getProjectThemeLabel(project.theme);
+
+            return (
             <div
               key={project.id}
               className="flex flex-col overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800"
             >
               <div className="relative aspect-video bg-neutral-100 dark:bg-neutral-900">
                 <Image src={project.imageUrl} alt={project.title} fill className="object-cover" sizes="320px" />
-                {!project.active && (
-                  <span className="absolute top-2 right-2 rounded-full bg-neutral-900/80 px-2 py-0.5 text-xs font-medium text-white">
-                    Inactivo
-                  </span>
-                )}
+                <div className="absolute top-2 right-2 flex items-center gap-1.5">
+                  {project.featured && (
+                    <span className="flex items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                      <Star size={11} fill="currentColor" /> Destacado
+                    </span>
+                  )}
+                  {!project.active && (
+                    <span className="rounded-full bg-neutral-900/80 px-2 py-0.5 text-xs font-medium text-white">
+                      Inactivo
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex flex-1 flex-col gap-2 p-3">
-                <p className="text-sm font-medium">{project.title}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm font-medium">{project.title}</p>
+                  {themeLabel && (
+                    <span className="flex items-center gap-1 rounded-full bg-neutral-100 px-1.5 py-0.5 text-[11px] text-neutral-500 dark:bg-neutral-800">
+                      <ThemeIcon size={11} /> {themeLabel}
+                    </span>
+                  )}
+                </div>
                 {project.description && (
                   <p className="line-clamp-2 text-xs text-neutral-500">{project.description}</p>
                 )}
@@ -131,9 +157,12 @@ export function ProyectosClient({ items }: { items: AdminProjectListItem[] }) {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
       {dialogState?.mode === "create" && <ProyectoFormDialog mode="create" onClose={() => setDialogState(null)} />}
       {dialogState?.mode === "edit" && (

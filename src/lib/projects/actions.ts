@@ -115,6 +115,8 @@ export async function createProject(input: z.infer<typeof createProjectSchema>, 
       description: data.description ? data.description : null,
       imageUrl,
       position: existing.length,
+      theme: data.theme ? data.theme : null,
+      featured: data.featured ?? false,
     })
     .returning();
 
@@ -143,6 +145,8 @@ export async function updateProject(id: string, input: z.infer<typeof updateProj
     .set({
       ...(data.title !== undefined ? { title: data.title } : {}),
       ...(data.description !== undefined ? { description: data.description ? data.description : null } : {}),
+      ...(data.theme !== undefined ? { theme: data.theme ? data.theme : null } : {}),
+      ...(data.featured !== undefined ? { featured: data.featured } : {}),
     })
     .where(eq(projects.id, id))
     .returning();

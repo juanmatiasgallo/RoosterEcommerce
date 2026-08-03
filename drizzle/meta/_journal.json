@@ -218,6 +218,13 @@
       "when": 1785711995604,
       "tag": "0030_great_living_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1785721052931,
+      "tag": "0031_chubby_impossible_man",
+      "breakpoints": true
     }
   ]
 }

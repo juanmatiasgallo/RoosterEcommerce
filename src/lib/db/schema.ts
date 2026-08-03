@@ -242,9 +242,26 @@ export const projects = pgTable("projects", {
   id: uuid("id").primaryKey().defaultRandom(),
   storeId: uuid("store_id").notNull().references(() => stores.id),
   title: varchar("title", { length: 200 }).notNull(),
+  // Soporta Markdown (task #147: "tiene que poder tener un buen MD") --
+  // se renderiza con MarkdownContent (src/components/markdown-content.tsx)
+  // tanto en el lightbox del detalle como en el resumen truncado de la
+  // grilla/carousel. Limite subido de 2000 a 4000 (ver schema.ts de Zod)
+  // porque estructurar con encabezados/listas ocupa mas espacio que texto
+  // plano.
   description: text("description"),
   imageUrl: text("image_url").notNull(),
   position: integer("position").notNull().default(0),
+  // Tematica curada (task #147), no texto libre -- mismo criterio que
+  // SERVICE_ICONS en site-content/icon-registry.ts: el admin elige de un
+  // <select> (ver lib/projects/theme-registry.ts), la clave se resuelve a
+  // un icono real en el front. Nulo = sin tematica asignada, no se muestra
+  // badge.
+  theme: varchar("theme", { length: 40 }),
+  // Marca los proyectos mas destacados para el carousel del hero de
+  // /proyectos (task #147) -- no reemplaza `position` (que sigue ordenando
+  // la grilla completa), es un flag aparte para elegir "lo mas importante
+  // y destacado" segun pidio el owner.
+  featured: boolean("featured").notNull().default(false),
   // Soft delete, mismo criterio que productos/variantes (CLAUDE.md).
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),

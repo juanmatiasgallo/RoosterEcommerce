@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import type { z } from "zod";
 import { createProjectSchema } from "@/lib/projects/schema";
 import { createProject, replaceProjectImage, updateProject, type AdminProjectListItem } from "@/lib/projects/actions";
+import { PROJECT_THEMES, PROJECT_THEME_KEYS } from "@/lib/projects/theme-registry";
 
 type FormValues = z.infer<typeof createProjectSchema>;
 
@@ -27,8 +28,13 @@ export function ProyectoFormDialog(props: Props & { onClose: () => void }) {
     resolver: zodResolver(createProjectSchema),
     defaultValues:
       props.mode === "edit"
-        ? { title: props.project.title, description: props.project.description ?? "" }
-        : { title: "", description: "" },
+        ? {
+            title: props.project.title,
+            description: props.project.description ?? "",
+            theme: (props.project.theme ?? "") as FormValues["theme"],
+            featured: props.project.featured,
+          }
+        : { title: "", description: "", theme: "", featured: false },
   });
 
   async function onSubmit(values: FormValues) {
@@ -83,14 +89,41 @@ export function ProyectoFormDialog(props: Props & { onClose: () => void }) {
               <label htmlFor="project-description" className="mb-1 block text-sm font-medium">
                 Descripcion
               </label>
+              <p className="mb-1.5 text-xs text-neutral-500">
+                Soporta Markdown: ## Titulo, **negrita**, listas con guion. Se muestra formateado en el detalle del
+                proyecto.
+              </p>
               <textarea
                 id="project-description"
-                rows={3}
+                rows={5}
                 {...register("description")}
-                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+                className="w-full rounded border border-neutral-300 px-3 py-2 font-mono text-sm dark:border-neutral-700 dark:bg-neutral-900"
               />
               {errors.description && <p className="mt-1 text-xs text-red-600">{errors.description.message}</p>}
             </div>
+
+            <div>
+              <label htmlFor="project-theme" className="mb-1 block text-sm font-medium">
+                Tematica (opcional)
+              </label>
+              <select
+                id="project-theme"
+                {...register("theme")}
+                className="w-full rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+              >
+                <option value="">Sin tematica</option>
+                {PROJECT_THEME_KEYS.map((key) => (
+                  <option key={key} value={key}>
+                    {PROJECT_THEMES[key].label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" {...register("featured")} className="h-4 w-4 rounded border-neutral-300" />
+              Destacado (aparece en el carousel de arriba de /proyectos)
+            </label>
 
             <div>
               <span className="mb-1 block text-sm font-medium">
