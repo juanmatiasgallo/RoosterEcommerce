@@ -80,7 +80,11 @@ export function AnimatedHeading({
   duration?: number;
   lineDelay?: number;
 }) {
-  const Tag = as;
+  // Cast explicito: `ElementType` generico hace que TS infiera `children`
+  // como `never` en algunas versiones de @types/react (colapsa el JSX de
+  // Tag a "sin hijos permitidos"), aunque en runtime siempre acepta
+  // className+children normal. Sin este tipo explicito, tsc rompe aca.
+  const Tag = as as ElementType<{ className?: string; children?: ReactNode }>;
   const lines = Array.isArray(text) ? text : [text];
   const staggerValue = stagger ?? (splitBy === "letter" ? 0.025 : 0.045);
   const durationValue = duration ?? 0.55;

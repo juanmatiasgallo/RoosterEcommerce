@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
-import { CheckCircle2, FileText, Rocket, Sparkles, UploadCloud, Wand2, X } from "lucide-react";
+import { Box, CheckCircle2, FileText, Rocket, Sparkles, UploadCloud, Wand2, X } from "lucide-react";
 import { createCustomOrderSchema } from "@/lib/custom-orders/schema";
 import { createCustomOrder } from "@/lib/custom-orders/actions";
 import { IdentifyStep } from "@/components/identify-step";
 import { Spinner } from "@/components/ui/spinner";
 import { trackEvent } from "@/lib/analytics/track";
+import { Model3DDialog } from "@/components/model-3d-dialog";
+import { getModel3DExtension } from "@/components/model-3d-viewer";
 
 type Step = "identify" | "details" | "confirm";
 type FormValues = z.infer<typeof createCustomOrderSchema>;
@@ -47,6 +49,24 @@ export function PedidoAMedidaWizard({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [modelPreviewOpen, setModelPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // Visor 3D del archivo antes de mandarlo (task #148, pedido explicito:
+  // "como parte del proceso el cliente pueda verlo"): blob: URL local, no
+  // se sube a ningun lado todavia. Se recrea cada vez que cambia el archivo
+  // elegido y se libera al desmontar/cambiar para no dejar memoria colgada.
+  useEffect(() => {
+    if (!file) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const modelExtension = file ? getModel3DExtension(file.name) : null;
 
   const {
     register,
@@ -161,16 +181,30 @@ export function PedidoAMedidaWizard({
                       <FileText className="h-8 w-8 text-accent" strokeWidth={1.5} />
                       <p className="text-sm font-medium">{file.name}</p>
                       <p className="text-xs text-neutral-500">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          pickFile(null);
-                        }}
-                        className="mt-1 flex items-center gap-1 text-xs text-neutral-500 underline"
-                      >
-                        <X size={12} /> Sacar archivo
-                      </button>
+                      <div className="mt-1 flex items-center gap-3">
+                        {modelExtension && previewUrl && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setModelPreviewOpen(true);
+                            }}
+                            className="flex items-center gap-1 text-xs font-medium text-accent underline"
+                          >
+                            <Box size={12} /> Ver en 3D
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            pickFile(null);
+                          }}
+                          className="flex items-center gap-1 text-xs text-neutral-500 underline"
+                        >
+                          <X size={12} /> Sacar archivo
+                        </button>
+                      </div>
                     </>
                   ) : (
                     <>
@@ -310,6 +344,16 @@ export function PedidoAMedidaWizard({
           )}
         </div>
       </div>
+
+      {file && modelExtension && previewUrl && (
+        <Model3DDialog
+          open={modelPreviewOpen}
+          onClose={() => setModelPreviewOpen(false)}
+          url={previewUrl}
+          extension={modelExtension}
+          title={file.name}
+        />
+      )}
 
       {showSuccess && <SubmittedModal />}
     </>

@@ -1,24 +1,39 @@
 "use client";
 
 import { useState } from "react";
+import { Box } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import type { AdminCustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/hooks/use-pagination";
+import { Model3DDialog } from "@/components/model-3d-dialog";
+import { getModel3DExtension } from "@/components/model-3d-viewer";
 import { CotizarFormDialog } from "./cotizar-form-dialog";
 
-function FileLink({ order }: { order: AdminCustomOrderRow }) {
+function FileLink({ order, onPreview }: { order: AdminCustomOrderRow; onPreview: (order: AdminCustomOrderRow) => void }) {
   return (
-    <a
-      href={order.fileUrl}
-      download={order.fileName}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-xs text-blue-600 underline hover:text-blue-800 dark:text-blue-400"
-    >
-      Ver archivo ({order.fileName})
-    </a>
+    <div className="flex items-center gap-3">
+      <a
+        href={order.fileUrl}
+        download={order.fileName}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs text-blue-600 underline hover:text-blue-800 dark:text-blue-400"
+      >
+        Ver archivo ({order.fileName})
+      </a>
+      {getModel3DExtension(order.fileName) && (
+        <button
+          type="button"
+          onClick={() => onPreview(order)}
+          className="inline-flex items-center gap-1 text-xs font-medium text-neutral-600 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+        >
+          <Box size={12} />
+          Ver en 3D
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -30,6 +45,8 @@ export function PedidosCustomClient({
   cotizados: AdminCustomOrderRow[];
 }) {
   const [cotizando, setCotizando] = useState<AdminCustomOrderRow | null>(null);
+  const [previewOrder, setPreviewOrder] = useState<AdminCustomOrderRow | null>(null);
+  const previewExtension = previewOrder ? getModel3DExtension(previewOrder.fileName) : null;
   // Dos listas independientes en esta pantalla -- cada una con su propia
   // pagina, no comparten estado (task #146).
   const pendientesPage = usePagination(pendientes);
@@ -69,7 +86,7 @@ export function PedidosCustomClient({
                 </p>
                 {order.notes && <p className="mt-1 text-xs text-neutral-500">Notas: {order.notes}</p>}
                 <div className="mt-2">
-                  <FileLink order={order} />
+                  <FileLink order={order} onPreview={setPreviewOrder} />
                 </div>
               </div>
             ))}
@@ -109,7 +126,7 @@ export function PedidosCustomClient({
                   <p className="mt-1 text-xs text-neutral-600 dark:text-neutral-400">{order.quotedNotes}</p>
                 )}
                 <div className="mt-2 flex items-center gap-3">
-                  <FileLink order={order} />
+                  <FileLink order={order} onPreview={setPreviewOrder} />
                   {order.quotePdfUrl && (
                     <a
                       href={order.quotePdfUrl}
@@ -129,6 +146,16 @@ export function PedidosCustomClient({
       </section>
 
       {cotizando && <CotizarFormDialog order={cotizando} onClose={() => setCotizando(null)} />}
+
+      {previewOrder && previewExtension && (
+        <Model3DDialog
+          open
+          onClose={() => setPreviewOrder(null)}
+          url={previewOrder.fileUrl}
+          extension={previewExtension}
+          title={previewOrder.fileName}
+        />
+      )}
     </div>
   );
 }

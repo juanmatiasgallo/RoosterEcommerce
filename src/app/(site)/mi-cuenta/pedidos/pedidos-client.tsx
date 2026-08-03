@@ -4,12 +4,15 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Box } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { declineCustomOrderQuote, initiateCustomOrderPayment, type CustomOrderRow } from "@/lib/custom-orders/actions";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Pagination } from "@/components/ui/pagination";
 import { OrderStatusTracker } from "@/components/order-status-tracker";
 import { usePagination } from "@/hooks/use-pagination";
+import { Model3DDialog } from "@/components/model-3d-dialog";
+import { getModel3DExtension } from "@/components/model-3d-viewer";
 import {
   PaymentMethodPicker,
   type ManualPaymentMethodOption,
@@ -101,6 +104,8 @@ export function PedidosClient({
   manualPaymentMethods: ManualPaymentMethodOption[];
 }) {
   const { page, setPage, totalPages, pageItems: pagedOrders } = usePagination(orders);
+  const [previewOrder, setPreviewOrder] = useState<CustomOrderRow | null>(null);
+  const previewExtension = previewOrder ? getModel3DExtension(previewOrder.fileName) : null;
 
   if (orders.length === 0) {
     return <p className="mt-4 text-neutral-500">Todavia no hiciste ningun pedido a medida.</p>;
@@ -128,6 +133,16 @@ export function PedidosClient({
                   )}
                 </p>
                 <p className="text-xs text-neutral-500">{formatDate(order.createdAt)}</p>
+                {getModel3DExtension(order.fileName) && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOrder(order)}
+                    className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-neutral-600 underline hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                  >
+                    <Box size={12} />
+                    Ver en 3D
+                  </button>
+                )}
               </div>
               {!hasLinkedOrder && (
                 <Badge variant={status.variant} className="shrink-0">
@@ -194,6 +209,16 @@ export function PedidosClient({
       })}
 
       <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+
+      {previewOrder && previewExtension && (
+        <Model3DDialog
+          open
+          onClose={() => setPreviewOrder(null)}
+          url={previewOrder.fileUrl}
+          extension={previewExtension}
+          title={previewOrder.fileName}
+        />
+      )}
     </div>
   );
 }
