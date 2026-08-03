@@ -9,7 +9,7 @@ import type { z } from "zod";
 import { auth } from "@/auth";
 import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
-import { auditLogs, categories, productImages, products, productVariants } from "@/lib/db/schema";
+import { auditLogs, categories, orderItems, productImages, products, productVariants } from "@/lib/db/schema";
 import { NEXT_PRODUCT_CODE_SQL, nextVariantCode } from "./code";
 import { listProducts, listProductsByIds } from "./queries";
 import {
@@ -244,6 +244,63 @@ export async function archiveProduct(id: string) {
   revalidatePath(`/producto/${existing.code}`);
   revalidatePath("/admin/productos");
   return updated;
+}
+
+// Eliminar de verdad (task #142: "debo de poder eliminar los productos en
+// caso que quiera", ademas de archivar). A diferencia de archiveProduct,
+// esto borra el registro -- pero CLAUDE.md tambien dice "Ordenes = nunca se
+// borran, solo cambian de estado", y por transitividad no se puede borrar lo
+// que una orden ya vendida referencia (order_items.variantId -> esa
+// variante). Se chequea explicito antes de intentar el DELETE, en vez de
+// confiar en que la FK (sin cascade a proposito, ver schema.ts) lo frene
+// solo -- da un mensaje claro en vez de un error de Postgres crudo.
+export async function deleteProduct(id: string) {
+  const session = await requireStaff();
+
+  const existing = await getOwnedProduct(id, session.user.storeId);
+  if (!existing) throw new Error("Producto no encontrado.");
+
+  const [hasOrders] = await db
+    .select({ id: orderItems.id })
+    .from(orderItems)
+    .innerJoin(productVariants, eq(productVariants.id, orderItems.variantId))
+    .where(eq(productVariants.productId, id))
+    .limit(1);
+  if (hasOrders) {
+    throw new Error('Este producto tiene ordenes asociadas -- no se puede eliminar. Usa "Archivar" en su lugar.');
+  }
+
+  // Imagenes/videos para borrar del disco despues del DELETE (el cascade de
+  // product_images se lleva puesto las filas, pero no los archivos —
+  // best-effort, mismo criterio que deleteProductImage arriba).
+  const images = await db.select().from(productImages).where(eq(productImages.productId, id));
+
+  await db.delete(products).where(eq(products.id, id));
+
+  const uploadsDir = process.env.UPLOADS_DIR ?? "./public/uploads";
+  for (const image of images) {
+    const filename = image.url.split("/").pop();
+    if (!filename) continue;
+    try {
+      await unlink(path.resolve(uploadsDir, "products", filename));
+    } catch {
+      // Ignorado a proposito, mismo criterio que deleteProductImage.
+    }
+  }
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "delete",
+    entityType: "product",
+    entityId: id,
+    before: existing,
+  });
+
+  revalidatePath("/");
+  revalidatePath(`/producto/${existing.code}`);
+  revalidatePath("/admin/productos");
+  return { id };
 }
 
 // --- Variantes ----------------------------------------------------------

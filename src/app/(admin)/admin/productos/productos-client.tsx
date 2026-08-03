@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/format";
-import { archiveProduct, type AdminProductListItem } from "@/lib/catalog/actions";
+import { archiveProduct, deleteProduct, type AdminProductListItem } from "@/lib/catalog/actions";
 import { seedDemoCatalogAction } from "@/lib/catalog/seed-demo-actions";
 import type { CategoryTreeNode } from "@/lib/catalog/queries";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ export function ProductosClient({
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [dialogState, setDialogState] = useState<DialogState>(null);
   const [archivingId, setArchivingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
 
   // Boton de una sola vez para poblar el catalogo con productos de
@@ -80,6 +81,24 @@ export function ProductosClient({
       toast.error(error instanceof Error ? error.message : "No se pudo archivar el producto.");
     } finally {
       setArchivingId(null);
+    }
+  }
+
+  // Distinto de handleArchive: esto borra el registro de verdad (task
+  // #142). deleteProduct ya bloquea del lado del server si el producto
+  // tiene ordenes asociadas -- el mensaje de esa excepcion se muestra tal
+  // cual en el toast, no hace falta duplicar la validacion aca.
+  async function handleDelete(product: AdminProductListItem) {
+    if (!window.confirm(`Eliminar "${product.name}" definitivamente? Esta accion no se puede deshacer.`)) return;
+
+    setDeletingId(product.id);
+    try {
+      await deleteProduct(product.id);
+      toast.success("Producto eliminado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar el producto.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -188,6 +207,14 @@ export function ProductosClient({
                           {archivingId === product.id ? "Archivando..." : "Archivar"}
                         </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(product)}
+                        disabled={deletingId === product.id}
+                        className="rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/50"
+                      >
+                        {deletingId === product.id ? "Eliminando..." : "Eliminar"}
+                      </button>
                     </div>
                   </td>
                 </tr>
