@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Work_Sans } from "next/font/google";
+import { Inter, Sora } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UmamiScript } from "@/components/umami-script";
@@ -14,22 +14,31 @@ import "./globals.css";
 // `export const dynamic`).
 export const dynamic = "force-dynamic";
 
-// Una sola familia, dos pesos (regular + semibold) — suficiente para todo
-// el sitio, sin sumar mas de 2 pesos de fuente.
-const workSans = Work_Sans({
+// Pase de tipografia (task #155): Work Sans -> Inter para el cuerpo. Misma
+// idea de "pocos pesos" que antes, pero se suma el 500 -- font-medium se usa
+// en botones/labels/badges por todo el sitio y con Work Sans (solo 400/600
+// cargados) el navegador lo fingia con negrita sintetica; con el peso real
+// cargado se ve mas nitido, sobre todo en pantalla chica. Inter tiene mejor
+// metrica para numeros/precios (tabular figures mas parejas) que Work Sans,
+// relevante en un catalogo con montos por todos lados.
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "600"],
+  weight: ["400", "500", "600"],
   variable: "--font-sans",
   display: "swap",
 });
 
-// Fuente de titulos (task #23 -- "que las letras tengan mas presencia"):
-// geometrica y con mas caracter que Work Sans, solo para headings (ver
-// utilidad font-heading en globals.css + animated-heading.tsx). Nombre de
-// variable distinto de --font-sans a proposito para no pisarla.
-const spaceGrotesk = Space_Grotesk({
+// Fuente de titulos (task #155, reemplaza a Space Grotesk de la task #23):
+// mismo espiritu geometrico/tecnico que ya tenia el sitio, pero con mas
+// pulido y un rango de pesos mas alto (hasta 800) -- se nota sobre todo en
+// el "font-black" que ya usaba Extruded3DText para "3D" en el Hero, que con
+// Space Grotesk (tope real 700) siempre caia en negrita sintetica del
+// navegador. Solo para headings (ver utilidad font-heading en globals.css +
+// animated-heading.tsx). Nombre de variable distinto de --font-sans a
+// proposito para no pisarla.
+const sora = Sora({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["500", "600", "700", "800"],
   variable: "--font-display",
   display: "swap",
 });
@@ -49,7 +58,7 @@ export default async function RootLayout({
   const umamiConfig = await getPublicUmamiConfig();
 
   return (
-    <html lang="es" className={`${workSans.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
+    <html lang="es" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           {children}
