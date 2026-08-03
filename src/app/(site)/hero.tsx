@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
 import { HeroHeading } from "./hero-heading";
 import { HeroTrustBadges } from "./hero-trust-badges";
+import { HeroAstronautScene } from "./hero-astronaut-scene";
 
 // Theme-aware (antes era bg-neutral-950 fijo, sin importar el tema -- se
 // veia como un bloque negro roto contra el fondo claro cuando el sitio
@@ -31,6 +32,13 @@ export function Hero() {
           no se alcanza a ver ni un pixel de "Como funciona" empujando a
           scrollear un poco para descubrirlo, que era el pedido original. */}
       <PrinterGridBackground />
+
+      {/* Astronauta 3D real (task #151), pintado antes del contenido en el
+          DOM para quedar detras del texto -- flota a la derecha, angosto en
+          lg y mas ancho recien desde xl para no pisar "a tu medida" en
+          pantallas intermedias. Ver hero-astronaut-scene.tsx: se degrada a
+          no mostrar nada si el modelo todavia no esta copiado. */}
+      <HeroAstronautScene />
 
       <div className="relative mx-auto max-w-6xl">
         <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catalogo + pedidos a medida</p>

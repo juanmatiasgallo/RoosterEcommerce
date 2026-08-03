@@ -135,6 +135,30 @@ export function SiteFooter({
           <span>© {new Date().getFullYear()} Tienda 3D. Todos los derechos reservados.</span>
           <span>{contactEmail || FALLBACK_EMAIL}</span>
         </div>
+        {/* Credito obligatorio de la licencia CC-BY del modelo 3D del Hero
+            (task #151) -- "Astronaut" de Poly/Google, no es CC0. Fila propia,
+            bien chica, para que no compita visualmente con el resto. */}
+        <div className="mx-auto max-w-6xl px-4 pb-4 text-center text-[0.65rem] text-neutral-600 sm:text-left">
+          Modelo 3D &quot;Astronaut&quot; por{" "}
+          <a
+            href="https://poly.google.com/user/4aEd8rQgKu2"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-neutral-400"
+          >
+            Poly
+          </a>
+          , licencia{" "}
+          <a
+            href="https://creativecommons.org/licenses/by/2.0/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-neutral-400"
+          >
+            CC BY 2.0
+          </a>
+          .
+        </div>
       </div>
     </footer>
   );
