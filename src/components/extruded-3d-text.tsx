@@ -28,11 +28,13 @@ type Material = {
 
 // Ciclo de "materiales de impresion" (pedido explicito: el relieve solido
 // de un solo color se sentia plano -- "mas textura... que vaya cambiando de
-// texturas"). Tres acabados que rotan solos, tematicamente ligados a la
-// seccion de Materiales que ya existe en la home: plastico/acento (el
-// original), metalico plateado, y cobre (ligado a la paleta "Carbon y
-// cobre" del sitio, con mas presencia en modo oscuro donde el acento no es
-// cobre sino celeste).
+// texturas"). Tres acabados que rotan solos: plastico/acento (el acero
+// oscurecido de la paleta, ver globals.css #180), metalico plateado, y
+// coral -- reemplaza al viejo material "cobre" (#180: salir del naranja
+// tambien en este componente, no solo en el acento global). Coral usa los
+// mismos 2 colores que paso el owner para la paleta clara (#FFB6A6 /
+// #FFEBD3), asi el ciclo entero queda armado solo con colores de marca
+// verificados, ninguno inventado.
 const MATERIALS: Material[] = [
   { name: "plastico", fill: "var(--color-accent)", shadowBase: "var(--color-accent)" },
   {
@@ -41,9 +43,9 @@ const MATERIALS: Material[] = [
     shadowBase: "#7d8492",
   },
   {
-    name: "cobre",
-    gradient: "linear-gradient(135deg, #f2b27a 0%, #ffd9ad 20%, #8a4a1f 50%, #d9834f 75%, #f2b27a 100%)",
-    shadowBase: "#a85a2c",
+    name: "coral",
+    gradient: "linear-gradient(135deg, #ffebd3 0%, #ffb6a6 30%, #c96b52 55%, #ffb6a6 80%, #ffebd3 100%)",
+    shadowBase: "#c96b52",
   },
 ];
 
@@ -73,33 +75,40 @@ function materialStyle(material: Material): CSSProperties {
 }
 
 /**
- * La palabra "3D" del Hero, con relieve real (no solo el mismo texto en
- * otro color): mucho mas grande que el resto del titulo (text-[2.2em], en
- * proporcion al tamano del h1 en cada breakpoint, no un valor fijo), pop-in
- * con rebote al aparecer, glow pulsante detras para que tenga presencia
- * propia, y una rotacion 3D continua bastante mas amplia que antes que deja
- * ver la profundidad de las capas -- "mucha mas animacion" pedido
- * explicitamente. Ahora ademas el relieve en si va rotando entre 3
+ * La pieza "3D" del Hero, con relieve real (no solo el mismo texto en otro
+ * color): pop-in con rebote al aparecer, glow pulsante detras para que
+ * tenga presencia propia, y una rotacion 3D continua que deja ver la
+ * profundidad de las capas. El relieve en si va rotando entre 3
  * "materiales" (ver MATERIALS arriba) via crossfade de opacity -- 3 copias
  * del texto apiladas exactamente una encima de otra (mismo font/tamano, asi
  * que coinciden pixel a pixel), solo una visible a la vez.
+ *
+ * Desde el rediseno del Hero es una pieza standalone (ver hero.tsx), no una
+ * palabra incrustada en el titulo -- el tamano lo define quien la usa via
+ * font-size del contenedor (2.2em es relativo a ESE tamano, no al del h1).
  */
 export function Extruded3DText({
   text = "3D",
   className,
-  delay = 1.4,
+  delay = 0.2,
 }: {
   text?: string;
   className?: string;
   delay?: number;
 }) {
   return (
-    // Sin initial/animate propios: hereda "hidden"/"show" del motion.span
-    // padre en hero-heading.tsx (que ya maneja whileInView con once:false),
-    // asi el pop-in de "3D" replica exactamente cuando "Impresion" replica
-    // -- si tuviera su propio ciclo de vida (initial+animate) solo jugaria
-    // una vez al montar y nunca de nuevo al reaparecer en pantalla.
+    // Antes heredaba "hidden"/"show" de un motion.span padre en
+    // hero-heading.tsx (estaba incrustado dentro del titulo, junto a "De la
+    // idea al objeto"). Task de rediseno del Hero: el owner pidio sacar la
+    // pieza 3D "bola" del medio y sacar tambien las letras "3D" sueltas del
+    // titulo, y unificar todo en una sola pieza con forma literal de "3D" --
+    // este componente paso a ser esa pieza, standalone, arriba del titulo
+    // (ver hero.tsx). Por eso ahora tiene su propio initial/whileInView en
+    // vez de depender de un ancestro.
     <motion.span
+      initial="hidden"
+      whileInView="show"
+      viewport={{ once: false, amount: 0.6 }}
       // z-0 (no solo "relative"): sin un z-index explicito, position:relative
       // no crea un stacking context propio, y el z-index negativo del glow
       // de abajo terminaria escapando a un ancestro mas arriba en vez de

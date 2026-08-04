@@ -8,7 +8,7 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { emailTemplates } from "@/lib/db/schema";
-import { EMAIL_EVENT_TYPES, renderEmailTemplate, type EmailEventType } from "./event-types";
+import { EMAIL_EVENT_TYPES, renderEmailSubject, renderEmailTemplate, type EmailEventType } from "./event-types";
 
 // Resuelve el subject+html ya renderizados (placeholders reemplazados) para
 // un evento puntual. Si la tienda todavia no tiene esa fila en
@@ -35,7 +35,7 @@ export async function getEmailTemplateForSending(
 
   return {
     enabled,
-    subject: renderEmailTemplate(subjectTemplate, vars),
+    subject: renderEmailSubject(subjectTemplate, vars),
     html: renderEmailTemplate(htmlTemplate, vars),
   };
 }

@@ -2,9 +2,9 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
+import { Extruded3DText } from "@/components/extruded-3d-text";
 import { HeroHeading } from "./hero-heading";
 import { HeroTrustBadges } from "./hero-trust-badges";
-import { HeroBlueprintScene } from "./hero-blueprint-scene";
 
 // Theme-aware (antes era bg-neutral-950 fijo, sin importar el tema -- se
 // veia como un bloque negro roto contra el fondo claro cuando el sitio
@@ -34,27 +34,30 @@ export function Hero() {
       <PrinterGridBackground />
 
       <div className="relative mx-auto max-w-6xl">
-        {/* HeroBlueprintScene (#176, reemplaza al astronauta de #167): el
-            mismo objeto crossfadea entre wireframe ("blueprint"/diseno) y
-            solido ("objeto impreso") -- materializa el "de la idea al
-            objeto" del titulo antes de que el visitante llegue a leerlo. Sin
-            GLTFLoader/Environment/OrbitControls (ver comentarios en
-            hero-blueprint-scene.tsx): geometria nativa, mucho mas liviano
-            que el astronauta que reemplaza. */}
-        <div className="mx-auto -mb-4 h-56 w-56 sm:h-72 sm:w-72" aria-hidden="true">
-          <HeroBlueprintScene />
+        {/* Pieza "3D" standalone (rediseno del Hero): antes habia una bola
+            (icosaedro en three.js, hero-blueprint-scene.tsx) arriba del
+            titulo, y ademas la palabra "3D" suelta incrustada adentro del
+            H1. El owner pidio sacar la bola por rebuscada y sacar tambien
+            el "3D" del titulo, unificando todo en una sola pieza con forma
+            literal de "3D" -- es este mismo Extruded3DText que antes vivia
+            adentro de HeroHeading, ahora standalone y mucho mas grande
+            (arriba definia su tamano el h1 que lo rodeaba con 2.2em; aca lo
+            define directamente el font-size de este contenedor). De paso
+            saca three.js/@react-three/fiber de la home por completo (la
+            pieza es 100% CSS, mismo criterio liviano que ya tenia). */}
+        <div className="mx-auto -mb-2 flex justify-center text-5xl sm:text-6xl" aria-hidden="true">
+          <Extruded3DText />
         </div>
 
-        <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Diseno + impresion + catalogo</p>
+        <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Diseño + impresión + catálogo</p>
         {/* HeroHeading (antes AnimatedHeading generico): "De la idea al
-            objeto" se arma letra por letra, "3D" es una pieza aparte con
-            relieve 3D real (Extruded3DText), y "y mucho mas" usa un armado
+            objeto" se arma letra por letra, y "y mucho mas" usa un armado
             disparejo que converge al tamano uniforme (UnevenSettleText) --
             ver hero-heading.tsx. */}
         <HeroHeading />
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-600 dark:text-neutral-300">
-          Catalogo propio para el hogar, la tecnologia y los regalos, o tu proyecto hecho pieza a medida: te
-          cotizamos antes de cobrarte nada. No somos solo una impresora -- disenamos, fabricamos y armamos tu
+          Catálogo propio para el hogar, la tecnología y los regalos, o tu proyecto hecho pieza a medida: te
+          cotizamos antes de cobrarte nada. No somos solo una impresora: diseñamos, fabricamos y armamos tu
           pedido como una tienda de verdad.
         </p>
 
@@ -66,7 +69,7 @@ export function Hero() {
               "transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-lg hover:shadow-accent/30 active:scale-[0.97]",
             )}
           >
-            Ver catalogo
+            Ver catálogo
           </Link>
           <Link
             href="/pedido-a-medida"

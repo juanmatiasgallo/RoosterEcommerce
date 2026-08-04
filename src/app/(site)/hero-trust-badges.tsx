@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 const TRUST_BADGES = [
   { icon: ShieldCheck, label: "Pago seguro con Mercado Pago" },
-  { icon: Truck, label: "Coordinamos el envio a todo el pais" },
-  { icon: PackageSearch, label: "Cotizacion antes de pagar" },
+  { icon: Truck, label: "Coordinamos el envío a todo el país" },
+  { icon: PackageSearch, label: "Cotización antes de pagar" },
 ];
 
 const HIGHLIGHT_MS = 1900;

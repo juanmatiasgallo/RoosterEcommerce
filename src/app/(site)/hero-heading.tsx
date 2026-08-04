@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Extruded3DText } from "@/components/extruded-3d-text";
 import { UnevenSettleText } from "@/components/uneven-settle-text";
 
 // Mismo ritmo que el resto del Hero (task #34): stagger 0.09 entre letras,
@@ -26,22 +25,18 @@ function renderLetters(word: string) {
 }
 
 /**
- * Reemplaza el AnimatedHeading generico solo en el Hero: esta linea necesita
- * mezclar dos tratamientos que el componente compartido (usado en otras 13
- * pantallas del sitio) no soporta sin volverse mas fragil para todos los
- * demas usos -- "De la idea al objeto" se arma letra por letra como
- * siempre, pero "3D" pasa a ser una pieza aparte con relieve real
- * (Extruded3DText, se mantiene sin tocar: el pedido de "la tecnologia del
- * astronauta solo para la palabra 3D" ya se cumplia porque esto siempre fue
- * CSS puro), y la segunda linea ("y mucho mas", antes "a tu medida", cambio
- * de copy #177) usa el armado disparejo->uniforme (UnevenSettleText) en vez
- * del reveal parejo de siempre.
+ * Reemplaza el AnimatedHeading generico solo en el Hero: "De la idea al
+ * objeto" se arma letra por letra, y la segunda linea ("y mucho mas") usa
+ * el armado disparejo->uniforme (UnevenSettleText) en vez del reveal parejo
+ * de siempre.
+ *
+ * Antes tenia ademas la pieza "3D" incrustada al final de la primera linea
+ * (Extruded3DText). El owner pidio sacar tanto la pieza-bola del Hero como
+ * las letras "3D" sueltas del titulo, y unificar todo en una sola pieza con
+ * forma literal de "3D" -- esa pieza ahora vive sola, arriba de este
+ * titulo, no aca (ver hero.tsx).
  */
 export function HeroHeading() {
-  // La palabra "3D" entra apenas termina de asentarse la ultima letra de la
-  // primera linea (largo de la frase * stagger + duracion de una letra).
-  const threeDDelay = FIRST_LINE.length * LETTER_STAGGER + LETTER_DURATION * 0.55;
-
   return (
     <h1 className="relative mt-3 text-5xl font-semibold tracking-tight sm:text-7xl">
       <span
@@ -57,8 +52,6 @@ export function HeroHeading() {
         className="block"
       >
         {renderLetters(FIRST_LINE)}
-        <span> </span>
-        <Extruded3DText delay={threeDDelay} />
       </motion.span>
 
       <UnevenSettleText text="y mucho mas" className="text-accent" delay={0.45} />

@@ -11,20 +11,27 @@
 // clientes de correo no confian en <style> de forma pareja, mismo criterio
 // que ya se uso para el template base de Listmonk.
 //
-// Acento actualizado a "Indigo de estudio" (#4338ca, ver globals.css #174) --
-// antes cobre/naranja. Los neutros tambien se sincronizaron con la rampa
-// actual (post #169), quedaron desactualizados cuando ese refinamiento se
-// hizo solo en globals.css y no se propago aca.
+// Acento actualizado a un azul acero oscurecido para cumplir contraste AA
+// (#3f7396, ver globals.css #180 -- derivado de un color que paso el owner,
+// verificado con calculo real de WCAG, no a ojo). Los neutros tambien se
+// sincronizaron con la rampa actual (post #169), quedaron desactualizados
+// cuando ese refinamiento se hizo solo en globals.css y no se propago aca.
 
-const COLOR_ACCENT = "#4338ca";
-const COLOR_ACCENT_HOVER = "#3730a3";
+const COLOR_ACCENT = "#3f7396";
+const COLOR_ACCENT_HOVER = "#2c5773";
 const COLOR_CARBON = "#1a1712";
 const COLOR_CREAM_BG = "#f2f1ec";
 const COLOR_CREAM_CARD = "#fafaf8";
 const COLOR_MUTED = "#7d7666";
 const COLOR_BORDER = "#e4e1d8";
 
-function escapeHtml(value: string): string {
+// Exportado (auditoria de seguridad, ver render.ts / event-types.ts): el
+// reemplazo de placeholders en las plantillas de mail editables necesita el
+// mismo escape antes de insertar datos dinamicos en HTML crudo -- sin esto,
+// un nombre de cliente o un nombre de archivo subido por el usuario
+// (customerName, fileName) con HTML/JS adentro quedaba insertado sin
+// sanitizar en el mail final (inyeccion HTML/XSS de tipo "stored").
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -89,7 +96,7 @@ export function wrapEmailHtml(params: { heading: string; bodyHtml: string }): st
   <body style="background-color:${COLOR_CREAM_BG};font-family:'Helvetica Neue','Segoe UI',Helvetica,sans-serif;font-size:15px;line-height:26px;margin:0;color:${COLOR_CARBON};">
     <div style="background-color:${COLOR_CARBON};padding:18px 30px;text-align:center;">
       <span style="color:${COLOR_CREAM_CARD};font-size:18px;font-weight:700;letter-spacing:0.5px;">
-        Tienda<span style="color:#d97a2b;">3D</span>
+        Tienda<span style="color:${COLOR_ACCENT};">3D</span>
       </span>
     </div>
     <div style="background-color:${COLOR_CREAM_CARD};padding:30px;max-width:525px;margin:0 auto;border-radius:0 0 8px 8px;">
@@ -97,7 +104,7 @@ export function wrapEmailHtml(params: { heading: string; bodyHtml: string }): st
       ${params.bodyHtml}
     </div>
     <div style="text-align:center;font-size:12px;color:${COLOR_MUTED};padding:20px 30px 0;">
-      Tienda3D — impresion 3D en Uruguay
+      Tienda3D — impresión 3D en Uruguay
     </div>
     <div style="padding:20px;">&nbsp;</div>
   </body>
