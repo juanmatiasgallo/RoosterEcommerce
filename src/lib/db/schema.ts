@@ -486,6 +486,31 @@ export const telegramTemplates = pgTable(
   (table) => [unique("telegram_templates_store_event_unique").on(table.storeId, table.eventType)],
 );
 
+// Plantillas de mail transaccional editables desde /admin/configuracion
+// (pedido explicito del owner: "quiero poder mandar plantillas html como la
+// otra" -- la otra es el template de Listmonk armado en la sesion anterior).
+// Mismo patron exacto que telegram_templates de arriba: una fila por
+// (storeId, eventType), sembrada la primera vez que se abre el admin a
+// partir de EMAIL_EVENT_TYPES (ver src/lib/email-templates/event-types.ts).
+// `html` es el email completo (no un fragmento) con placeholders {{...}} --
+// se guarda como texto y se renderiza con un reemplazo simple, sin motor de
+// templating nuevo (mismo criterio que renderTelegramTemplate). `subject`
+// separado del html para poder mostrar un input de asunto normal en el
+// admin en vez de obligar a editarlo adentro del HTML.
+export const emailTemplates = pgTable(
+  "email_templates",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    storeId: uuid("store_id").notNull().references(() => stores.id),
+    eventType: varchar("event_type", { length: 50 }).notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    subject: varchar("subject", { length: 200 }).notNull(),
+    html: text("html").notNull(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [unique("email_templates_store_event_unique").on(table.storeId, table.eventType)],
+);
+
 // --- Envios -----------------------------------------------------------
 
 // Zonas de envio informativas: nombre + costo + cobertura en texto libre

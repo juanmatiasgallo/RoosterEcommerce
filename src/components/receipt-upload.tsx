@@ -25,9 +25,50 @@ import { ReceiptUploadedModal } from "@/components/receipt-uploaded-modal";
 // esperar el roundtrip al server.
 const MAX_SIZE_MB = 20;
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp"];
+const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function extensionOf(url: string): string {
   return url.split(".").pop()?.toLowerCase() ?? "";
+}
+
+// Compresion client-side (pedido explicito: "tiene que andar mucho mas
+// rapido" la subida de comprobante) -- una foto de celular sin editar suele
+// pesar 3-10MB a resolucion completa, mucho mas de lo que hace falta para
+// que el admin lea un numero de operacion en una transferencia. Redibuja en
+// un canvas a un ancho maximo razonable y reexporta como JPEG con calidad
+// media: en la practica baja el peso a una fraccion (unos cientos de KB) sin
+// perder legibilidad, y como el archivo viaja navegador -> server -> MinIO
+// (ver uploadPaymentReceipt), menos bytes es menos tiempo en las dos puntas.
+// Los PDF pasan sin tocar (no se puede comprimir sin una libreria aparte, y
+// en la practica ya pesan poco comparado con una foto).
+const MAX_DIMENSION_PX = 1600;
+const JPEG_QUALITY = 0.82;
+
+async function compressImageFile(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_DIMENSION_PX / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, width, height);
+
+    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY));
+    if (!blob || blob.size >= file.size) return file; // si no gano nada (ej. ya era chica), me quedo con la original
+
+    const newName = file.name.replace(/\.[^.]+$/, "") + ".jpg";
+    return new File([blob], newName, { type: "image/jpeg" });
+  } catch {
+    // createImageBitmap/canvas pueden fallar en navegadores viejos o con
+    // archivos corruptos -- si pasa, seguimos con el original en vez de
+    // bloquear la subida por una optimizacion que fallo.
+    return file;
+  }
 }
 
 export function ReceiptUpload({
@@ -48,15 +89,32 @@ export function ReceiptUpload({
   const [showModal, setShowModal] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleFileChange(selected: File | null) {
+  async function handleFileChange(selected: File | null) {
     setError(null);
-    if (selected && selected.size > MAX_SIZE_MB * 1024 * 1024) {
+    if (!selected) {
+      setFile(null);
+      return;
+    }
+    // Tamano maximo se chequea sobre el original antes de comprimir (si ya
+    // viene enorme, mejor avisar de una en vez de tardar comprimiendo algo
+    // que igual se va a rechazar).
+    if (selected.size > MAX_SIZE_MB * 1024 * 1024) {
       setFile(null);
       setError(`El archivo supera el tamano maximo permitido (${MAX_SIZE_MB} MB).`);
       return;
     }
+
+    if (IMAGE_MIME_TYPES.includes(selected.type)) {
+      setIsCompressing(true);
+      const compressed = await compressImageFile(selected);
+      setIsCompressing(false);
+      setFile(compressed);
+      return;
+    }
+
     setFile(selected);
   }
 
@@ -184,18 +242,18 @@ export function ReceiptUpload({
         <input
           type="file"
           accept=".jpg,.jpeg,.png,.webp,.pdf"
-          onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+          onChange={(e) => void handleFileChange(e.target.files?.[0] ?? null)}
           className="text-sm file:mr-3 file:cursor-pointer file:rounded file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent-foreground hover:file:bg-accent-hover"
         />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="button"
           onClick={handleUpload}
-          disabled={!file || isUploading}
+          disabled={!file || isUploading || isCompressing}
           className="flex items-center justify-center gap-2 self-start rounded bg-accent px-4 py-2 text-sm font-medium text-accent-foreground active:scale-[0.98] disabled:opacity-50 hover:bg-accent-hover"
         >
-          {isUploading && <Spinner size={14} />}
-          {isUploading ? "Subiendo..." : "Subir comprobante"}
+          {(isUploading || isCompressing) && <Spinner size={14} />}
+          {isCompressing ? "Optimizando imagen..." : isUploading ? "Subiendo..." : "Subir comprobante"}
         </button>
       </div>
 

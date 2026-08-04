@@ -5,6 +5,7 @@ import { notify } from "@/lib/notifications/notify";
 import { sendMail } from "@/lib/mail";
 import { generateReceiptPdf, getReceiptUrl, type ReceiptItem } from "@/lib/receipt/pdf";
 import { formatCurrency } from "@/lib/format";
+import { getEmailTemplateForSending } from "@/lib/email-templates/render";
 import type { ShippingAddress } from "@/lib/orders/schema";
 
 // Mismas labels que /mi-cuenta/compras, /admin/pedidos y receipt/actions.ts
@@ -152,20 +153,26 @@ export async function markOrderAsPaid(params: {
           trackingCode: null,
         });
 
-        await sendMail({
-          storeId: order.storeId,
-          to: customer.email,
-          subject: `Comprobante de tu compra #${order.orderNumber}`,
-          text: [
-            `Confirmamos el pago de tu compra #${order.orderNumber} por ${formatCurrency(Number(updated.total))}.`,
-            "Te dejamos el comprobante adjunto en PDF, con codigo QR para ver el estado del pedido en cualquier momento.",
-            "",
-            `Tambien podes verlo online aca: ${getReceiptUrl(order.id)}`,
-          ].join("\n"),
-          attachments: [
-            { filename: `recibo-orden-${order.orderNumber}.pdf`, content: Buffer.from(pdfBytes), contentType: "application/pdf" },
-          ],
-        });
+        const vars = {
+          customerName: customer.name,
+          orderNumber: String(order.orderNumber),
+          total: formatCurrency(Number(updated.total)),
+          receiptUrl: getReceiptUrl(order.id),
+        };
+        const rendered = await getEmailTemplateForSending(order.storeId, "order_paid", vars);
+
+        if (rendered.enabled) {
+          await sendMail({
+            storeId: order.storeId,
+            to: customer.email,
+            subject: rendered.subject,
+            text: `Confirmamos el pago de tu compra #${order.orderNumber} por ${vars.total}. Ver estado: ${vars.receiptUrl}`,
+            html: rendered.html,
+            attachments: [
+              { filename: `recibo-orden-${order.orderNumber}.pdf`, content: Buffer.from(pdfBytes), contentType: "application/pdf" },
+            ],
+          });
+        }
       }
     } catch {
       // No-op: mismo criterio de resiliencia que el resto de los mails.

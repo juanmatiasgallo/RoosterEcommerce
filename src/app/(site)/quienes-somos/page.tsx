@@ -5,23 +5,28 @@ export const metadata: Metadata = {
   description: "La historia y la mision de Tienda 3D.",
 };
 
-// Contenido placeholder: todavia no hay copy real de la empresa en ningun
-// lado del repo. Estructura y secciones ya armadas para no bloquear el
-// header/footer que ya linkean aca; reemplazar el texto por el real cuando
-// el owner lo defina.
-// TODO: reemplazar historia, mision y valores por el contenido real.
+// Copy actualizado junto con el reposicionamiento de marca (tarea "salir
+// del naranja + no ser solo un lugar de impresion"): agrega la seccion
+// "Hacia donde vamos" con la vision de sumar diseno/programacion web -- a
+// proposito NO se vende como servicio activo (el owner confirmo que todavia
+// es a futuro), solo como direccion de marca. Sigue siendo un texto de
+// arranque, no el copy final legal/institucional de la empresa.
 const SECTIONS = [
   {
     title: "Nuestra historia",
-    body: "Tienda 3D nacio para acercar la impresion 3D a quienes quieren tanto un producto ya listo como una pieza pensada a medida, sin vueltas.",
+    body: "Tienda 3D arranco como un taller de impresion, pero la idea siempre fue mas grande: ser un estudio que disena, fabrica y vende, no solo una maquina que imprime lo que le mandan.",
   },
   {
     title: "Que hacemos",
-    body: "Combinamos un catalogo fijo con variantes de material, color y tamano, con la posibilidad de subir tu propio diseno y recibir una cotizacion antes de pagar nada.",
+    body: "Un catalogo propio con mas de ocho rubros (hogar, tecnologia, jardin, mascotas, regalos, herramientas y mas) listo para comprar, mas la posibilidad de subir tu propio diseno y recibir una cotizacion antes de pagar nada. Diseno, impresion y una tienda pensada como tal.",
   },
   {
     title: "Nuestros valores",
     body: "Transparencia en los precios y los tiempos, calidad de impresion consistente, y atencion directa en cada pedido, sea de catalogo o a medida.",
+  },
+  {
+    title: "Hacia donde vamos",
+    body: "El siguiente paso es sumar diseno y programacion web a lo que ya hacemos, para acompanar proyectos completos y no solo la parte impresa. Todavia estamos construyendo esa pata -- por ahora seguimos enfocados en dar la mejor experiencia de catalogo y pedidos a medida.",
   },
 ];
 

@@ -55,6 +55,8 @@ import {
   type TelegramSettings,
 } from "@/lib/telegram/actions";
 import { TELEGRAM_PLACEHOLDER_HELP } from "@/lib/telegram/event-types";
+import { updateEmailTemplate, resetEmailTemplateToDefault, type EmailTemplatesList } from "@/lib/email-templates/actions";
+import { EMAIL_PLACEHOLDER_HELP } from "@/lib/email-templates/event-types";
 import { migrateUploadsToMinioAction } from "@/lib/storage/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +87,7 @@ export function ConfiguracionClient({
   initialTelegram,
   initialN8n,
   initialListmonk,
+  initialEmailTemplates,
 }: {
   initialSmtp: SmtpSettings;
   initialMp: MercadoPagoSettings;
@@ -97,6 +100,7 @@ export function ConfiguracionClient({
   initialTelegram: TelegramSettings;
   initialN8n: N8nSettings;
   initialListmonk: ListmonkSettings;
+  initialEmailTemplates: EmailTemplatesList;
 }) {
   return (
     <Tabs defaultValue="tienda">
@@ -193,6 +197,20 @@ export function ConfiguracionClient({
           </p>
           <div className="mt-4">
             <SmtpSettingsForm initial={initialSmtp} />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold">Mails de compra</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            El HTML completo de cada mail que le llega al cliente durante el proceso de compra (pago confirmado,
+            cambio de estado, entregado, codigo de seguimiento, instrucciones de pago, cotizacion lista, respuesta a
+            una pregunta) -- usa el mismo SMTP de arriba. Podes editarlo libremente, siempre que la etiqueta{" "}
+            <code>&lt;/html&gt;</code> quede al final; los <code>{"{{placeholder}}"}</code> se reemplazan por los
+            datos reales al mandarlo.
+          </p>
+          <div className="mt-4">
+            <EmailTemplatesEditor templates={initialEmailTemplates} />
           </div>
         </section>
 
@@ -1805,6 +1823,132 @@ function TelegramTemplateCard({
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={handleReset} disabled={text === template.defaultTemplate}>
             Restaurar por defecto
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Mismo patron exacto que TelegramTemplatesEditor/TelegramTemplateCard de
+// arriba, pero editando HTML completo (no un mensaje corto) -- pedido
+// explicito del owner: "quiero poder mandar plantillas html como la otra"
+// (la otra = el template armado a mano en Listmonk). Subject separado del
+// HTML para no obligar a editarlo adentro del markup.
+function EmailTemplatesEditor({ templates }: { templates: EmailTemplatesList }) {
+  const [items, setItems] = useState(templates);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p className="text-sm font-medium">Plantillas por evento</p>
+        <p className="mt-1 text-xs text-neutral-500">{EMAIL_PLACEHOLDER_HELP}</p>
+      </div>
+      {items.map((tpl) => (
+        <EmailTemplateCard
+          key={tpl.eventType}
+          template={tpl}
+          onSaved={(next) =>
+            setItems((prev) => prev.map((t) => (t.eventType === tpl.eventType ? { ...t, ...next } : t)))
+          }
+        />
+      ))}
+    </div>
+  );
+}
+
+function EmailTemplateCard({
+  template,
+  onSaved,
+}: {
+  template: EmailTemplatesList[number];
+  onSaved: (next: { enabled: boolean; subject: string; html: string }) => void;
+}) {
+  const [enabled, setEnabled] = useState(template.enabled);
+  const [subject, setSubject] = useState(template.subject);
+  const [html, setHtml] = useState(template.html);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+
+  const isDirty = enabled !== template.enabled || subject !== template.subject || html !== template.html;
+  const isDefault = subject === template.defaultSubject && html === template.defaultHtml;
+
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const updated = await updateEmailTemplate({ eventType: template.eventType, enabled, subject, html });
+      onSaved({ enabled: updated.enabled, subject: updated.subject, html: updated.html });
+      toast.success(`Plantilla de "${template.label}" guardada.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo guardar la plantilla.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleReset() {
+    setIsResetting(true);
+    try {
+      const updated = await resetEmailTemplateToDefault(template.eventType);
+      setEnabled(updated.enabled);
+      setSubject(updated.subject);
+      setHtml(updated.html);
+      onSaved({ enabled: updated.enabled, subject: updated.subject, html: updated.html });
+      toast.success(`Plantilla de "${template.label}" restaurada.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo restaurar la plantilla.");
+    } finally {
+      setIsResetting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-medium">
+              {template.label}
+              {enabled ? <Badge variant="success">Activo</Badge> : <Badge variant="neutral">Apagado</Badge>}
+            </p>
+            <p className="mt-0.5 text-xs text-neutral-500">{template.description}</p>
+            <p className="mt-1 text-xs text-neutral-400">
+              Variables: {template.placeholders.map((p) => `{{${p}}}`).join(", ")}
+            </p>
+          </div>
+          <label className="flex shrink-0 items-center gap-2 text-sm">
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            Enviar
+          </label>
+        </div>
+
+        <label className="flex flex-col gap-1 text-xs text-neutral-500">
+          Asunto
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="rounded border border-neutral-300 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs text-neutral-500">
+          HTML del mail
+          <textarea
+            rows={14}
+            value={html}
+            onChange={(e) => setHtml(e.target.value)}
+            spellCheck={false}
+            className="w-full rounded border border-neutral-300 px-3 py-2 font-mono text-xs dark:border-neutral-700 dark:bg-neutral-900"
+          />
+        </label>
+
+        <div className="flex items-center gap-2 self-start">
+          <Button type="button" size="sm" onClick={handleSave} disabled={!isDirty || isSaving}>
+            {isSaving ? "Guardando..." : "Guardar"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={handleReset} disabled={isDefault || isResetting}>
+            {isResetting ? "Restaurando..." : "Restaurar por defecto"}
           </Button>
         </div>
       </CardContent>

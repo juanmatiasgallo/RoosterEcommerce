@@ -1,0 +1,68 @@
+<!--
+  Esto NO va en Plantillas -- va en el editor de CONTENIDO de una campana
+  puntual (Campañas -> Nueva campaña -> editor -> modo "Raw HTML" / </>).
+  Se inserta dentro del <div class="wrap"> de la plantilla base, asi que
+  hereda sus estilos (incluida la clase .button-animated con el pulso).
+
+  Pensada como email de bienvenida para quien se acaba de suscribir: la
+  idea es que en 10 segundos entienda que hace Tienda3D y tenga un motivo
+  claro para clickear.
+-->
+
+<p style="font-size: 13px; letter-spacing: 1px; text-transform: uppercase; color: #4338ca; font-weight: 700; margin: 0 0 8px;">
+    ¡Gracias por sumarte!
+</p>
+
+<h1 style="font-size: 24px; line-height: 32px; margin: 0 0 16px; color: #1a1712;">
+    Bienvenido/a a Tienda3D 👋
+</h1>
+
+<p style="margin: 0 0 20px;">
+    Somos una impresora 3D con base en Uruguay. Vendemos piezas ya listas
+    del catálogo y también imprimimos <strong>lo que vos diseñes o subas</strong> —
+    desde una pieza de repuesto hasta ese proyecto que tenías pensado hace rato.
+</p>
+
+<!-- Botón principal animado (pulso sutil vía CSS, degrada bien si el
+     cliente de correo no soporta @keyframes) -->
+<div style="text-align: center; margin: 28px 0;">
+    <a href="https://tienda3d.roostercode.tech/?utm_source=newsletter&utm_medium=email&utm_campaign=bienvenida"
+       class="button button-animated"
+       style="background: #4338ca; border-radius: 4px; text-decoration: none; color: #ffffff; font-weight: bold; padding: 12px 32px; display: inline-block;">
+        Ver el catálogo →
+    </a>
+</div>
+
+<table role="presentation" style="width: 100%; border: none; margin: 24px 0;">
+    <tr>
+        <td style="width: 33%; text-align: center; padding: 8px; border: none; vertical-align: top;">
+            <div style="font-size: 28px; line-height: 1;">📦</div>
+            <p style="margin: 8px 0 0; font-size: 13px; color: #444;"><strong>Catálogo fijo</strong><br>Listo para pedir</p>
+        </td>
+        <td style="width: 33%; text-align: center; padding: 8px; border: none; vertical-align: top;">
+            <div style="font-size: 28px; line-height: 1;">🛠️</div>
+            <p style="margin: 8px 0 0; font-size: 13px; color: #444;"><strong>A medida</strong><br>Subís tu archivo 3D</p>
+        </td>
+        <td style="width: 33%; text-align: center; padding: 8px; border: none; vertical-align: top;">
+            <div style="font-size: 28px; line-height: 1;">🇺🇾</div>
+            <p style="margin: 8px 0 0; font-size: 13px; color: #444;"><strong>Entrega local</strong><br>En todo Uruguay</p>
+        </td>
+    </tr>
+</table>
+
+<p style="margin: 20px 0 0;">
+    ¿Tenés algo puntual en mente? Pedí una cotización sin costo:
+    <a href="https://tienda3d.roostercode.tech/pedido-a-medida?utm_source=newsletter&utm_medium=email&utm_campaign=bienvenida"
+       style="color: #4338ca; font-weight: 600;">
+        armá tu pedido a medida
+    </a>.
+</p>
+
+<hr style="border: none; border-top: 1px solid #e4e1d8; margin: 28px 0;">
+
+<p style="text-align: center; font-size: 13px; color: #7d7666; margin: 0;">
+    Seguinos para ver piezas nuevas y ofertas:
+    <a href="https://analytics.roostercode.tech/q/instagram" style="color: #4338ca;">Instagram</a>
+    &nbsp;·&nbsp;
+    <a href="https://analytics.roostercode.tech/q/whatsapp" style="color: #4338ca;">WhatsApp</a>
+</p>

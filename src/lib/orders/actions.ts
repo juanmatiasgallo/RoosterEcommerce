@@ -16,6 +16,8 @@ import { shippingAddressSchema, type ShippingAddress } from "@/lib/orders/schema
 import { notify, notifyStaff } from "@/lib/notifications/notify";
 import { sendMail } from "@/lib/mail";
 import { formatCurrency } from "@/lib/format";
+import { getEmailTemplateForSending } from "@/lib/email-templates/render";
+import { generateReceiptPdf, getReceiptUrl, type ReceiptItem } from "@/lib/receipt/pdf";
 import { getVacationStatus } from "@/lib/settings/actions";
 import { RECEIPT_ELIGIBLE_METHODS } from "@/lib/orders/receipt-eligibility";
 import { contentTypeForExtension, resolveFileUrl, uploadToStorage } from "@/lib/storage";
@@ -40,6 +42,16 @@ const MANUAL_METHOD_LABELS: Record<ManualPaymentMethod, string> = {
   mi_dinero: "Debito Mi Dinero",
   prex: "Prex",
   contra_entrega: "Pago contra entrega",
+};
+
+// Mismas labels que /mi-cuenta/compras, receipt/actions.ts y mark-paid.ts
+// (duplicadas ahi tambien, ver comentario en receipt/actions.ts) -- se
+// necesita el label completo (incluye mercado_pago) para el mail de
+// "entregado" mas abajo, que arma el mismo tipo de comprobante que
+// markOrderAsPaid.
+const FULL_PAYMENT_METHOD_LABELS: Record<string, string> = {
+  mercado_pago: "Mercado Pago",
+  ...MANUAL_METHOD_LABELS,
 };
 
 // Una entrada por medio manual: que columna de `stores` tiene sus
@@ -150,24 +162,29 @@ export async function getMyLastPaymentMethod(): Promise<PaymentMethod | null> {
 async function sendManualPaymentInstructions(params: {
   storeId: string;
   to: string;
+  orderId: string;
   orderNumber: number;
   total: string;
   methodLabel: string;
   instructions: string;
 }) {
   try {
+    const vars = {
+      orderNumber: String(params.orderNumber),
+      total: formatCurrency(Number(params.total)),
+      methodLabel: params.methodLabel,
+      instructions: params.instructions,
+      receiptUrl: getReceiptUrl(params.orderId),
+    };
+    const rendered = await getEmailTemplateForSending(params.storeId, "manual_payment_instructions", vars);
+    if (!rendered.enabled) return;
+
     await sendMail({
       storeId: params.storeId,
       to: params.to,
-      subject: `Orden de servicio #${params.orderNumber} — instrucciones de pago`,
-      text: [
-        `Tu orden de servicio #${params.orderNumber} quedo registrada por ${formatCurrency(Number(params.total))}.`,
-        `Medio de pago elegido: ${params.methodLabel}.`,
-        "",
-        params.instructions,
-        "",
-        "En cuanto confirmemos que el pago llego, vas a ver la orden actualizada en tu cuenta (/mi-cuenta/pedidos).",
-      ].join("\n"),
+      subject: rendered.subject,
+      text: `Orden #${params.orderNumber} por ${vars.total}. ${params.instructions} Subi el comprobante en: ${vars.receiptUrl}`,
+      html: rendered.html,
     });
   } catch {
     // No se loguea el error real ni se relanza: un mail que falla no puede
@@ -459,6 +476,7 @@ export async function checkoutCart(params: {
       await sendManualPaymentInstructions({
         storeId: session.user.storeId,
         to: session.user.email,
+        orderId: order.id,
         orderNumber: order.orderNumber,
         total: order.total,
         methodLabel: manualMethod.label,
@@ -677,20 +695,86 @@ export async function updateOrderStatus(id: string, nextStatus: AdvanceableOrder
   // Mail al cliente en cada transicion del pipeline (antes solo se mandaba
   // mail en la creacion de la orden y en la confirmacion de pago). Resiliente
   // -- no bloquea el cambio de estado si el mail falla, mismo criterio que
-  // el resto de los mails de este archivo.
+  // el resto de los mails de este archivo. Incluye boton a la pagina de
+  // estado (mismo criterio visual que el mail de pago confirmado).
   try {
-    const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
+    const [customer] = await db.select({ email: users.email, name: users.name }).from(users).where(eq(users.id, existing.userId)).limit(1);
     if (customer) {
-      await sendMail({
-        storeId: session.user.storeId,
-        to: customer.email,
-        subject: `Tu pedido #${existing.orderNumber} ${statusLabel}`,
-        text: [
-          `Tu pedido #${existing.orderNumber} ${statusLabel}.`,
-          "",
-          "Segui el estado completo desde tu cuenta: /mi-cuenta/pedidos",
-        ].join("\n"),
-      });
+      const receiptUrl = getReceiptUrl(id);
+
+      // "Entregado" es el ultimo paso del pipeline: mismo criterio que el
+      // mail de pago confirmado (markOrderAsPaid) -- va con todos los datos
+      // de la compra (items, total, forma de pago, seguimiento si lo hay) y
+      // el comprobante en PDF adjunto, no solo el aviso generico que se manda
+      // en el resto de las transiciones (tiene su propia plantilla
+      // "order_delivered", ver src/lib/email-templates/event-types.ts).
+      if (nextStatus === "entregado") {
+        const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
+        const [store] = await db.select({ name: stores.name }).from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+
+        const receiptItems: ReceiptItem[] = items.map((item) => ({
+          productName: item.productName,
+          variantLabel: item.variantLabel,
+          variantSku: item.variantSku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+        }));
+
+        const pdfBytes = await generateReceiptPdf(id, {
+          orderNumber: existing.orderNumber,
+          createdAt: existing.createdAt,
+          status: "entregado",
+          statusLabel: "Entregado",
+          paymentMethod: existing.paymentMethod,
+          paymentMethodLabel: FULL_PAYMENT_METHOD_LABELS[existing.paymentMethod] ?? existing.paymentMethod,
+          source: existing.source,
+          items: receiptItems,
+          shippingCost: existing.shippingCost,
+          discountAmount: existing.discountAmount,
+          couponCode: existing.couponCode,
+          total: existing.total,
+          customerName: customer.name,
+          storeName: store?.name ?? "Tienda3D",
+          shippingAddress: (existing.shippingAddress as ShippingAddress | null) ?? null,
+          trackingCarrier: existing.trackingCarrier,
+          trackingCode: existing.trackingCode,
+        });
+
+        const vars = {
+          customerName: customer.name,
+          orderNumber: String(existing.orderNumber),
+          total: formatCurrency(Number(existing.total)),
+          trackingLine: existing.trackingCarrier && existing.trackingCode ? `${existing.trackingCarrier}: ${existing.trackingCode}` : "Coordinado por otro medio",
+          receiptUrl,
+        };
+        const rendered = await getEmailTemplateForSending(session.user.storeId, "order_delivered", vars);
+
+        if (rendered.enabled) {
+          await sendMail({
+            storeId: session.user.storeId,
+            to: customer.email,
+            subject: rendered.subject,
+            text: `Tu pedido #${existing.orderNumber} fue entregado. Ver detalle: ${receiptUrl}`,
+            html: rendered.html,
+            attachments: [
+              { filename: `recibo-orden-${existing.orderNumber}.pdf`, content: Buffer.from(pdfBytes), contentType: "application/pdf" },
+            ],
+          });
+        }
+      } else {
+        const vars = { orderNumber: String(existing.orderNumber), statusLabel, receiptUrl };
+        const rendered = await getEmailTemplateForSending(session.user.storeId, "order_status_changed", vars);
+
+        if (rendered.enabled) {
+          await sendMail({
+            storeId: session.user.storeId,
+            to: customer.email,
+            subject: rendered.subject,
+            text: `Tu pedido #${existing.orderNumber} ${statusLabel}. Ver estado: ${receiptUrl}`,
+            html: rendered.html,
+          });
+        }
+      }
     }
   } catch {
     // No-op: mismo criterio de resiliencia que el resto de los mails.
@@ -747,6 +831,31 @@ export async function setOrderTracking(id: string, input: { carrier: string; cod
     title: `Tu pedido #${existing.orderNumber} ya tiene codigo de seguimiento`,
     link: "/mi-cuenta/compras",
   });
+
+  // Mail dedicado (task pedido por el owner: "el numero de dac id de
+  // paquete para que tenga un seguimiento del estado general") -- separado
+  // del mail de cambio de estado de arriba porque el admin puede cargar el
+  // codigo en cualquier momento del pipeline, no solo al marcar "enviado".
+  // Resiliente, mismo criterio que el resto de los mails de este archivo.
+  try {
+    const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
+    if (customer) {
+      const vars = { orderNumber: String(existing.orderNumber), carrier, code, receiptUrl: getReceiptUrl(id) };
+      const rendered = await getEmailTemplateForSending(session.user.storeId, "order_tracking_set", vars);
+
+      if (rendered.enabled) {
+        await sendMail({
+          storeId: session.user.storeId,
+          to: customer.email,
+          subject: rendered.subject,
+          text: `Tu pedido #${existing.orderNumber} ya tiene codigo de seguimiento: ${carrier} ${code}. Ver estado: ${vars.receiptUrl}`,
+          html: rendered.html,
+        });
+      }
+    }
+  } catch {
+    // No-op: mismo criterio de resiliencia que el resto de los mails.
+  }
 
   revalidatePath("/admin/pedidos");
   revalidatePath(`/mi-cuenta/compras/${id}`);

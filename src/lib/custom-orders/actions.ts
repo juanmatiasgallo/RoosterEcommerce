@@ -10,6 +10,7 @@ import { db } from "@/lib/db";
 import { auditLogs, customOrders, orderItems, orders, users } from "@/lib/db/schema";
 import { formatCurrency } from "@/lib/format";
 import { sendMail } from "@/lib/mail";
+import { getEmailTemplateForSending } from "@/lib/email-templates/render";
 import { createPreference } from "@/lib/mercadopago/client";
 import { getAvailableManualPaymentMethods, type ManualPaymentMethod, type PaymentMethod } from "@/lib/orders/actions";
 import { getVacationStatus } from "@/lib/settings/actions";
@@ -319,21 +320,33 @@ export async function quoteCustomOrder(
     const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, existing.userId)).limit(1);
 
     if (customer) {
-      const lines = [
-        `Tu pedido a medida ("${updated.fileName}") ya tiene una cotizacion lista.`,
-        `Precio: ${formatCurrency(Number(updated.quotedPrice))}`,
+      const myOrdersUrl = `${process.env.AUTH_URL ?? ""}/mi-cuenta/pedidos`;
+      const notesLine = [
         updated.quotedNotes ? `Notas: ${updated.quotedNotes}` : null,
         updated.quotePdfUrl ? "Te dejamos el presupuesto detallado en PDF, disponible en tu cuenta." : null,
-        "Podes verlo en tu cuenta: /mi-cuenta/pedidos",
-      ].filter((line): line is string => Boolean(line));
+      ]
+        .filter((line): line is string => Boolean(line))
+        .join(" ");
+      const vars = {
+        fileName: updated.fileName,
+        price: formatCurrency(Number(updated.quotedPrice)),
+        notesLine,
+        myOrdersUrl,
+      };
+      const rendered = await getEmailTemplateForSending(session.user.storeId, "custom_order_quoted", vars);
 
-      const result = await sendMail({
-        storeId: session.user.storeId,
-        to: customer.email,
-        subject: "Tu cotizacion esta lista",
-        text: lines.join("\n\n"),
-      });
-      emailSent = result.status === "sent";
+      if (rendered.enabled) {
+        const result = await sendMail({
+          storeId: session.user.storeId,
+          to: customer.email,
+          subject: rendered.subject,
+          text: `Tu pedido a medida "${updated.fileName}" ya tiene cotizacion: ${vars.price}. ${notesLine} Ver en: ${myOrdersUrl}`,
+          html: rendered.html,
+        });
+        emailSent = result.status === "sent";
+      } else {
+        emailSent = false;
+      }
     }
   } catch {
     emailSent = false;
@@ -526,20 +539,24 @@ export async function initiateCustomOrderPayment(id: string, paymentMethod: Paym
         // sin explicar el siguiente paso. Ahora /mi-cuenta/compras/[id] ya
         // acepta esta orden y tiene el widget de subida (ver ReceiptUpload).
         const receiptLink = `${process.env.AUTH_URL ?? ""}/mi-cuenta/compras/${order.id}`;
-        await sendMail({
-          storeId: session.user.storeId,
-          to: session.user.email,
-          subject: `Orden de servicio #${order.orderNumber} — instrucciones de pago`,
-          text: [
-            `Tu orden de servicio #${order.orderNumber} quedo registrada por ${formatCurrency(Number(order.total))}.`,
-            `Medio de pago elegido: ${manualMethod.label}.`,
-            "",
-            manualMethod.instructions,
-            "",
-            `Una vez que hagas el pago, subi el comprobante desde: ${receiptLink}`,
-            "En cuanto lo confirmemos, vas a ver la orden actualizada en tu cuenta (/mi-cuenta/pedidos).",
-          ].join("\n"),
-        });
+        const vars = {
+          orderNumber: String(order.orderNumber),
+          total: formatCurrency(Number(order.total)),
+          methodLabel: manualMethod.label,
+          instructions: manualMethod.instructions,
+          receiptUrl: receiptLink,
+        };
+        const rendered = await getEmailTemplateForSending(session.user.storeId, "manual_payment_instructions", vars);
+
+        if (rendered.enabled) {
+          await sendMail({
+            storeId: session.user.storeId,
+            to: session.user.email,
+            subject: rendered.subject,
+            text: `Orden #${order.orderNumber} por ${vars.total}. ${manualMethod.instructions} Subi el comprobante en: ${receiptLink}`,
+            html: rendered.html,
+          });
+        }
       } catch {
         // No se relanza: un mail que falla no puede tirar abajo la orden.
       }

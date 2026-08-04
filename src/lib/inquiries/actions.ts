@@ -8,6 +8,8 @@ import type { Role } from "@/lib/auth/schema";
 import { db } from "@/lib/db";
 import { productInquiries, productInquiryMessages, products, users } from "@/lib/db/schema";
 import { notify, notifyStaff } from "@/lib/notifications/notify";
+import { sendMail } from "@/lib/mail";
+import { getEmailTemplateForSending } from "@/lib/email-templates/render";
 import { askProductQuestionSchema, replyInquirySchema } from "./schema";
 
 const STAFF_ROLES: Role[] = ["admin", "empleado"];
@@ -115,6 +117,32 @@ export async function replyProductInquiry(input: z.infer<typeof replyInquirySche
     body: data.message.slice(0, 140),
     link: "/mi-cuenta/preguntas",
   });
+
+  // Mail al cliente ademas de la notificacion in-app de arriba (task pedido
+  // por el owner: "una notificacion por mail con la respuesta") -- resiliente,
+  // no bloquea el guardado de la respuesta si el mail falla, mismo criterio
+  // que el resto de los mails de este archivo.
+  try {
+    const [customer] = await db.select({ email: users.email }).from(users).where(eq(users.id, inquiry.customerId)).limit(1);
+    if (customer) {
+      const productName = product?.name ?? "tu consulta";
+      const inquiryUrl = `${process.env.AUTH_URL ?? ""}/mi-cuenta/preguntas`;
+      const vars = { productName, message: data.message, inquiryUrl };
+      const rendered = await getEmailTemplateForSending(session.user.storeId, "product_question_reply", vars);
+
+      if (rendered.enabled) {
+        await sendMail({
+          storeId: session.user.storeId,
+          to: customer.email,
+          subject: rendered.subject,
+          text: `Te respondieron sobre "${productName}": ${data.message} Ver: ${inquiryUrl}`,
+          html: rendered.html,
+        });
+      }
+    }
+  } catch {
+    // No-op: mismo criterio de resiliencia que el resto de los mails.
+  }
 
   if (product) revalidatePath(`/producto/${product.code}`);
   revalidatePath("/mi-cuenta/preguntas");

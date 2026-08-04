@@ -13,18 +13,22 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Paleta "Carbon y cobre" (task #9 -- 2da ronda de paleta, la 1ra
- * ["Taller claro"] resulto de bajo contraste y no convencio). Marfil real
- * (no crema lavado) + negro carbon para el texto en claro: contraste alto a
- * proposito. Acento cobre en vez de naranja plano -- mismo rol (CTAs,
- * estados activos), se sigue usando via bg-accent/text-accent/etc, nunca
- * hardcodeado suelto en un componente.
+ * Paleta "Carbon y cobre" (task #9, refinada en #169, acento reemplazado en
+ * #174). El owner pidio salir del naranja/cobre -- "hoy en dia aparece en
+ * muchos sitios" -- y reposicionar la marca de "taller de impresion" a
+ * "estudio de diseno + tienda". Se eligio "Indigo de estudio" (#4338CA /
+ * #3730A3) sobre 2 alternativas investigadas (verde bosque, ciruela
+ * boutique): encaja tematicamente con la nueva pieza del Hero ("blueprint
+ * que cobra vida", ver hero-blueprint-scene.tsx) porque los planos tecnicos
+ * / blueprints son historicamente azules, y lee mas "estudio de diseno" que
+ * los otros dos. Se propago tambien a mail-template.ts, docs/listmonk/*.html
+ * y hero-heading.tsx (glow/relieve de la palabra "3D" ya toma el valor de
+ * --color-accent, no necesito tocarlo aparte). El modo oscuro (navy + azul
+ * celeste #0ea5e9) NO se toca: nunca fue naranja, ya cumplia el pedido.
  *
- * La rampa "neutral" completa se pisa (11 stops, misma progresion de
- * luminosidad que trae Tailwind por defecto) para que TODAS las utilidades
- * bg-neutral-*, border-neutral-*, text-neutral-* que ya existen en el resto
- * del codigo (decenas de archivos) hereden el cambio sin tocarlas una por
- * una.
+ * La rampa "neutral" (ajustada en #169, desaturada desde el viejo beige) se
+ * mantiene igual -- sigue funcionando bien de fondo para el nuevo acento
+ * frio, no hacia falta re-tocarla.
  */
 @theme {
   /* Genera la utilidad font-heading (Tailwind v4 crea font-* a partir de
@@ -33,21 +37,21 @@
      no crear una referencia circular con este mismo token. */
   --font-heading: var(--font-display), ui-sans-serif, system-ui, sans-serif;
 
-  --color-accent: #b45309;
-  --color-accent-hover: #92400e;
+  --color-accent: #4338ca;
+  --color-accent-hover: #3730a3;
   --color-accent-foreground: #ffffff;
 
-  --color-neutral-50: #fffdf8;
-  --color-neutral-100: #f7f3ec;
-  --color-neutral-200: #eae3d6;
-  --color-neutral-300: #d2c7b4;
-  --color-neutral-400: #a99c86;
-  --color-neutral-500: #857a68;
-  --color-neutral-600: #665c4c;
-  --color-neutral-700: #4a4137;
-  --color-neutral-800: #332c25;
-  --color-neutral-900: #1a1512;
-  --color-neutral-950: #14100d;
+  --color-neutral-50: #fafaf8;
+  --color-neutral-100: #f2f1ec;
+  --color-neutral-200: #e4e1d8;
+  --color-neutral-300: #c9c3b3;
+  --color-neutral-400: #a39c8a;
+  --color-neutral-500: #7d7666;
+  --color-neutral-600: #5e5747;
+  --color-neutral-700: #443e33;
+  --color-neutral-800: #2e2a23;
+  --color-neutral-900: #1a1712;
+  --color-neutral-950: #130f0c;
 }
 
 :root {

@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
 import { HeroHeading } from "./hero-heading";
 import { HeroTrustBadges } from "./hero-trust-badges";
-import { HeroAstronautScene } from "./hero-astronaut-scene";
+import { HeroBlueprintScene } from "./hero-blueprint-scene";
 
 // Theme-aware (antes era bg-neutral-950 fijo, sin importar el tema -- se
 // veia como un bloque negro roto contra el fondo claro cuando el sitio
@@ -33,24 +33,29 @@ export function Hero() {
           scrollear un poco para descubrirlo, que era el pedido original. */}
       <PrinterGridBackground />
 
-      {/* Astronauta 3D real (task #151), pintado antes del contenido en el
-          DOM para quedar detras del texto -- flota a la derecha, angosto en
-          lg y mas ancho recien desde xl para no pisar "a tu medida" en
-          pantallas intermedias. Ver hero-astronaut-scene.tsx: se degrada a
-          no mostrar nada si el modelo todavia no esta copiado. */}
-      <HeroAstronautScene />
-
       <div className="relative mx-auto max-w-6xl">
-        <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catalogo + pedidos a medida</p>
-        {/* HeroHeading (antes AnimatedHeading generico): "Impresion" se
-            arma letra por letra igual que siempre, pero "3D" ahora es una
-            pieza aparte con relieve 3D real (Extruded3DText) y "a tu
-            medida" usa un armado disparejo que converge al tamano uniforme
-            (UnevenSettleText) -- ver hero-heading.tsx. */}
+        {/* HeroBlueprintScene (#176, reemplaza al astronauta de #167): el
+            mismo objeto crossfadea entre wireframe ("blueprint"/diseno) y
+            solido ("objeto impreso") -- materializa el "de la idea al
+            objeto" del titulo antes de que el visitante llegue a leerlo. Sin
+            GLTFLoader/Environment/OrbitControls (ver comentarios en
+            hero-blueprint-scene.tsx): geometria nativa, mucho mas liviano
+            que el astronauta que reemplaza. */}
+        <div className="mx-auto -mb-4 h-56 w-56 sm:h-72 sm:w-72" aria-hidden="true">
+          <HeroBlueprintScene />
+        </div>
+
+        <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Diseno + impresion + catalogo</p>
+        {/* HeroHeading (antes AnimatedHeading generico): "De la idea al
+            objeto" se arma letra por letra, "3D" es una pieza aparte con
+            relieve 3D real (Extruded3DText), y "y mucho mas" usa un armado
+            disparejo que converge al tamano uniforme (UnevenSettleText) --
+            ver hero-heading.tsx. */}
         <HeroHeading />
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-600 dark:text-neutral-300">
-          Elegi una pieza de nuestro catalogo o subi tu propio diseno: te cotizamos antes de cobrarte nada y lo
-          imprimimos para vos.
+          Catalogo propio para el hogar, la tecnologia y los regalos, o tu proyecto hecho pieza a medida: te
+          cotizamos antes de cobrarte nada. No somos solo una impresora -- disenamos, fabricamos y armamos tu
+          pedido como una tienda de verdad.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">

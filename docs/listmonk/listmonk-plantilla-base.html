@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+    <head>
+        <title>{{ .Campaign.Subject }}</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+        <base target="_blank">
+        <style>
+            body {
+                background-color: #f2f1ec;
+                font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, sans-serif;
+                font-size: 15px;
+                line-height: 26px;
+                margin: 0;
+                color: #1a1712;
+            }
+            pre {
+                background: #f4f4f4;
+                padding: 2px;
+            }
+            table {
+                width: 100%;
+                border: 1px solid #e4e1d8;
+            }
+            table td {
+                border-color: #e4e1d8;
+                padding: 5px;
+            }
+            .topbar {
+                background-color: #1a1712;
+                padding: 18px 30px;
+                text-align: center;
+            }
+            .topbar .brand {
+                color: #fafaf8;
+                font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, sans-serif;
+                font-size: 18px;
+                font-weight: 700;
+                letter-spacing: 0.5px;
+                text-decoration: none;
+            }
+            .topbar .brand span {
+                color: #d97a2b;
+            }
+            .wrap {
+                background-color: #fafaf8;
+                padding: 30px;
+                max-width: 525px;
+                margin: 0 auto;
+                border-radius: 0 0 8px 8px;
+            }
+            .button {
+                background: #4338ca;
+                border-radius: 4px;
+                text-decoration: none !important;
+                color: #ffffff !important;
+                font-weight: bold;
+                padding: 12px 32px;
+                display: inline-block;
+            }
+            .button:hover {
+                background: #3730a3;
+            }
+            .footer {
+                text-align: center;
+                font-size: 12px;
+                color: #7d7666;
+            }
+                .footer a {
+                    color: #7d7666;
+                    margin-right: 5px;
+                }
+            .gutter {
+                padding: 30px;
+            }
+            img {
+                max-width: 100%;
+                height: auto;
+            }
+            a {
+                color: #4338ca;
+            }
+                a:hover {
+                    color: #3730a3;
+                }
+            /* Progressive-enhancement: la mayoria de los webmail modernos
+               (Apple Mail, Gmail web/Android, Yahoo, Outlook.com) respetan
+               @keyframes en <style>. Outlook de escritorio (motor Word) y
+               algunos clientes viejos lo ignoran sin romper nada -- el boton
+               simplemente se ve estatico ahi. No hay forma de garantizar
+               animacion 100% del lado del email; esto es "mejor esfuerzo". */
+            @keyframes pulse-glow {
+                0%   { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.45); }
+                70%  { box-shadow: 0 0 0 10px rgba(180, 83, 9, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0); }
+            }
+            .button-animated {
+                animation: pulse-glow 2s infinite;
+            }
+            @media screen and (max-width: 600px) {
+                .wrap {
+                    max-width: auto;
+                }
+                .gutter {
+                    padding: 10px;
+                }
+            }
+        </style>
+    </head>
+<body style="background-color: #f2f1ec;font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, sans-serif;font-size: 15px;line-height: 26px;margin: 0;color: #1a1712;">
+    <div class="topbar" style="background-color: #1a1712;padding: 18px 30px;text-align: center;">
+        <a href="https://tienda3d.roostercode.tech/?utm_source=newsletter&utm_medium=email&utm_campaign=header_logo" class="brand" style="color: #fafaf8;font-family: 'Helvetica Neue', 'Segoe UI', Helvetica, sans-serif;font-size: 18px;font-weight: 700;letter-spacing: 0.5px;text-decoration: none;">
+            Tienda<span style="color: #d97a2b;">3D</span>
+        </a>
+    </div>
+
+    <div class="wrap" style="background-color: #fafaf8;padding: 30px;max-width: 525px;margin: 0 auto;border-radius: 0 0 8px 8px;">
+        {{ template "content" . }}
+    </div>
+
+    <div class="footer" style="text-align: center;font-size: 12px;color: #7d7666;padding: 20px 30px 0;">
+        <p>
+            <a href="{{ UnsubscribeURL }}" style="color: #7d7666;">{{ L.T "email.unsub" }}</a>
+            &nbsp;&nbsp;
+            <a href="{{ MessageURL }}" style="color: #7d7666;">{{ L.T "email.viewInBrowser" }}</a>
+        </p>
+    </div>
+    <div class="gutter" style="padding: 30px;">&nbsp;</div>
+
+    {{/* Tracking de apertura de Listmonk (nativo, no tocar) */}}
+    {{ TrackView }}
+
+    {{/* Pixel propio de Umami (task #162) -- va DENTRO de <body>, antes del
+         cierre. El original que compartiste lo tenia despues de </body>,
+         fuera de <html>: la mayoria de los clientes de correo lo hubieran
+         tolerado igual (son muy permisivos con HTML mal formado), pero
+         movido aca queda valido y no depende de esa tolerancia. */}}
+    <img src="https://analytics.roostercode.tech/p/hVEHcgowQ" width="1" height="1" style="display:none" alt="">
+</body>
+</html>

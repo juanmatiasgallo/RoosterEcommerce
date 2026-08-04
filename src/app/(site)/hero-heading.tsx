@@ -8,7 +8,7 @@ import { UnevenSettleText } from "@/components/uneven-settle-text";
 // 0.85s por letra en asentarse.
 const LETTER_STAGGER = 0.09;
 const LETTER_DURATION = 0.85;
-const IMPRESION = "Impresion";
+const FIRST_LINE = "De la idea al objeto";
 
 const letterUnit = {
   hidden: { y: "115%" },
@@ -29,15 +29,18 @@ function renderLetters(word: string) {
  * Reemplaza el AnimatedHeading generico solo en el Hero: esta linea necesita
  * mezclar dos tratamientos que el componente compartido (usado en otras 13
  * pantallas del sitio) no soporta sin volverse mas fragil para todos los
- * demas usos -- "Impresion" se arma letra por letra como siempre, pero "3D"
- * pasa a ser una pieza aparte con relieve real (Extruded3DText), y la
- * segunda linea ("a tu medida") usa el armado disparejo->uniforme
- * (UnevenSettleText) en vez del reveal parejo de siempre.
+ * demas usos -- "De la idea al objeto" se arma letra por letra como
+ * siempre, pero "3D" pasa a ser una pieza aparte con relieve real
+ * (Extruded3DText, se mantiene sin tocar: el pedido de "la tecnologia del
+ * astronauta solo para la palabra 3D" ya se cumplia porque esto siempre fue
+ * CSS puro), y la segunda linea ("y mucho mas", antes "a tu medida", cambio
+ * de copy #177) usa el armado disparejo->uniforme (UnevenSettleText) en vez
+ * del reveal parejo de siempre.
  */
 export function HeroHeading() {
-  // La palabra "3D" entra apenas termina de asentarse la ultima letra de
-  // "Impresion" (largo de la palabra * stagger + duracion de una letra).
-  const threeDDelay = IMPRESION.length * LETTER_STAGGER + LETTER_DURATION * 0.55;
+  // La palabra "3D" entra apenas termina de asentarse la ultima letra de la
+  // primera linea (largo de la frase * stagger + duracion de una letra).
+  const threeDDelay = FIRST_LINE.length * LETTER_STAGGER + LETTER_DURATION * 0.55;
 
   return (
     <h1 className="relative mt-3 text-5xl font-semibold tracking-tight sm:text-7xl">
@@ -53,12 +56,12 @@ export function HeroHeading() {
         variants={{ hidden: {}, show: { transition: { staggerChildren: LETTER_STAGGER } } }}
         className="block"
       >
-        {renderLetters(IMPRESION)}
+        {renderLetters(FIRST_LINE)}
         <span> </span>
         <Extruded3DText delay={threeDDelay} />
       </motion.span>
 
-      <UnevenSettleText text="a tu medida" className="text-accent" delay={0.45} />
+      <UnevenSettleText text="y mucho mas" className="text-accent" delay={0.45} />
     </h1>
   );
 }
