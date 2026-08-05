@@ -60,7 +60,7 @@ export default async function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
       <body>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           {children}
           <Toaster richColors position="bottom-right" />
           <UmamiScript websiteId={umamiConfig.websiteId} src={umamiConfig.scriptUrl} />

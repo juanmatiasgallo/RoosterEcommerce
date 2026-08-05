@@ -2,7 +2,6 @@ import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
-import { Extruded3DText } from "@/components/extruded-3d-text";
 import { HeroHeading } from "./hero-heading";
 import { HeroTrustBadges } from "./hero-trust-badges";
 
@@ -34,31 +33,22 @@ export function Hero() {
       <PrinterGridBackground />
 
       <div className="relative mx-auto max-w-6xl">
-        {/* Pieza "3D" standalone (rediseno del Hero): antes habia una bola
-            (icosaedro en three.js, hero-blueprint-scene.tsx) arriba del
-            titulo, y ademas la palabra "3D" suelta incrustada adentro del
-            H1. El owner pidio sacar la bola por rebuscada y sacar tambien
-            el "3D" del titulo, unificando todo en una sola pieza con forma
-            literal de "3D" -- es este mismo Extruded3DText que antes vivia
-            adentro de HeroHeading, ahora standalone y mucho mas grande
-            (arriba definia su tamano el h1 que lo rodeaba con 2.2em; aca lo
-            define directamente el font-size de este contenedor). De paso
-            saca three.js/@react-three/fiber de la home por completo (la
-            pieza es 100% CSS, mismo criterio liviano que ya tenia). */}
-        <div className="mx-auto -mb-2 flex justify-center text-5xl sm:text-6xl" aria-hidden="true">
-          <Extruded3DText />
-        </div>
+        {/* Pieza "3D" standalone (Extruded3DText) sacada del todo: el owner
+            probo la version agrandada arriba del titulo (rediseno anterior,
+            reemplazo de la bola en three.js) y decidio que no sumaba a la
+            experiencia visual -- se saca sin reemplazo por ahora. Va a subir
+            un asset propio para el entorno del Hero, se integra en un paso
+            aparte cuando lo mande. */}
 
-        <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Diseño + impresión + catálogo</p>
+        <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catálogo + Diseño + Impresión</p>
         {/* HeroHeading (antes AnimatedHeading generico): "De la idea al
             objeto" se arma letra por letra, y "y mucho mas" usa un armado
             disparejo que converge al tamano uniforme (UnevenSettleText) --
             ver hero-heading.tsx. */}
         <HeroHeading />
         <p className="mx-auto mt-4 max-w-xl text-balance text-neutral-600 dark:text-neutral-300">
-          Catálogo propio para el hogar, la tecnología y los regalos, o tu proyecto hecho pieza a medida: te
-          cotizamos antes de cobrarte nada. No somos solo una impresora: diseñamos, fabricamos y armamos tu
-          pedido como una tienda de verdad.
+          Catálogo propio para el hogar, la tecnología y regalos, o tu proyecto hecho pieza a medida: te
+          cotizamos, te notificamos, lo aceptás y te lo imprimimos. Diseñamos, fabricamos y armamos tu pedido.
         </p>
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
