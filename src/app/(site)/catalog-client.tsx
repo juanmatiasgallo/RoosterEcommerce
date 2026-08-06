@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { AvailableFilters, CategoryTreeNode, ProductSort } from "@/lib/catalog/queries";
+import { X } from "lucide-react";
+import { findCategoryPath, type AvailableFilters, type CategoryTreeNode, type ProductSort } from "@/lib/catalog/queries";
 import { trackEvent } from "@/lib/analytics/track";
 
 type ApplyParams = (mutate: (params: URLSearchParams) => void) => void;
@@ -84,6 +85,8 @@ export function CatalogClient({
   const [maxPriceInput, setMaxPriceInput] = useDebouncedField("maxPrice", searchParams, applyParams);
 
   const selectedCategoryId = searchParams.get("categoryId");
+  const selectedCategoryPath = selectedCategoryId ? findCategoryPath(categoryTree, selectedCategoryId) : null;
+  const selectedCategoryLabel = selectedCategoryPath?.map((node) => node.name).join(" > ") ?? null;
   const selectedMaterials = searchParams.get("material")?.split(",").filter(Boolean) ?? [];
   const selectedColors = searchParams.get("color")?.split(",").filter(Boolean) ?? [];
   const sort = (searchParams.get("sort") as ProductSort | null) ?? "relevancia";
@@ -118,8 +121,10 @@ export function CatalogClient({
           type="button"
           onClick={() => setCategory(isSelected ? null : node.id)}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
-          className={`block w-full rounded px-2 py-1 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
-            isSelected ? "font-semibold text-neutral-900 dark:text-neutral-50" : "text-neutral-600 dark:text-neutral-400"
+          className={`block w-full rounded px-2 py-1 text-left text-sm transition-colors ${
+            isSelected
+              ? "bg-accent/10 font-semibold text-accent"
+              : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"
           }`}
         >
           {node.name}
@@ -167,20 +172,21 @@ export function CatalogClient({
         {categoryTree.length > 0 && (
           <div>
             <h2 className="mb-1 text-sm font-medium">Categorias</h2>
-            <ul className="flex flex-col gap-0.5">
-              {selectedCategoryId && (
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setCategory(null)}
-                    className="px-2 py-1 text-left text-xs text-neutral-500 hover:underline"
-                  >
-                    Limpiar categoria
-                  </button>
-                </li>
-              )}
-              {categoryTree.map((node) => renderCategoryNode(node, 0))}
-            </ul>
+            {/* Chip con color en vez del link de texto plano que habia antes
+                (gris, chico, primer item de la lista -- facil de no ver).
+                Pedido explicito: "limpiar categoria" tiene que poder verse,
+                y el catalogo en general necesita mas color/visibilidad. */}
+            {selectedCategoryLabel && (
+              <button
+                type="button"
+                onClick={() => setCategory(null)}
+                className="mb-2 flex w-full items-center justify-between gap-2 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-left text-sm font-medium text-accent transition-colors hover:bg-accent/20"
+              >
+                <span className="min-w-0 truncate">{selectedCategoryLabel}</span>
+                <X size={14} className="shrink-0" aria-hidden="true" />
+              </button>
+            )}
+            <ul className="flex flex-col gap-0.5">{categoryTree.map((node) => renderCategoryNode(node, 0))}</ul>
           </div>
         )}
 

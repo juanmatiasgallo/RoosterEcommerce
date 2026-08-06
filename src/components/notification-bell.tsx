@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
-import { markAllNotificationsRead, markNotificationRead } from "@/lib/notifications/actions";
+import { clearAllNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/notifications/actions";
 import type { notifications } from "@/lib/db/schema";
 
 type NotificationRow = typeof notifications.$inferSelect;
@@ -68,6 +68,20 @@ export function NotificationBell({
     });
   }
 
+  // "Marcar todas leidas" no las saca de la lista -- este si: pedido
+  // explicito del owner ("que no queden todas cargadas"), la lista se
+  // llenaba de golpe con cada cambio de estado de un mismo pedido (pago,
+  // en cola, imprimiendo, postprocesado, enviado, entregado = 6 avisos
+  // separados para una sola compra).
+  function handleClearAll() {
+    setItems([]);
+    setUnreadCount(0);
+    startTransition(async () => {
+      await clearAllNotifications();
+      router.refresh();
+    });
+  }
+
   return (
     <div className="relative">
       <button
@@ -104,16 +118,28 @@ export function NotificationBell({
           >
             <div className="flex items-center justify-between border-b border-neutral-200 px-3 py-2 dark:border-neutral-800">
               <p className="text-sm font-medium">Notificaciones</p>
-              {unreadCount > 0 && (
-                <button
-                  type="button"
-                  onClick={handleMarkAllRead}
-                  disabled={isPending}
-                  className="text-xs text-accent underline disabled:opacity-50"
-                >
-                  Marcar todas leidas
-                </button>
-              )}
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleMarkAllRead}
+                    disabled={isPending}
+                    className="text-xs text-accent underline disabled:opacity-50"
+                  >
+                    Marcar leidas
+                  </button>
+                )}
+                {items.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleClearAll}
+                    disabled={isPending}
+                    className="text-xs text-neutral-500 underline disabled:opacity-50 dark:text-neutral-400"
+                  >
+                    Limpiar
+                  </button>
+                )}
+              </div>
             </div>
 
             {items.length === 0 ? (

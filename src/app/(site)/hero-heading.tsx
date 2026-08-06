@@ -15,13 +15,22 @@ const letterUnit = {
 };
 
 function renderLetters(word: string) {
-  return Array.from(word).map((ch, i) => (
-    <span key={i} className="inline-block overflow-hidden pb-1 align-bottom">
-      <motion.span variants={letterUnit} className="inline-block">
-        {ch}
-      </motion.span>
-    </span>
-  ));
+  return Array.from(word).map((ch, i) => {
+    // Bug historico (#32) que reaparecio: un espacio metido adentro de
+    // inline-block + overflow-hidden colapsa a ancho 0 en varios
+    // navegadores -- por eso "Impresion" (una sola palabra, sin espacios)
+    // nunca lo mostraba, pero "De la idea al objeto" si. Mismo fix que ya
+    // usaba UnevenSettleText: el espacio se devuelve como span suelto, sin
+    // el wrapper animado.
+    if (ch === " ") return <span key={i}> </span>;
+    return (
+      <span key={i} className="inline-block overflow-hidden pb-1 align-bottom">
+        <motion.span variants={letterUnit} className="inline-block">
+          {ch}
+        </motion.span>
+      </span>
+    );
+  });
 }
 
 /**

@@ -67,3 +67,20 @@ export async function markAllNotificationsRead() {
 
   revalidatePath("/", "layout");
 }
+
+// "Marcar todas leidas" saca el resaltado de no-leida pero la notificacion
+// sigue en la lista -- el pedido del owner era justo eso, que no queden
+// todas cargadas. Borrado real (no soft-delete): a diferencia de ordenes
+// (que nunca se borran, solo cambian de estado, ver CLAUDE.md), una
+// notificacion in-app no es un registro de negocio ni queda en
+// audit_logs -- es un aviso efimero, no hay nada que perder borrandola.
+export async function clearAllNotifications() {
+  const session = await auth();
+  if (!session) throw new Error("Debes iniciar sesion.");
+
+  const condition = scopeCondition(session.user.id, session.user.storeId, session.user.role);
+
+  await db.delete(notifications).where(condition);
+
+  revalidatePath("/", "layout");
+}
