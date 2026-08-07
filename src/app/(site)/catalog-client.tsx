@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
-import { findCategoryPath, type AvailableFilters, type CategoryTreeNode, type ProductSort } from "@/lib/catalog/queries";
+import type { AvailableFilters, ProductSort } from "@/lib/catalog/queries";
+// findCategoryPath/CategoryTreeNode se importan del modulo client-safe (sin
+// `db`), no de "@/lib/catalog/queries" -- ver comentario en tree.ts. Este
+// era justo el import que rompia `npm run build` (arrastraba el driver de
+// Postgres al bundle del navegador).
+import { findCategoryPath, type CategoryTreeNode } from "@/lib/catalog/tree";
 import { trackEvent } from "@/lib/analytics/track";
 
 type ApplyParams = (mutate: (params: URLSearchParams) => void) => void;

@@ -42,6 +42,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         favoritesCount={favoriteIds.length}
         notificationItems={notifications.items}
         notificationUnreadCount={notifications.unreadCount}
+        hasIcon={contact.hasIcon}
       />
       {children}
       <SiteFooter

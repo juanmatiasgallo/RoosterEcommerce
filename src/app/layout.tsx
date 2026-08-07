@@ -3,7 +3,7 @@ import { Inter, Sora } from "next/font/google";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { UmamiScript } from "@/components/umami-script";
-import { getPublicUmamiConfig } from "@/lib/settings/actions";
+import { getPublicStoreContact, getPublicUmamiConfig } from "@/lib/settings/actions";
 import "./globals.css";
 
 // Layout raiz: ahora consulta la DB (getPublicUmamiConfig, para el Website
@@ -46,11 +46,23 @@ const sora = Sora({
 // metadataBase resuelve las URLs relativas de openGraph (ej. la imagen de
 // un producto) a absolutas — sin esto Next las resuelve contra
 // http://localhost:3000 y loguea un warning en produccion.
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
-  title: "Tienda 3D",
-  description: "Impresiones 3D por catalogo o a medida",
-};
+//
+// generateMetadata (antes: export const metadata estatico) -- se necesita
+// una funcion async para poder consultar si hay un icono de marca cargado
+// (task #192/#202) y usarlo como favicon. El layout ya es force-dynamic
+// (ver mas abajo) y ya consulta la DB en el body del componente
+// (getPublicUmamiConfig), asi que esto no cambia el modelo de rendering,
+// solo mueve la misma consulta un nivel arriba.
+export async function generateMetadata(): Promise<Metadata> {
+  const contact = await getPublicStoreContact();
+
+  return {
+    metadataBase: new URL(process.env.AUTH_URL ?? "http://localhost:3000"),
+    title: "Tienda 3D",
+    description: "Impresiones 3D por catalogo o a medida",
+    icons: contact.hasIcon ? { icon: "/api/branding/icon" } : undefined,
+  };
+}
 
 export default async function RootLayout({
   children,

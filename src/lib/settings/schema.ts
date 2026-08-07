@@ -89,3 +89,10 @@ export const updateListmonkSettingsSchema = z.object({
   listmonkApiToken: z.string().max(500).optional(),
   listmonkListId: z.union([z.string().max(100), z.literal("")]).optional(),
 });
+
+// Icono de marca (task #192/#201): el admin puede elegir subir un SVG/PNG
+// tal cual, o un .obj -- en ese caso el navegador lo convierte a PNG antes
+// de mandarlo (ver renderObjToIconPng en components/store-icon-form.tsx),
+// asi que la Server Action nunca recibe un .obj crudo, solo estas
+// extensiones de imagen ya resueltas.
+export const STORE_ICON_ALLOWED_EXTENSIONS = ["svg", "png", "jpg", "jpeg", "webp"];

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { getNotificationSummary } from "@/lib/notifications/actions";
+import { getPublicStoreContact } from "@/lib/settings/actions";
 import { AdminSidebar } from "@/components/admin-sidebar";
 
 // Consulta la sesion (y, transitivamente, la DB via el callback de auth()):
@@ -20,11 +21,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/");
   }
 
-  const notifications = await getNotificationSummary();
+  const [notifications, contact] = await Promise.all([getNotificationSummary(), getPublicStoreContact()]);
 
   return (
     <div className="flex min-h-screen flex-col sm:flex-row">
-      <AdminSidebar user={session.user} notificationItems={notifications.items} notificationUnreadCount={notifications.unreadCount} />
+      <AdminSidebar
+        user={session.user}
+        notificationItems={notifications.items}
+        notificationUnreadCount={notifications.unreadCount}
+        hasIcon={contact.hasIcon}
+      />
       <main className="flex-1 px-4 py-8">{children}</main>
     </div>
   );

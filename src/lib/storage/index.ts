@@ -1,5 +1,6 @@
 import { GetObjectCommand, ListObjectsV2Command, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { Readable } from "node:stream";
 
 // Storage de objetos (MinIO, self-hosted, API compatible con S3) para
 // archivos subidos por usuarios: comprobantes de pago (orders.receiptUrl) y
@@ -53,6 +54,23 @@ export async function getSignedFileUrl(key: string): Promise<string> {
   });
 }
 
+// Lee los bytes de un objeto directo (sin URL firmada, sin exponer
+// credenciales al navegador) -- para el unico caso donde algo del bucket
+// privado necesita servirse por una URL PUBLICA y estable (el icono de
+// marca, ver /api/branding/icon): ese route.ts llama esto server-side con
+// las credenciales de la app y reenvia los bytes el mismo con su propio
+// Cache-Control, evitando el vencimiento de 1h de getSignedFileUrl (que
+// rompe un favicon o un <img> que el navegador cachea de por vida).
+export async function getObjectBuffer(key: string): Promise<{ buffer: Buffer; contentType: string | undefined }> {
+  const result = await getClient().send(new GetObjectCommand({ Bucket: BUCKET, Key: key }));
+  const stream = result.Body as Readable;
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return { buffer: Buffer.concat(chunks), contentType: result.ContentType };
+}
+
 // Un solo punto de entrada para resolver lo que sea que este guardado en
 // orders.receiptUrl / customOrders.fileUrl a una URL que el navegador pueda
 // abrir. Heuristica por prefijo: los valores viejos (pre-MinIO) arrancan con
@@ -88,6 +106,7 @@ const CONTENT_TYPES: Record<string, string> = {
   jpeg: "image/jpeg",
   png: "image/png",
   webp: "image/webp",
+  svg: "image/svg+xml",
   pdf: "application/pdf",
   stl: "model/stl",
   obj: "text/plain",

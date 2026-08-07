@@ -3,6 +3,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PrinterGridBackground } from "@/components/printer-grid-background";
 import { HeroHeading } from "./hero-heading";
+import { HeroObjectScene } from "./hero-object-scene";
 import { HeroTrustBadges } from "./hero-trust-badges";
 
 // Theme-aware (antes era bg-neutral-950 fijo, sin importar el tema -- se
@@ -32,14 +33,28 @@ export function Hero() {
           scrollear un poco para descubrirlo, que era el pedido original. */}
       <PrinterGridBackground />
 
-      <div className="relative mx-auto max-w-6xl">
-        {/* Pieza "3D" standalone (Extruded3DText) sacada del todo: el owner
-            probo la version agrandada arriba del titulo (rediseno anterior,
-            reemplazo de la bola en three.js) y decidio que no sumaba a la
-            experiencia visual -- se saca sin reemplazo por ahora. Va a subir
-            un asset propio para el entorno del Hero, se integra en un paso
-            aparte cuando lo mande. */}
+      {/* Pieza 3D del owner (task #196/#197, public/models/hero-object.obj):
+          a diferencia de los intentos anteriores (astronauta, bola
+          icosaedro, letras "3D" en relieve -- todos sacados por no sumar a
+          la experiencia o pesar de mas), esta va "a un lado" en vez de
+          compitiendo con el titulo en el centro. Absolute + pointer-events-none,
+          posicionada relativa a la seccion (full-bleed, w-screen) cerca del
+          borde derecho real de la pantalla -- el texto (mas angosto, ver
+          max-w-xl/max-w-2xl mas abajo) queda centrado y nunca se solapa. Se
+          esconde por debajo de lg: en pantallas angostas no hay espacio real
+          al costado del texto, y no vale la pena pagar el costo de un canvas
+          WebGL en mobile por algo puramente decorativo. Tamano/posicion
+          ajustados a ojo (bbox del modelo, sin poder previsualizar el
+          render real en este entorno) -- revisar en pantalla y retocar los
+          valores de right/tamano si queda muy pegado al texto o muy chico. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 right-[2%] hidden h-64 w-64 -translate-y-1/2 lg:block xl:h-80 xl:w-80 xl:right-[6%] 2xl:h-96 2xl:w-96"
+      >
+        <HeroObjectScene />
+      </div>
 
+      <div className="relative mx-auto max-w-6xl">
         <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">Catálogo + Diseño + Impresión</p>
         {/* HeroHeading (antes AnimatedHeading generico): "De la idea al
             objeto" se arma letra por letra, y "y mucho mas" usa un armado

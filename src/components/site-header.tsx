@@ -222,6 +222,7 @@ export function SiteHeader({
   favoritesCount = 0,
   notificationItems = [],
   notificationUnreadCount = 0,
+  hasIcon = false,
 }: {
   categoryTree: CategoryTreeNode[];
   user: SessionUser;
@@ -229,6 +230,7 @@ export function SiteHeader({
   favoritesCount?: number;
   notificationItems?: (typeof notifications.$inferSelect)[];
   notificationUnreadCount?: number;
+  hasIcon?: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -283,8 +285,18 @@ export function SiteHeader({
       )}
     >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="text-lg font-semibold" onClick={handleLogoClick}>
-          Tienda 3D
+        {/* Icono de marca (task #192/#202): si el admin cargo uno en
+            Configuracion/Tienda, reemplaza el wordmark de texto por
+            completo (decision del owner, "solo icono") -- fallback al
+            texto si no hay nada cargado, para no dejar el header vacio en
+            el estado por defecto. */}
+        <Link href="/" className="flex items-center" onClick={handleLogoClick}>
+          {hasIcon ? (
+            // eslint-disable-next-line @next/next/no-img-element -- viene de /api/branding/icon (proxy propio a MinIO), no del dominio de next/image
+            <img src="/api/branding/icon" alt="Tienda 3D" className="h-8 w-8 object-contain" />
+          ) : (
+            <span className="text-lg font-semibold">Tienda 3D</span>
+          )}
         </Link>
 
         <nav className="hidden items-center gap-4 sm:flex">

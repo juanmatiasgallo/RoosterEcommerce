@@ -3,6 +3,16 @@ import { and, asc, avg, count, desc, eq, exists, gt, gte, ilike, inArray, isNotN
 import { db } from "@/lib/db";
 import { categories, productImages, productReviews, products, productVariants } from "@/lib/db/schema";
 import { getDefaultStoreId } from "@/lib/db/store";
+// CategoryTreeNode/findCategoryPath viven en tree.ts (no importa `db`) para
+// que catalog-client.tsx los pueda importar sin arrastrar el driver de
+// Postgres al bundle del navegador -- ver comentario en ese archivo. Se
+// re-exportan aca para no tener que tocar cada uno de los otros archivos que
+// ya los importaba desde "@/lib/catalog/queries" (todos ellos type-only, sin
+// el mismo problema, pero se mantiene un solo punto de import por prolijidad).
+import { findCategoryPath, type CategoryTreeNode } from "@/lib/catalog/tree";
+
+export { findCategoryPath };
+export type { CategoryTreeNode };
 
 // Promedio de estrellas + cantidad de reseñas por producto, para mostrar en
 // las ProductCard de la grilla/carreteles (no solo en la ficha de
@@ -402,8 +412,6 @@ export const getProductByCode = cache(async (code: string) => {
   return { ...product, variants, images };
 });
 
-export type CategoryTreeNode = typeof categories.$inferSelect & { children: CategoryTreeNode[] };
-
 // cache() dedupea la query dentro del mismo request: el layout del sitio
 // (footer) y la propia pagina de home (filtros/categorias destacadas) la
 // llaman las dos, y sin esto pegarian dos veces a la DB por request.
@@ -432,19 +440,3 @@ export const listCategoryTree = cache(async (): Promise<CategoryTreeNode[]> => {
 
   return roots;
 });
-
-// Camino desde la raiz hasta la categoria buscada (para el breadcrumb
-// "Inicio > Categoria > Subcategoria"). null si no aparece en el arbol.
-export function findCategoryPath(
-  tree: CategoryTreeNode[],
-  categoryId: string,
-): CategoryTreeNode[] | null {
-  for (const node of tree) {
-    if (node.id === categoryId) return [node];
-
-    const childPath = findCategoryPath(node.children, categoryId);
-    if (childPath) return [node, ...childPath];
-  }
-
-  return null;
-}

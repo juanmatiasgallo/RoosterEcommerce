@@ -130,6 +130,16 @@ export const stores = pgTable("stores", {
   listmonkApiUser: varchar("listmonk_api_user", { length: 100 }),
   listmonkApiTokenEncrypted: text("listmonk_api_token_encrypted"),
   listmonkListId: varchar("listmonk_list_id", { length: 100 }),
+  // Icono de marca (task #192/#201): key de MinIO (ej.
+  // "store-icon/{storeId}/{uuid}.png"), nunca una URL firmada guardada a
+  // pelo -- se resuelve server-side en runtime via /api/branding/icon (ver
+  // ese route.ts), no via getSignedFileUrl como receiptUrl/fileUrl. Motivo:
+  // esto se usa como favicon y como <img> del header en cada pagina, y las
+  // URLs firmadas de MinIO vencen a la hora (ver SIGNED_URL_EXPIRES_SECONDS
+  // en lib/storage/index.ts) -- inaceptable para un asset que el navegador
+  // cachea largo. Nulo = sigue mostrandose el wordmark de texto "Tienda 3D"
+  // (sin este campo cargado, no cambia nada del comportamiento actual).
+  iconUrl: text("icon_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

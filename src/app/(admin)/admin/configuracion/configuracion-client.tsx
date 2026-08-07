@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import type { z } from "zod";
 import {
+  STORE_ICON_ALLOWED_EXTENSIONS,
   updateListmonkSettingsSchema,
   updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
@@ -17,6 +18,7 @@ import {
   updateVacationModeSchema,
 } from "@/lib/settings/schema";
 import {
+  removeStoreIcon,
   sendTestEmail,
   sendTestErrorToGlitchTip,
   sendTestListmonkConnection,
@@ -30,6 +32,7 @@ import {
   updateStoreInfo,
   updateUmamiSettings,
   updateVacationMode,
+  uploadStoreIcon,
   type ListmonkSettings,
   type LoyaltySettings,
   type MercadoPagoSettings,
@@ -39,6 +42,7 @@ import {
   type StoreInfoSettings,
   type UmamiSettings,
 } from "@/lib/settings/actions";
+import { renderObjToIconPng } from "@/lib/obj-snapshot";
 import { formatCurrency } from "@/lib/format";
 import { createShippingZoneSchema } from "@/lib/shipping/schema";
 import {
@@ -120,6 +124,17 @@ export function ConfiguracionClient({
           </p>
           <div className="mt-4">
             <StoreInfoForm initial={initialStoreInfo} />
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold">Icono de la tienda</h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            Reemplaza el texto "Tienda 3D" del header (sitio y admin) y se usa como icono de la pestana del
+            navegador. Acepta SVG, PNG, JPG, WEBP -- o un .obj (se convierte a imagen automaticamente al subirlo).
+          </p>
+          <div className="mt-4">
+            <StoreIconForm initialHasIcon={initialStoreInfo.hasIcon} />
           </div>
         </section>
 
@@ -1066,6 +1081,105 @@ function StoreInfoForm({ initial }: { initial: StoreInfoSettings }) {
             {isSubmitting ? "Guardando..." : "Guardar"}
           </Button>
         </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Icono de marca (task #192/#201): svg/png/jpg/webp se suben tal cual; un
+// .obj se convierte a PNG en el navegador (renderObjToIconPng, tres.js ya
+// es dependencia del proyecto) antes de llamar a uploadStoreIcon -- la
+// Server Action nunca recibe un .obj crudo, ver comentario en
+// settings/actions.ts. iconVersion fuerza a que el <img> de preview vuelva
+// a pedir /api/branding/icon despues de subir/quitar (esa ruta tiene
+// Cache-Control largo pensado para visitantes del sitio, no para esta
+// pantalla de admin donde el owner quiere ver el resultado al toque).
+function StoreIconForm({ initialHasIcon }: { initialHasIcon: boolean }) {
+  const [hasIcon, setHasIcon] = useState(initialHasIcon);
+  const [iconVersion, setIconVersion] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = ""; // permite volver a elegir el mismo archivo despues
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const isObj = ext === "obj";
+    if (!isObj && !STORE_ICON_ALLOWED_EXTENSIONS.includes(ext)) {
+      toast.error(`Extension no permitida. Usa: ${STORE_ICON_ALLOWED_EXTENSIONS.join(", ")} o .obj.`);
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const toUpload = isObj ? await renderObjToIconPng(file) : file;
+      await uploadStoreIcon(toUpload);
+      setHasIcon(true);
+      setIconVersion((v) => v + 1);
+      toast.success(isObj ? "Icono generado a partir del .obj y guardado." : "Icono guardado.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo subir el icono.");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  async function handleRemove() {
+    setIsRemoving(true);
+    try {
+      await removeStoreIcon();
+      setHasIcon(false);
+      toast.success("Icono quitado, el header vuelve a mostrar el texto.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo quitar el icono.");
+    } finally {
+      setIsRemoving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <div className="flex items-center gap-4">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded border border-neutral-300 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900">
+            {hasIcon ? (
+              // eslint-disable-next-line @next/next/no-img-element -- preview de un archivo recien subido, no vale la pena el pipeline de optimizacion de next/image para esto.
+              <img
+                key={iconVersion}
+                src={`/api/branding/icon?v=${iconVersion}`}
+                alt="Icono actual de la tienda"
+                className="h-full w-full object-contain p-1.5"
+              />
+            ) : (
+              <span className="text-xs text-neutral-400">Sin icono</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" disabled={isUploading} onClick={() => inputRef.current?.click()}>
+                {isUploading ? "Procesando..." : hasIcon ? "Reemplazar icono" : "Subir icono"}
+              </Button>
+              {hasIcon && (
+                <Button type="button" variant="outline" disabled={isRemoving} onClick={handleRemove}>
+                  {isRemoving ? "Quitando..." : "Quitar icono"}
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-neutral-500">Maximo 2MB. Un .obj se renderiza y convierte a imagen antes de guardarse.</p>
+          </div>
+
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".svg,.png,.jpg,.jpeg,.webp,.obj"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </div>
       </CardContent>
     </Card>
   );

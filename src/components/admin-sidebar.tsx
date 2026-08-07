@@ -58,10 +58,12 @@ export function AdminSidebar({
   user,
   notificationItems = [],
   notificationUnreadCount = 0,
+  hasIcon = false,
 }: {
   user: SessionUser;
   notificationItems?: (typeof notifications.$inferSelect)[];
   notificationUnreadCount?: number;
+  hasIcon?: boolean;
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -81,8 +83,16 @@ export function AdminSidebar({
     <aside className="border-b border-neutral-200 sm:w-56 sm:shrink-0 sm:border-r sm:border-b-0 dark:border-neutral-800">
       <div className="flex items-center justify-between px-4 py-3 sm:px-3 sm:py-4">
         <div className="flex items-center gap-2.5">
-          <Link href="/admin/dashboard" className="text-sm font-semibold">
-            Tienda 3D
+          {/* Mismo icono de marca que site-header.tsx (task #202) -- un
+              solo lugar de configuracion (Configuracion/Tienda) controla el
+              logo tanto del sitio publico como del panel de admin. */}
+          <Link href="/admin/dashboard" className="flex items-center">
+            {hasIcon ? (
+              // eslint-disable-next-line @next/next/no-img-element -- viene de /api/branding/icon (proxy propio a MinIO), no del dominio de next/image
+              <img src="/api/branding/icon" alt="Tienda 3D" className="h-6 w-6 object-contain" />
+            ) : (
+              <span className="text-sm font-semibold">Tienda 3D</span>
+            )}
           </Link>
           {/* Volver a la tienda / Cerrar sesion (task #125): antes vivian al
               pie del sidebar, habia que scrollear para llegar. Ahora quedan

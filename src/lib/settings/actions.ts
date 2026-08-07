@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import * as Sentry from "@sentry/nextjs";
@@ -10,7 +11,9 @@ import { auditLogs, stores } from "@/lib/db/schema";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { sendMail } from "@/lib/mail";
 import { sendN8nWebhook } from "@/lib/webhooks/send";
+import { contentTypeForExtension, uploadToStorage } from "@/lib/storage";
 import {
+  STORE_ICON_ALLOWED_EXTENSIONS,
   updateListmonkSettingsSchema,
   updateLoyaltySettingsSchema,
   updateMercadoPagoSettingsSchema,
@@ -262,6 +265,10 @@ function toPublicStoreInfo(store: typeof stores.$inferSelect) {
     facebookUrl: store.facebookUrl,
     invoicePrefix: store.invoicePrefix,
     nextInvoiceNumber: store.nextInvoiceNumber,
+    // Solo si esta seteado (bool), no la key de MinIO -- el admin ya puede
+    // pedir la imagen real via /api/branding/icon, no hace falta exponer la
+    // key interna en el payload de este form.
+    hasIcon: Boolean(store.iconUrl),
   };
 }
 
@@ -278,6 +285,9 @@ export type StoreInfoSettings = Awaited<ReturnType<typeof getStoreInfo>>;
 
 // Publica (no admin-gated): el footer y /quienes-somos muestran el
 // contacto real de la tienda si esta cargado, sin requerir sesion de admin.
+// hasIcon viaja igual que en toPublicStoreInfo -- el header/sidebar/favicon
+// (tambien publicos) solo necesitan saber si hay que pedir
+// /api/branding/icon o mostrar el wordmark de texto, nunca la key de MinIO.
 export async function getPublicStoreContact() {
   const [store] = await db
     .select({
@@ -285,11 +295,18 @@ export async function getPublicStoreContact() {
       contactPhone: stores.contactPhone,
       instagramUrl: stores.instagramUrl,
       facebookUrl: stores.facebookUrl,
+      iconUrl: stores.iconUrl,
     })
     .from(stores)
     .limit(1);
 
-  return store ?? { contactEmail: null, contactPhone: null, instagramUrl: null, facebookUrl: null };
+  return {
+    contactEmail: store?.contactEmail ?? null,
+    contactPhone: store?.contactPhone ?? null,
+    instagramUrl: store?.instagramUrl ?? null,
+    facebookUrl: store?.facebookUrl ?? null,
+    hasIcon: Boolean(store?.iconUrl),
+  };
 }
 
 export async function updateStoreInfo(input: z.infer<typeof updateStoreInfoSchema>) {
@@ -332,6 +349,97 @@ export async function updateStoreInfo(input: z.infer<typeof updateStoreInfoSchem
   revalidatePath("/ayuda");
 
   return toPublicStoreInfo(updated);
+}
+
+// Icono de marca (task #192/#201): reemplaza el wordmark de texto "Tienda
+// 3D" del header publico y del sidebar de admin, y se usa como favicon (ver
+// generateMetadata en app/layout.tsx). Solo recibe imagenes (svg/png/jpg/
+// webp) -- si el admin elige un .obj, la conversion a PNG ya paso del lado
+// del cliente (ver StoreIconForm) antes de llamar a esta action, mismo
+// motivo de fondo que evito renderizar 3D en vivo en el header (pesa en
+// cada pagina del sitio, no solo en el Hero de la home).
+export async function uploadStoreIcon(file: File) {
+  const session = await requireAdmin();
+
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (!STORE_ICON_ALLOWED_EXTENSIONS.includes(ext)) {
+    throw new Error(`Extension no permitida. Usa: ${STORE_ICON_ALLOWED_EXTENSIONS.join(", ")}.`);
+  }
+
+  // Un icono no tiene motivo para pesar como un STL/comprobante -- limite
+  // bajo (2MB) a proposito, mas chico que UPLOADS_MAX_SIZE_MB (pensado para
+  // archivos 3D/PDF mucho mas grandes).
+  const maxSizeMb = 2;
+  if (file.size > maxSizeMb * 1024 * 1024) {
+    throw new Error(`El archivo supera el tamano maximo permitido (${maxSizeMb} MB).`);
+  }
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  // Nombre generado server-side + key con storeId como "carpeta", mismo
+  // criterio que el resto de los uploads (ver createCustomOrder). Un uuid
+  // nuevo en cada subida (no un nombre fijo "icon.png") para que
+  // /api/branding/icon pueda servir Cache-Control largo sin arriesgarse a
+  // que el navegador se quede con una version vieja del logo despues de
+  // reemplazarlo.
+  const objectKey = `store-icon/${session.user.storeId}/${randomUUID()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await uploadToStorage(objectKey, buffer, contentTypeForExtension(ext));
+
+  const [updated] = await db
+    .update(stores)
+    .set({ iconUrl: objectKey })
+    .where(eq(stores.id, session.user.storeId))
+    .returning();
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "store_icon",
+    entityId: session.user.storeId,
+    before: { hasIcon: Boolean(existing.iconUrl) },
+    after: { hasIcon: Boolean(updated.iconUrl) },
+  });
+
+  // Layout raiz (favicon), header publico y sidebar de admin -- los tres
+  // leen esto en cada request, revalidar todo el sitio es la unica forma de
+  // que se vea el cambio sin esperar a que venza algun cache.
+  revalidatePath("/", "layout");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/configuracion");
+
+  return { hasIcon: true };
+}
+
+export async function removeStoreIcon() {
+  const session = await requireAdmin();
+
+  const [existing] = await db.select().from(stores).where(eq(stores.id, session.user.storeId)).limit(1);
+  if (!existing) throw new Error("Tienda no encontrada.");
+
+  // No se borra el objeto viejo de MinIO (mismo criterio de simplicidad que
+  // el resto de este modulo, ver comentario en storage/actions.ts sobre no
+  // sumar mas superficie de la necesaria) -- solo se desvincula, y el sitio
+  // vuelve a mostrar el wordmark de texto.
+  await db.update(stores).set({ iconUrl: null }).where(eq(stores.id, session.user.storeId));
+
+  await logAudit({
+    userId: session.user.id,
+    storeId: session.user.storeId,
+    action: "update",
+    entityType: "store_icon",
+    entityId: session.user.storeId,
+    before: { hasIcon: Boolean(existing.iconUrl) },
+    after: { hasIcon: false },
+  });
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/configuracion");
+
+  return { hasIcon: false };
 }
 
 // Publico (no admin-gated): el sitio necesita saber si esta en modo
